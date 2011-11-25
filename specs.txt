@@ -1,0 +1,42 @@
+ --- BIOMINE-TV client requirements ---
+  (in proprietary and undeterministic leronen format) 
+
+Regrettably, these specs shall contain both finnish and english text.
+
+Dear profs. biominoes, please contribute SPECS herein freely.
+
+-------------------------------------------------------------
+INITIAL LERONEN PROPOSALS FOR CONTENT TYPES IN PURE TV-MODE:
+
+ -!biomine announcements
+ -png images (both url and actual png data supported)
+ -zombi-rälläkkä-message 
+   * nelikenttä, jossa: hassellhoffian recursion, speak the hungarian
+     rapper, KITT vs. KARR, ron "typewriter" mingo, plus mahdollisesti
+     jotain räikeästi skrollaavaa announcement-tekstiä
+ -zombipelitodennäköisyydet kvanttitiloina
+ -BMZ-kello
+ -pöytälätkä-matsi-announcementteja jotka triggeröivät asianosaisten
+  pelureiden tv:ssä munakellosimulaation...
+
+-------------------------------------------------------------
+GUI
+---
+ - yksittäistä kontenttia näyttävä perusmoodi (oletuskanava)
+ - nelikenttämoodi
+ - alert-kanava, joka overrideaa minkä tahansa valittuna olevan kanavan
+ 
+--------------------------------------------------------------
+RATHER MORE INTERACTIVE POSSIBILITIES
+-------------------------------------
+
+- management of biomine COMPETITIONS
+   * upload COMPETITION
+   * upload COMPETITION ENTRY
+   * install COMPETITION
+   * install COMPETITION ENTRY 
+
+- uploading biominoes software packages 
+- installing biominoes software packages uploaded by others
+
+----------------------------------------------------------------
