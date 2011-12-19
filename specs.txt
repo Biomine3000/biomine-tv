@@ -8,7 +8,9 @@ Dear profs. biominoes, please contribute SPECS herein freely.
 -------------------------------------------------------------
 INITIAL LERONEN PROPOSALS FOR CONTENT TYPES IN PURE TV-MODE:
 
- -!biomine announcements
+ - announcements
+   * from biomine
+   * biomine3000 GITHUB commits (?)
  -png images (both url and actual png data supported)
  -zombi-rälläkkä-message 
    * nelikenttä, jossa: hassellhoffian recursion, speak the hungarian
@@ -18,6 +20,12 @@ INITIAL LERONEN PROPOSALS FOR CONTENT TYPES IN PURE TV-MODE:
  -BMZ-kello
  -pöytälätkä-matsi-announcementteja jotka triggeröivät asianosaisten
   pelureiden tv:ssä munakellosimulaation...
+ - biomine-screensaver:
+    • bagger
+    • hasselhoffian recursion
+    • prisoner images a'la testframework
+    • Haba-GIGO
+    • fysicum-ja paloheinä lounaat
 
 -------------------------------------------------------------
 GUI
@@ -36,7 +44,7 @@ RATHER MORE INTERACTIVE POSSIBILITIES
    * install COMPETITION
    * install COMPETITION ENTRY 
 
-- uploading biominoes software packages 
+- uploading biominoes software packages, such as leronen shell system
 - installing biominoes software packages uploaded by others
 
 ----------------------------------------------------------------
