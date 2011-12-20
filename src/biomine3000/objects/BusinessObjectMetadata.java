@@ -1,7 +1,7 @@
 package biomine3000.objects;
 
 import java.io.UnsupportedEncodingException;
-import java.util.List;
+import java.util.*;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -101,8 +101,9 @@ public class BusinessObjectMetadata {
         }
     }
     
-    public List<String> keys() {
-        return CollectionUtils.makeArrayList(json.keys());
+    @SuppressWarnings("unchecked")
+    public List<String> keys() {        
+        return CollectionUtils.makeArrayList((Iterator<String>)json.keys());
     }
     
     /**
