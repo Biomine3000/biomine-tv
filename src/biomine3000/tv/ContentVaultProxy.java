@@ -1,9 +1,10 @@
 package biomine3000.tv;
 
-import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLConnection;
@@ -11,14 +12,17 @@ import java.util.*;
 
 import javax.imageio.ImageIO;
 
+import biomine3000.objects.ImageObject;
+
 import util.CygwinUtils;
+import util.IOUtils;
 import util.RandUtils;
 import util.dbg.Logger;
 
 
 /**
- * A proxy to a remote content vault. This trivial version loads all content, and notifies listeners after each piece of content has been 
- * loaded.
+ * A proxy to a remote content vault accessible via the web. This trivial version loads all content, and notifies listeners 
+ * after each piece of content has been loaded.
  */
 public class ContentVaultProxy {
     
@@ -29,7 +33,8 @@ public class ContentVaultProxy {
     /** only contains successfully loaded images */
     private State state;
     private List<String> urls;
-    private Map<String, BufferedImage> loadedImagesByURL;
+    // private Map<String, BufferedImage> loadedImagesByURL;
+    private Map<String, ImageObject> loadedImagesByURL;
     private List<ContentVaultListener> listeners;
     
     /**
@@ -39,7 +44,8 @@ public class ContentVaultProxy {
      */
     public ContentVaultProxy() {
         state = State.UNINITIALIZED;
-        loadedImagesByURL = new TreeMap<String,BufferedImage>();
+        // loadedImagesByURL = new TreeMap<String,BufferedImage>();
+        loadedImagesByURL = new TreeMap<String,ImageObject>();
         listeners = new ArrayList<ContentVaultListener>();
     }
         
@@ -68,14 +74,16 @@ public class ContentVaultProxy {
      * Should only be called if called is certain that images have been loaded.
      * Never return null.
      */
-    public BufferedImage sampleImage() throws InvalidStateException {
+    // public BufferedImage sampleImage() throws InvalidStateException {
+    public ImageObject sampleImage() throws InvalidStateException {
         synchronized(loadedImagesByURL) {    
             if (loadedImagesByURL == null || loadedImagesByURL.size() == 0) {
                 throw new InvalidStateException("No images to sample from");
             }
             
             String url = RandUtils.sample(loadedImagesByURL.keySet());
-            BufferedImage image = loadedImagesByURL.get(url);
+            ImageObject image = loadedImagesByURL.get(url);
+            // BufferedImage image = loadedImagesByURL.get(url);
             return image;
         }            
     }
@@ -161,12 +169,18 @@ public class ContentVaultProxy {
             }
             
             for (String url: urls) {
-                // Logger.info("Loading image: "+url);
-                BufferedImage img = null;
+                Logger.info("Loading image: "+url);
+//                BufferedImage img = null;
                 try {
-                    img = ImageIO.read(new URL(url));
+                    // img = ImageIO.read(new URL(url));                    
+                    InputStream is = new URL(url).openStream();
+                    byte[] bytes = IOUtils.readBytes(is);                    
+//                    ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+//                    img = ImageIO.read(bais);
+                    ImageObject img = new ImageObject(bytes, url);
+                    
                     // allow main thread to proceed                    
-                    // Logger.info("Loaded image: "+url);
+                    Logger.info("Loaded image: "+url);
                     synchronized(loadedImagesByURL) {                    
                         loadedImagesByURL.put(url,  img);
                     }

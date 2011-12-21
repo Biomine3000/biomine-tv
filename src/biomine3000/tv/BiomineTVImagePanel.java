@@ -10,6 +10,8 @@ import java.net.URL;
 import javax.imageio.ImageIO;
 import javax.swing.JPanel;
 
+import biomine3000.objects.ImageObject;
+
 import util.dbg.Logger;
 
 public class BiomineTVImagePanel extends JPanel implements
@@ -40,17 +42,18 @@ public class BiomineTVImagePanel extends JPanel implements
         repaint();
     }
     
-    public void setContent(BufferedImage img) {
+    public void setContent(ImageObject img) {
         if (this.img != null) {
             synchronized(this.img) {
                 // synchronization needed, otherwise we could change the image
                 // while it is being painted
-                this.img = img;                    
+                // TODO: do not defer getting buffered image so far                
+                this.img = img.getImage();                               
             }
         }
         else {
             // no image yet, nothing to synchronize
-            this.img = img;
+            this.img = img.getImage();
         }
         repaint();
         

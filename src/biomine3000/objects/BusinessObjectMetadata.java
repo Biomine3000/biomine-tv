@@ -76,6 +76,24 @@ public class BusinessObjectMetadata {
     }
     
     /**
+     * Minimal metadata with only (mime)type and size of payload. Actually, even size might be null, if it is
+     * not known at the time of creating the metadata...
+     */
+    public BusinessObjectMetadata(BiomineTVMimeType type, Integer size) {
+        try {
+            // oh, the nuisance: putting throws a CHECKED exception...
+            json = new JSONObject();
+            json.put("type", type.toString());
+            if (size != null) {
+                json.put("size", size);
+            }
+        }
+        catch (JSONException e) {
+            throw new BusinessObjectException(ExType.JSON_IMPLEMENTATION_MELTDOWN);
+        }
+    }
+    
+    /**
      * Put a simple string value. For more complex values, use the wrapped json object directly
      * (reference obtainable via {@link #asJSON()})
      */ 

@@ -12,6 +12,7 @@ import java.util.LinkedList;
 
 import javax.swing.*;
 
+import biomine3000.objects.ImageObject;
 import biomine3000.tv.ContentVaultProxy.ContentVaultListener;
 import biomine3000.tv.ContentVaultProxy.InvalidStateException;
 
@@ -122,7 +123,8 @@ public class BiomineTV extends JFrame {
             
             while (!stop) {
                 try {                    
-                    BufferedImage randomContent = content.sampleImage();
+                    // BufferedImage randomContent = content.sampleImage();
+                    ImageObject randomContent = content.sampleImage();
                     contentPanel.setContent(randomContent);
                     Thread.sleep(3000);
                 }

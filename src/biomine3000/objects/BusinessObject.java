@@ -104,6 +104,12 @@ public class BusinessObject {
         this.payload = payload; 
     }               
     
+    /** Create a new business object to be sent; payload length will be set to metadata automatically */
+    protected BusinessObject(BiomineTVMimeType type, byte[] payload) {
+        this.metadata = new BusinessObjectMetadata(type.toString(), payload.length);
+        this.payload = payload; 
+    }
+    
     /**
      * To be called by subclass constructor that while a novel BusinessObject is being created from scratch.
      * This method will create a metadata which initially only contains the type field.
@@ -198,8 +204,6 @@ public class BusinessObject {
 	        Pair<BusinessObjectMetadata, byte[]> tmp = parseBytes(msgBytes);
 	        BusinessObjectMetadata receivedMetadata = tmp.getObj1();
 	        byte[] receivedPayload = tmp.getObj2();	        
-	        // TODO: parse received bytes, construct meta-data, locate mimetype, use mimetype to construct implementation
-	        // check whether a dedicated type is available
 	        BiomineTVMimeType officialType = receivedMetadata.getOfficialType();
 	        BusinessObject receivedBO = null;
 	        if (officialType != null) {

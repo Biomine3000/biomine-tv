@@ -17,6 +17,7 @@ public class BusinessObjectException extends RuntimeException {
     public enum ExType {
         CEASE_CONJURING,
         JSON_IMPLEMENTATION_MELTDOWN,
+        UNRECOGNIZED_IMAGE_TYPE,
         INVALID_JSON,      
         ILLEGAL_FORMAT,
         MISSING_TYPE,

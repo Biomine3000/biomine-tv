@@ -39,10 +39,13 @@ public enum BiomineTVMimeType {
 	BIOMINE3000_SOFTWARE_AVAILABILITY_ANNOUNCEMENT("message/biomine3000_software_availability_announcement"),
 	
 	/** Png image data. Header should preferably contain some image name, perhaps, rather unexpectedly, in field "name"? */
-	PNGIMAGE("image/png"),
+	PNGIMAGE("image/png", ImageObject.class),
 	
 	/** Jpg image data. Header should preferably contain some image name, perhaps, rather unexpectedly, in field "name"? */
-	JPGIMAGE("image/jpg"),
+	JPGIMAGE("image/jpg", ImageObject.class),
+
+	/** Gif image data. Header should preferably contain some image name, perhaps, rather unexpectedly, in field "name"? */
+    GIFIMAGE("image/gif", ImageObject.class),
 	
 	/** URL to an already existing image in the familiar INTERNET */
 	IMAGEURL("text/url", PlainTextObject.class),
@@ -74,6 +77,26 @@ public enum BiomineTVMimeType {
 	
 	public static BiomineTVMimeType getType(String name) {
 	    return typeByName.get(name);
+	}
+	
+	/**
+	 * This might not be hygienic. Currently implemented only for .jpg, .gif, .png 
+	 * @param extension must not include the '.'.
+	 * @return null for unmappable extensions.
+	 */ 
+	public static BiomineTVMimeType getByExtension(String extension) {
+	    if (extension.equals("gif")) {
+	        return GIFIMAGE; 
+	    }
+	    else if (extension.equals("jpg")) {
+	        return JPGIMAGE;
+	    }
+	    else if (extension.equals("png")) {
+	        return PNGIMAGE;
+	    }
+	    else {
+	        return null;
+	    }
 	}
 	
 	/** Construct a type implemented with the default {@link BusinessObjectMetadata} */
