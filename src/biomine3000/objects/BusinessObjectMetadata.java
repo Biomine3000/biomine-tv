@@ -227,9 +227,10 @@ public class BusinessObjectMetadata {
     }
     
     /**
-     * Get size of payload.
+     * Get size of payload. In the current implementation, this max size is limited to 
+     * Integer.MAX_VALUE.
      */
-    public long getSize() {
+    public int getSize() {
         Integer size = getInteger("size");
         if (size == null) {
             throw new BusinessObjectException(ExType.MISSING_SIZE);

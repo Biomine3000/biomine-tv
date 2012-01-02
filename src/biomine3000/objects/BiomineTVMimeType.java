@@ -4,12 +4,14 @@ import java.util.*;
 
 /**
  * A list of leronen-appreciable Biomine TV (mime) types.
- * 
+ * <p>
  * Note that the actual names are accessed via method {@link #toString()}, not via method {@link #name()}, which 
- * is final in java's enum class, and returns the name of the actual java language enum constant object,
- * which naturally cannot be same as the actual mime type string.  
- * 
- * For (semi)official truth on mime types, see http://en.wikipedia.org/wiki/Internet_media_type and http://en.wikipedia.org/wiki/MIME
+ * is final in java's enum class, and returns the name of the java language enum constant object,
+ * which naturally cannot be same as the actual mime type string, being an UPPERCASE_STRING_WITH_NO_WHITESPACE
+ * by convention.  
+ * <p>
+ * For (semi)official truth on universally boring mime types, see {@link http://en.wikipedia.org/wiki/Internet_media_type} and 
+ *  {@link http://en.wikipedia.org/wiki/MIME}. As for biominoes mime types, the official truth remains to be defined.
  */
 public enum BiomineTVMimeType {
 	

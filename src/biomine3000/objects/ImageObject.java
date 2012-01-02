@@ -32,7 +32,7 @@ public class ImageObject extends BusinessObject {
     
     /** Create unitialized instance. */
     public ImageObject() {
-        super();               
+        super();
     }
                
         

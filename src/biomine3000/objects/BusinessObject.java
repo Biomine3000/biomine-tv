@@ -1,12 +1,17 @@
     package biomine3000.objects;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 
 import biomine3000.objects.BusinessObjectException.ExType;
 
+import util.IOUtils;
+import util.IOUtils.UnexpectedEndOfStreamException;
 import util.collections.Pair;
 import util.dbg.ILogger;
+import util.dbg.Logger;
 import util.dbg.StdErrLogger;
 
 
@@ -53,24 +58,42 @@ public class BusinessObject {
      * Callers need to call {@link #init()} ASAP after this!
      */
     protected BusinessObject() {
-        
+        // no action
+    }
+     
+    public static BusinessObject readObject(InputStream is) throws IOException, InvalidPacketException, BusinessObjectException {        
+        Pair<BusinessObjectMetadata, byte[]> packet = readPacket(is);
+        return makeObject(packet);
     }
     
     /**
-     * Private test constructor that works by parsing bytes from array. 
-     * Actual parsing will probably be done from a stream in such a way that the payload does not need to 
-     * stored as bytes by this class (subclasses will probably want to implement their own mechanism for
-     * storing the payload.
-     */    
-    @SuppressWarnings("unused")
-    private BusinessObject(byte[] data) throws InvalidJSONException {        
-        
-        Pair<BusinessObjectMetadata, byte[]> tmp = parseBytes(data);
-        metadata = tmp.getObj1();
-        payload = tmp.getObj2();
+     * @return null if no more business objects in stream.
+     * @throws InvalidPacketException when packet is not correctly formatted
+     * @throws InvalidJSONException JSON metadata is not correctly formatted json
+     * @throws BusinessObjectException when some other errors occurs in constructing buziness object 
+     * @throws IOException in case of general io error.
+     */ 
+    public static Pair<BusinessObjectMetadata, byte[]> readPacket(InputStream is) throws IOException, InvalidPacketException, BusinessObjectException {
+        byte[] metabytes;
+        try {
+            metabytes = IOUtils.readBytesUntilNull(is);
+            if (metabytes == null) {
+                // end of stream reached
+                return null;
+            }
+        }
+        catch (UnexpectedEndOfStreamException e) {
+            throw new InvalidPacketException("End of stream reached before reading first null byte", e);
+        }
+//        System.err.println("Got metadata bytes: "+new String(metabytes));                                                          
+        BusinessObjectMetadata metadata = new BusinessObjectMetadata(metabytes);
+//        System.err.println("Got metadata: "+metadata);
+        int payloadSz = metadata.getSize();
+        byte[] payload = IOUtils.readBytes(is, payloadSz);
+        return new Pair<BusinessObjectMetadata, byte[]>(metadata, payload);
     }
     
-    /** Parse businessobject represented as raw byte intos medatata and payload */ 
+    /** Parse businessobject represented as raw bytes into medatata and payload */ 
     public static Pair<BusinessObjectMetadata, byte[]> parseBytes(byte[] data) throws InvalidJSONException, BusinessObjectException {
         int i = 0;
         while (data[i] != '\0' && i < data.length) {
@@ -85,6 +108,45 @@ public class BusinessObject {
         BusinessObjectMetadata metadata = new BusinessObjectMetadata(metabytes);
         byte[] payload = Arrays.copyOfRange(data, i+1, data.length);
         return new Pair<BusinessObjectMetadata, byte[]>(metadata, payload);        
+    }
+    
+    public static BusinessObject makeObject(Pair<BusinessObjectMetadata, byte[]> data) {
+        return makeObject(data.getObj1(), data.getObj2());
+    }
+    
+    /**
+     * Construct a BusinessObject using a dedicated implementation class, if one exists
+     * (managed by class {@link BiomineTVMimeType} 
+     * 
+     * To construct a raw business object using the default implementation (this very class),
+     * use the constructor with similar params
+     */ 
+    public static BusinessObject makeObject(BusinessObjectMetadata metadata, byte[] payload) {
+        BiomineTVMimeType officialType = metadata.getOfficialType();
+        BusinessObject bo = null;
+        if (officialType != null) {
+            // an official type
+            try {
+                bo = officialType.makeBusinessObject();
+                bo.setMetaData(metadata);
+                bo.setPayload(payload);
+            }
+            catch (IllegalAccessException e) {
+                Logger.error("Failed constructing an instance of an official business object type", e);                     
+            }
+            catch (InstantiationException e) {
+                Logger.error("Failed constructing an instance of an official business object type", e);                    
+            }
+            
+        }
+        
+        // gravely enough, type is not official, or even more gravely, failed to construct an 
+        // instance => use pesky default implementation
+        if (bo == null) {
+            bo = new BusinessObject(metadata, payload);
+        }
+                
+        return bo;
     }
     
     /** Create a business object supposedly being received and parsed earlier from the biomine business objects bus */
@@ -194,6 +256,8 @@ public class BusinessObject {
 	    }
 	}			
 	
+
+	
 	public static void main(String[] args) {
 	    String msgStr = "It has been implemented";
 	    PlainTextObject sentBO = new PlainTextObject(msgStr, BiomineTVMimeType.BIOMINE_ANNOUNCEMENT);
@@ -233,4 +297,9 @@ public class BusinessObject {
 	        log.error("Received business object with invalid JSON: "+e);	        
 	    }
 	}
+	
+	public String toString() {
+	    return "BusinessObject <metadata: "+metadata.toString()+"> <payload of "+payload.length+" bytes>";
+	}
+	
 }

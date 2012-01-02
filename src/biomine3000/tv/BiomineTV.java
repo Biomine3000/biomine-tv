@@ -27,7 +27,7 @@ public class BiomineTV extends JFrame {
 	private JTextArea logArea;
 	private JLabel statusLabel;
 	private LinkedList<String> logLines;
-	private BiomineTVImagePanel contentPanel = new BiomineTVImagePanel("Initializing content...");
+	private BiomineTVImagePanel contentPanel;
 
 	//////////////////
 	// BUSINESS
@@ -45,6 +45,8 @@ public class BiomineTV extends JFrame {
     static int LOG_SIZE = 10;
         
     private void init() throws IOException {               
+    
+        contentPanel = new BiomineTVImagePanel(this, "Initializing content...");
         
         content = new ContentVaultProxy();        
         
@@ -146,7 +148,7 @@ public class BiomineTV extends JFrame {
         f.setVisible(true);
     }
   
-    private void close() {
+    public void close() {
         Logger.info("Starting BiomineTV.close");
         updater.stop = true;
     	System.exit(0);

@@ -6,20 +6,16 @@ package biomine3000.objects;
  *
  * In practice, InvalidInvalidJSONException will probably contain a JSONException as cause, though, at least initially.
  */
-public class InvalidJSONException extends Exception {               
+public class InvalidJSONException extends InvalidPacketException {               
     
     private Throwable cause;
-    
-    /**
-     * Constructs a InvalidJSONException with an explanatory message.
-     * @param message Detail about the reason for the exception.
-     */
+        
     public InvalidJSONException(String message) {
         super(message);
     }
 
     public InvalidJSONException(Throwable cause) {
-        super(cause.getMessage());
+        super(cause);
         this.cause = cause;
     }
 
