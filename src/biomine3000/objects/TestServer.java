@@ -15,6 +15,7 @@ import java.util.Map;
 import sun.misc.Signal;
 import sun.misc.SignalHandler;
 
+import util.DateUtils;
 import util.ExceptionUtils;
 import util.IOUtils;
 import util.SU;
@@ -65,7 +66,7 @@ public class TestServer {
             Runtime.getRuntime().addShutdownHook(sh);
             
             // try out signal handling:
-            oldSigTERM = Signal.handle(new Signal("TERM"), new MySignalHandler());
+            oldSigTERM = Signal.handle(new Signal("INT"), new MySignalHandler());
             
             serverSocket = new ServerSocket(serverport);
             Logger.info(getClass().getName()+" running at port: "+serverport);            
@@ -107,6 +108,8 @@ public class TestServer {
         }
     }
          
+    
+    
     /** 
      * Should never return. Only way to exit is through client request "stop",
      * {@link UnrecoverableServerException}, or stop signal.
@@ -114,7 +117,7 @@ public class TestServer {
     private void mainLoop() {         
                           
         while (true) {
-            System.err.println("["+formatDate()+"] waiting for client...");
+            System.err.println("["+DateUtils.formatDate()+"] waiting for client...");
             
             try {
                 Socket clientSocket = serverSocket.accept();                
@@ -123,24 +126,34 @@ public class TestServer {
             } 
             catch (IOException e) {
                 System.err.println("Accepting a client failed.");
-                System.err.println(formatException(e, "; "));
+                System.err.println(ExceptionUtils.formatWithCauses(e, "; "));
                 e.printStackTrace();                
             }                                                            
         }                                        
     }
             
-    private class Client implements NonBlockingSender.Listener {
+    private class ClientConnection implements NonBlockingSender.Listener {
         Socket socket;
         BufferedInputStream is;
         OutputStream os;        
         NonBlockingSender sender;
         
-        Client(Socket socket) throws IOException {
+        ClientConnection(Socket socket) throws IOException {
             this.socket = socket; 
             is = new BufferedInputStream(socket.getInputStream());
             os = socket.getOutputStream();            
             sender = new NonBlockingSender(socket, this);
         }        
+        
+        public void send(byte[] packet) {
+            try {
+                sender.send(packet);
+            }
+            catch (IOException e) {
+                handleException(e);
+                close();
+            }
+        }       
         
         @Override
         public void senderFinished() {
@@ -152,10 +165,9 @@ public class TestServer {
         }
         
         private void close() {
-            try {                        
-                is.close();
+            try {                                        
                 os.flush();
-                os.close();                
+                // closing socket should also close streams
                 socket.close();
             }
             catch (IOException ioe) {
@@ -164,21 +176,20 @@ public class TestServer {
             }
         }                
     }
-    
-        
+            
     /** Currently, exception is just logged. */
     private void handleException(Exception e) {
         Logger.error("Exception while processing client request: "+
-                     formatException(e, "; "));            
+                     ExceptionUtils.formatWithCauses(e, "; "));            
         Logger.printStackTrace(e);
     }
     
     private void processSingleClient(Socket clientSocket) {
         
-        Client client;
+        ClientConnection client;
         
         try {
-            client = new Client(clientSocket);
+            client = new ClientConnection(clientSocket);
         }
         catch (IOException e) {
             System.err.println("Failed creating streams on socket: "+e+": "+e.getMessage());
@@ -188,10 +199,11 @@ public class TestServer {
             catch (IOException e2) {
                 // failed even this, no further action possible
             }
-            
             return;
         }        
 
+        BusinessObjectReader reader = new BusinessObjectReader(client.is, null); // täällä        
+        
         try {
             Logger.info("Reading packet...");
             Pair<BusinessObjectMetadata, byte[]> packet = BusinessObject.readPacket(client.is);
@@ -251,71 +263,69 @@ public class TestServer {
     @SuppressWarnings("unused")
     private void terminate(int pExitCode) {
         // TODO: more delicate termination needed?
-        System.err.println("Shutting down the server at "+formatDate());
+        System.err.println("Shutting down the server at "+DateUtils.formatDate());
         try {
             serverSocket.close();
         }
         catch (IOException e) {
             Logger.warning("Error while closing server socket in cleanUp(): "+
-                           formatException(e, "; "));
+                            ExceptionUtils.formatWithCauses(e, "; "));
         }
         System.exit(pExitCode);
     }
+                 
     
-    
-    /**
-     * A very robust exception formatter (done because ExceptionUtils.formatWithCauses
-     * can fail to classpath problems if jar has been updated but server not 
-     * restarted...)
-     */ 
-    private String formatException(Exception e, String pSeparator) {
-        try {
-            return ExceptionUtils.formatWithCauses(e, pSeparator);
-        }
-        catch (Throwable t) {
-            String result = e.getClass().getName()+": "+e.getMessage();
-            if (t.getCause() != null) {
-                result += " (cannot format exception causes due to severe error during"+
-                          " exception formatting: "+t.getClass()+": "+t.getMessage();
-                          
-            }
-            return result;                                    
-        }
-    }
-    
-    public abstract class ServerException extends Exception {
-        public ServerException(String pMsg, Throwable pCause) {
-            super(pMsg, pCause);        
+    /** Listens to the input stream of a single client */
+    private class ReaderListener implements BusinessObjectReader.Listener {
+        ClientConnection client;
+        
+        ReaderListener(ClientConnection client) {
+            this.client = client;
         }
 
-        public ServerException(String pMsg) {
-            super(pMsg);       
-        }
-        
-        public ServerException(Throwable pCause) {
-            super(pCause);          
-        }
-    }
-    
-    /** 
-     * An exception after only one client is lost, and it is still possible to 
-     * accept new clients. TODO: define how closing of connection with 
-     * client is ensured!
-     */
-    public class RecoverableServerException extends ServerException {
-    
-        public RecoverableServerException(String pMsg, Throwable pCause) {
-            super(pMsg, pCause);        
+        @Override
+        public void objectReceived(BusinessObject bo) {
+            Logger.info("Received business object: "+bo);
+            
+            Logger.info("Sending the very same object...");
+            // TODO: send to all clients!
+            client.send(bo.bytes());           
         }
 
-        public RecoverableServerException(String pMsg) {
-            super(pMsg);       
+        @Override
+        public void noMoreObjects() {
+            Logger.info("noMoreObjects (client closed connection).");                                  
+            client.close();            
+        }
+
+        private void handleException(Exception e) {
+            TestServer.this.handleException(e);
+            client.close();
         }
         
-        public RecoverableServerException(Throwable pCause) {
-            super(pCause);          
+        @Override
+        public void handle(IOException e) {
+            handleException(e);
         }
-    }       
+
+        @Override
+        public void handle(InvalidPacketException e) {
+            handleException(e);
+            
+        }
+
+        @Override
+        public void handle(BusinessObjectException e) {
+            handleException(e);            
+        }
+
+        @Override
+        public void handle(RuntimeException e) {
+            handleException(e);
+            
+        }
+        
+    }
     
     /**
      * An exception which requires shutting down the server.
@@ -356,18 +366,11 @@ public class TestServer {
     
     public static void main(String[] args) {
         
-        System.err.println("Starting Crawler cache server at "+formatDate());
+        System.err.println("Starting test server at "+DateUtils.formatDate());
                        
         TestServer server = new TestServer(DEFAULT_PORT);
         server.run();                        
     }
-    
-    
-    
-    
-    private static String formatDate() {
-        Date date = new Date(System.currentTimeMillis());                            
-        return DEFAULT_DATE_FORMAT.format(date);
-    }
+            
           
 }
