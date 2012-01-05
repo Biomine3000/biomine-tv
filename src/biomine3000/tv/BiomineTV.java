@@ -6,19 +6,18 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.LinkedList;
 
 import javax.swing.*;
 
+import biomine3000.objects.ContentVaultProxy;
 import biomine3000.objects.ImageObject;
-import biomine3000.tv.ContentVaultProxy.ContentVaultListener;
-import biomine3000.tv.ContentVaultProxy.InvalidStateException;
+import biomine3000.objects.ContentVaultProxy.ContentVaultListener;
+import biomine3000.objects.ContentVaultProxy.InvalidStateException;
 
 import util.dbg.Logger;
 
-/** protokolla: http://www.zeromq.org/ */
 public class BiomineTV extends JFrame {
 	   
     /////////////////
@@ -64,7 +63,7 @@ public class BiomineTV extends JFrame {
 	    log("Testing");	    
 	    logArea.setFocusable(false);
 	    // logArea.addKeyListener(new BMTKeyListener());
-	    addKeyListener(new BMTKeyListener());
+	    addKeyListener(new BMTVKeyListener());
 	    
 	    addWindowListener(new WindowAdapter() {
 	 	  	public void windowClosing(WindowEvent e) {
@@ -83,13 +82,11 @@ public class BiomineTV extends JFrame {
         
         @Override
         public void loadedImageList() {
-            // TODO Auto-generated method stub
             contentPanel.setContent("Loaded urls for "+content.getNumLoadedObjects()+" business objects");
         }
 
         @Override
         public void loadedImage(String image) {
-            // TODO Auto-generated method stub
             String msg = "Loaded "+content.getNumLoadedObjects()+"/"+content.getTotalNumObjects()+" business objects";
             Logger.info(msg);
             contentPanel.setContent(msg);
@@ -154,7 +151,11 @@ public class BiomineTV extends JFrame {
     	System.exit(0);
     }
   
-    private class BMTKeyListener implements KeyListener {
+    /**
+     * For now, the sole purpose of this is to enable closing the tv using ctrl+q instead of the 
+     * abodominable ALT+F4
+     */
+    private class BMTVKeyListener implements KeyListener {
 
 	    @Override
 	    public void keyTyped(KeyEvent e) {

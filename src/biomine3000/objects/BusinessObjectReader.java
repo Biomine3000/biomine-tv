@@ -19,29 +19,28 @@ public class BusinessObjectReader implements Runnable {
     
     private InputStream is;
     private Listener listener;
+    private String name;
     
-    public BusinessObjectReader(InputStream is, Listener listener) {
+    public BusinessObjectReader(InputStream is, Listener listener, String name) {
         this.is = is;
-        this.listener = listener;                
+        this.listener = listener;
+        this.name = name;
     }
             
     public void run() {
         
+        log("Starting run()");
+        
         try {
-            Logger.info("Reading packet...");
+            log("Reading packet...");
             Pair<BusinessObjectMetadata, byte[]> packet = BusinessObject.readPacket(is);            
         
             while (packet != null) {
-    //        Logger.info("Received packet: "+packet);
-    //        Logger.info("Making business object...");
-    //        BusinessObject bo = BusinessObject.makeObject(packet);
                 BusinessObject bo = new BusinessObject(packet.getObj1(), packet.getObj2());                
-                Logger.info("Received business object: "+bo);
-                listener.objectReceived(bo);
-                                        
-                Logger.info("Reading packet...");
-                packet = BusinessObject.readPacket(is);
+                listener.objectReceived(bo);                                        
                 
+                log("Reading packet...");
+                packet = BusinessObject.readPacket(is);                
             }
                         
             listener.noMoreObjects();
@@ -57,7 +56,17 @@ public class BusinessObjectReader implements Runnable {
         }
         catch (RuntimeException e) {
             listener.handle(e);
-        }            
+        }
+        
+        log("Finished run()");
+    }
+    
+    public String toString() {
+        return name;
+    }       
+    
+    private void log(String msg) {
+        Logger.info(this+": "+msg);
     }
     
     public interface Listener {    

@@ -1,20 +1,14 @@
-package biomine3000.tv;
+package biomine3000.objects;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
-import java.net.URLConnection;
 import java.util.*;
 
-import javax.imageio.ImageIO;
 
-import biomine3000.objects.ImageObject;
-
-import util.CygwinUtils;
 import util.IOUtils;
 import util.RandUtils;
 import util.dbg.Logger;
@@ -28,12 +22,10 @@ public class ContentVaultProxy {
     
     public static String LERONEN_IMAGE_VAULT_URL = "http://www.cs.helsinki.fi/u/leronen/biomine3000/biomine_tv_image_vault";
     public static String LERONEN_IMAGE_VAULT_FILELIST_URL = LERONEN_IMAGE_VAULT_URL+"/filelist.txt";
-    // public static String BAGGER_URL = "http://www.cs.helsinki.fi/u/leronen/biomine3000/biomine_tv_image_vault/bagger2.jpg";
     
     /** only contains successfully loaded images */
     private State state;
-    private List<String> urls;
-    // private Map<String, BufferedImage> loadedImagesByURL;
+    private List<String> urls; 
     private Map<String, ImageObject> loadedImagesByURL;
     private List<ContentVaultListener> listeners;
     
@@ -65,7 +57,10 @@ public class ContentVaultProxy {
         listeners.remove(vaultListener);
     }
     
-    /** Returns immediately */
+    /** 
+     * Start loading images from the vault. Listeners shall be listened upon completion 
+     * of each image. Returns immediately. Remember to add listeners before calling this (?)
+     */
     public void startLoading() {
         new Thread(new Loader()).start();        
     }
@@ -115,36 +110,7 @@ public class ContentVaultProxy {
         }
             
     }
-    
-    /**
-     * @return a path to leronen image vault under a local leronen svn checkout, if one exists; otherwise null.
-     * Based on the assumption that location of leronen svn chekout is specified by env variable LERONEN_SVN,
-     * and the image vault dir under that is "leronen_image_vault". 
-     */ 
-//    public static String getLeronenImageVaultDir() {
-//        // currently only works on leronen local machine        
-//        String leronenSvnPath = System.getenv("LERONEN_SVN");
-//        File leronenSvnDir = new File(leronenSvnPath);
-//        
-//        if (!leronenSvnDir.exists() && CygwinUtils.isCygwin()) {
-//            // OK, try cygwin kludges
-//            leronenSvnPath = CygwinUtils.cygwinPathToWindowsPath(leronenSvnPath);
-//            leronenSvnDir = new File(leronenSvnPath);
-//            Logger.info("Converted LERONEN_SVN to winPath: "+leronenSvnPath);            
-//            Logger.info(leronenSvnPath+" exists after conversion: "+leronenSvnDir.exists());
-//        }
-//                                              
-//        String imageVault = leronenSvnDir+File.separator+"leronen_image_vault";
-//        
-//        if (new File(imageVault).exists()) {
-//            return imageVault;
-//        }
-//        else {
-//            Logger.info("No such image vault: "+imageVault);
-//            return null;
-//        }
-//                        
-//    }
+       
                
     private class Loader implements Runnable {
         public void run() {
@@ -227,20 +193,7 @@ public class ContentVaultProxy {
         
         ContentVaultProxy content = new ContentVaultProxy();
         content.startLoading();
-//        System.out.println(""+getLeronenImageVaultDir());
-//                
-//        for (String url: getLeronenImageVaultImageURLs()) {
-//            System.out.println(url);
-//        }
-    }
-    
-//    /** State of each initialized image */
-//    public enum IMState {
-//        UNINITIALIZED,
-//        LOADING,
-//        FAILED,
-//        FILELIST_LOADED;
-//    }
+    }    
     
     /** State of vault */
     public enum State {

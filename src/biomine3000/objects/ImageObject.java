@@ -4,8 +4,6 @@ import java.awt.image.BufferedImage;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-
 import javax.imageio.ImageIO;
 
 import biomine3000.objects.BusinessObjectException.ExType;
