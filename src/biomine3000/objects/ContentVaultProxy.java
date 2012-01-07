@@ -7,8 +7,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.*;
-
-
+ 
 import util.IOUtils;
 import util.RandUtils;
 import util.dbg.Logger;
@@ -20,6 +19,7 @@ import util.dbg.Logger;
  */
 public class ContentVaultProxy {
     
+    private static boolean log = false;
     public static String LERONEN_IMAGE_VAULT_URL = "http://www.cs.helsinki.fi/u/leronen/biomine3000/biomine_tv_image_vault";
     public static String LERONEN_IMAGE_VAULT_FILELIST_URL = LERONEN_IMAGE_VAULT_URL+"/filelist.txt";
     
@@ -34,7 +34,7 @@ public class ContentVaultProxy {
      * until called for.
      *
      */
-    public ContentVaultProxy() {
+    public ContentVaultProxy() {        
         state = State.UNINITIALIZED;
         // loadedImagesByURL = new TreeMap<String,BufferedImage>();
         loadedImagesByURL = new TreeMap<String,ImageObject>();
@@ -69,7 +69,6 @@ public class ContentVaultProxy {
      * Should only be called if called is certain that images have been loaded.
      * Never return null.
      */
-    // public BufferedImage sampleImage() throws InvalidStateException {
     public ImageObject sampleImage() throws InvalidStateException {
         synchronized(loadedImagesByURL) {    
             if (loadedImagesByURL == null || loadedImagesByURL.size() == 0) {
@@ -78,7 +77,6 @@ public class ContentVaultProxy {
             
             String url = RandUtils.sample(loadedImagesByURL.keySet());
             ImageObject image = loadedImagesByURL.get(url);
-            // BufferedImage image = loadedImagesByURL.get(url);
             return image;
         }            
     }
@@ -99,7 +97,6 @@ public class ContentVaultProxy {
             String name;
             while ((name = in.readLine()) != null) {     
                 String imageURL = baseName+"/"+name;
-                // Logger.info("Imageurl: "+imageURL);
                 result.add(imageURL);
             }   
             return result;
@@ -123,7 +120,7 @@ public class ContentVaultProxy {
             try {
                 urls = loadImageList(LERONEN_IMAGE_VAULT_FILELIST_URL);
                 state = State.LOADING_IMAGES;
-                Logger.info("Filelist loaded");
+                log("Filelist loaded");
                 for (ContentVaultListener listener: listeners) {
                     listener.loadedImageList();
                 }
@@ -135,18 +132,14 @@ public class ContentVaultProxy {
             }
             
             for (String url: urls) {
-                Logger.info("Loading image: "+url);
-//                BufferedImage img = null;
+                log("Loading image: "+url);
                 try {
-                    // img = ImageIO.read(new URL(url));                    
+                   
                     InputStream is = new URL(url).openStream();
                     byte[] bytes = IOUtils.readBytes(is);                    
-//                    ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-//                    img = ImageIO.read(bais);
                     ImageObject img = new ImageObject(bytes, url);
                     
-                    // allow main thread to proceed                    
-                    Logger.info("Loaded image: "+url);
+                    log("Loaded image: "+url);
                     synchronized(loadedImagesByURL) {                    
                         loadedImagesByURL.put(url,  img);
                     }
@@ -165,7 +158,7 @@ public class ContentVaultProxy {
             }
             else {            
                 state = State.INITIALIZED_SUCCESSFULLY;
-                Logger.info("Loaded "+loadedImagesByURL.keySet().size()+"/"+urls.size()+" images");
+                log("Loaded "+loadedImagesByURL.keySet().size()+"/"+urls.size()+" images");
             }
         }
     }
@@ -211,5 +204,9 @@ public class ContentVaultProxy {
             super(msg);
         }
     }
+    
+    private static void log(String msg) {
+        if (log) Logger.info("ContentVaultProxy: "+msg);
+    }    
     
 }

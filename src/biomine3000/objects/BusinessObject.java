@@ -181,8 +181,7 @@ public class BusinessObject {
     protected BusinessObject(String type) {
         this.metadata = new BusinessObjectMetadata(type, null);        
         this.payload = null;
-    }
-    
+    }    
     
     /** 
      * Metadata is represented by a json object. However, should we provide some kind of wrapper to access standard fields? 
@@ -194,6 +193,12 @@ public class BusinessObject {
     
 	/** Metadata is represented by a json object. However, should we provide some kind of wrapper to access standard fields? */
 	public BusinessObjectMetadata getMetaData() {
+	    Integer payloadSz = metadata.getInteger("size");
+	    if (payloadSz == null) {
+	        payloadSz = getPayload().length;
+	        metadata.setPayloadSize(payloadSz);
+	    }
+	    
 	    return metadata;
 	}
 	

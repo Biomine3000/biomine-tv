@@ -124,13 +124,12 @@ public class BiomineTVImagePanel extends JPanel implements
             
             // render top and bottom rectangles with uniform color that is average of colors on the corresponding edges of the image
             try {
-                log("Rendering top rect");
+                
                 
                 Color topColor = ImageUtils.getEdgeColor(img, Edge.TOP);
                 g.setColor(topColor);
                 g.fillRect(0, 0, w, extraHeight/2);
-                
-                log("Rendering bottom rect");
+                                
                 Color bottomColor = ImageUtils.getEdgeColor(img, Edge.BOTTOM);
                 g.setColor(bottomColor);
                 g.fillRect(0, y2, w, extraHeight/2);
@@ -174,7 +173,8 @@ public class BiomineTVImagePanel extends JPanel implements
         return new Dimension(100, 100);
     }
 
-
+    
+    @SuppressWarnings("unused")
     private void log(String msg) {
         System.out.println(msg);
     }

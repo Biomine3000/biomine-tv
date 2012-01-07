@@ -5,12 +5,10 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 
 import util.DateUtils;
-import util.ExceptionUtils;
 import util.IOUtils;
 import util.dbg.Logger;
+import util.io.SkippingStreamReader;
 import biomine3000.objects.ContentVaultProxy;
-import biomine3000.objects.ContentVaultProxy.ContentVaultListener;
-import biomine3000.objects.ContentVaultProxy.InvalidStateException;
 
 /**
  * Sends objects from the notorious content vault with a constant interval
@@ -18,118 +16,137 @@ import biomine3000.objects.ContentVaultProxy.InvalidStateException;
  * 
  * Use a {@link ContentVaultProxy} for loading the stuff over the web.
  */
-public class ContentVaultSender {
+public class ContentVaultSender implements BusinessObjectHandler {
 
-    private boolean firstImageLoaded;
-    private ContentVaultProxy content;
-    private ContentListener contentListener;
-    private Sender sender;
+    private boolean stopped;
+    private ContentVaultAdapter vaultAdapter;
+    
     private Socket socket;
+    /** Listens to (skipping) reader that reads input stream of server socket */
+    private ServerReaderListener serverReaderListener;
     
+    /** {@link #startLoadingContent} has to be called separately */
     private ContentVaultSender(String host, int port) throws UnknownHostException, IOException {                                                                                
+        // init content vault proxy
+        stopped = false;
+        vaultAdapter = new ContentVaultAdapter(this);
+               
         // init communications with the server
-        socket = new Socket(host, port);                                                            
-        firstImageLoaded = false;
-        content = new ContentVaultProxy();
-        contentListener = new ContentListener();
-        content.addListener(contentListener);        
+        socket = new Socket(host, port);
+        serverReaderListener = new ServerReaderListener();
+        SkippingStreamReader serverReader = new SkippingStreamReader(socket.getInputStream(), serverReaderListener);
+        Thread readerThread = new Thread(serverReader);                       
+        readerThread.start();              
     }
     
-    private void startLoading() {
-        content.startLoading();
+    /** Stop your business */
+    public void startLoadingContent() {
+        vaultAdapter.startLoading();
     }
     
-    private void send(String msg) {
-        log("Sending message: "+msg);
-        PlainTextObject obj = new PlainTextObject(msg);
-        send(obj);               
+    /** Stop your business */
+    public void stopSending() {
+        log("stopSending requested");
+        stopped = true;
+        vaultAdapter.stop();
+        try {
+            socket.shutdownOutput();
+        }
+        catch (IOException e) {
+            error("Failed shutting down socket output", e);
+        }
+        
     }
-    
-    private void send(BusinessObject obj) {
+                
+    public void handle(BusinessObject obj) {
+        if (stopped) {
+            // no more buizness
+            return;
+        }
         obj.getMetaData().put("channel", "virityskuva");        
+        log("Writing an object with following metadata: "+obj.getMetaData());
         
         try {
-            byte[] bytes = obj.bytes();        
-            log("Writing a message of "+obj+" bytes");
+            byte[] bytes = obj.bytes();                    
             IOUtils.writeBytes(socket.getOutputStream(), bytes);
             socket.getOutputStream().flush();
-            log("Wrote "+bytes.length+" bytes");
         } catch (IOException e) {
             error("Failed writing business object, stopping", e);
-            sender.stop = true;
+            vaultAdapter.stop();
         }
-    }
+    }    
     
-    private class ContentListener implements ContentVaultListener {       
-        
-        @Override
-        public void loadedImageList() {
-            String msg = "Loaded urls for "+content.getNumLoadedObjects()+" business objects";
-            send(msg);
-        }
+    /** Listens to a single dedicated reader thread reading objects from the input stream of a single client */
+    private class ServerReaderListener implements SkippingStreamReader.Listener {
 
         @Override
-        public void loadedImage(String image) {
-            String msg = "Loaded "+content.getNumLoadedObjects()+"/"+content.getTotalNumObjects()+" business objects";            
-            send(msg);            
-            if (firstImageLoaded == false) {
-                // Logger.info("First image loaded, starting sender thread");
-                log("First image loaded, starting sender thread to loop tuning image channel");    
-                firstImageLoaded = true;
-                sender = new Sender();
-                new Thread(sender).start();
-            }
-        }       
-    }
-    
-    private class Sender implements Runnable {
-        private boolean stop = false;
-                       
-        public void run() {
-            log("Sender running");
-            
-            while (!stop) {
-                try {                    
-                    ImageObject randomContent = content.sampleImage();
-                    send(randomContent);
-                    Thread.sleep(3000);
-                }
-                catch (InvalidStateException e) {
-                    send(ExceptionUtils.formatWithCauses(e,"; "));
-                    try {
-                        Thread.sleep(3000);
-                    }
-                    catch (InterruptedException ie) {
-                        // no action
-                    }
-                }
-                catch (InterruptedException e) {
-                    // no action
-                }
-            }
-            
-            log("Sender closing socket");
-            try {
-                socket.close();
-            }
-            catch (IOException e) {
-                log("FYI: failed closing socket");
-            }
-            
-            log("Sender stopped");
+        public void noMoreBytesInStream() {
+            log("Received noMoreBytesInStream from SkippingStreamReader");  
+            // TODO: should probably stop sending as well?
         }
+
+        private void handleException(Exception e) {
+            error("Exception in SkippingStreamReader", e);
+            // TODO: should probably stop sending as well?
+        }
+        
+        @Override
+        public void handle(IOException e) {
+            handleException(e);
+        }
+        
+        @Override
+        public void handle(RuntimeException e) {
+            handleException(e);
+            
+        }        
     }
     
     public static void main(String[] args) throws IOException {
-        
+                
         log("Starting at "+DateUtils.formatDate());
-                       
+        Logger.addStream("ContentVaultSender.log", 1);            
+        
         try {
             ContentVaultSender sender= new ContentVaultSender(TestServer.DEFAULT_HOST, TestServer.DEFAULT_PORT);
-            sender.startLoading();
+            sender.startLoadingContent();            
+            if (args.length > 0) {
+                log("Creating stopper thread");
+                int nsec = Integer.parseInt(args[0]);
+                Stopper stopper = new Stopper(sender, nsec);
+                stopper.start();
+                log("Started stopper thread");
+            }
+            else {
+                log("No args");
+            }
+            log("Exiting main thread");
         }
         catch (IOException e) {
             error("Failed initializing server", e);
+        }                
+    }
+    
+    private static class Stopper extends Thread {
+        ContentVaultSender sender;
+        int nsec;
+        
+        private Stopper(ContentVaultSender sender, int nsec) {
+            this.sender = sender;
+            this.nsec = nsec;
+        }
+        
+        public void run() {
+            try {
+                log("Sleeping for "+nsec+" seconds before requesting STOP");
+                Thread.sleep(1000*nsec);
+            }
+            catch (InterruptedException e) {
+                // nuisance
+            }
+            log("Requesting stop");
+            sender.stopSending();
+            Logger.endLog();
         }
     }
     
@@ -144,6 +161,6 @@ public class ContentVaultSender {
         
     private static void error(String msg, Exception e) {
         Logger.error("ContentVaultSender: "+msg, e);
-    }
+    }    
     
 }

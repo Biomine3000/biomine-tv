@@ -51,7 +51,7 @@ public class TestSender {
         } 
         catch (IOException e) {
             warning("Error while establishing connection: "+
-                           ExceptionUtils.formatWithCauses(e, " ")+". "+                    
+                           ExceptionUtils.format(e, " ")+". "+                    
                           "A probable reason is that a server is not running at "+
                           host+":"+port+", as supposed.");
             // e.printStackTrace();            

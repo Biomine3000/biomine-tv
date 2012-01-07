@@ -4,7 +4,7 @@ import java.io.UnsupportedEncodingException;
 
 public class PlainTextObject extends BusinessObject {
     
-    private String payload;
+    private String text;
     
     /** Create unitialized instance. */
     public PlainTextObject() {
@@ -14,13 +14,13 @@ public class PlainTextObject extends BusinessObject {
     /** Create a plain text business object with mimetype text/plain */ 
     public PlainTextObject(String text) {
         super(BiomineTVMimeType.PLAINTEXT.toString());
-        payload = text;               
+        this.text = text;               
     }
     
     /** Create a plain text business object with specified mimetype */ 
     public PlainTextObject(String text, String mimeType) {
         super(mimeType);
-        payload = text;               
+        this.text = text;               
     }
     
     /**
@@ -30,13 +30,17 @@ public class PlainTextObject extends BusinessObject {
      */  
     public PlainTextObject(String text, BiomineTVMimeType mimeType) {                
         super(mimeType.toString());
-        payload = text;               
+        this.text = text;               
+    }
+    
+    public String getText() {
+        return text;
     }
         
     @Override
     public byte[] getPayload() {
         try {
-            return payload.getBytes("UTF-8");
+            return text.getBytes("UTF-8");
         }
         catch (UnsupportedEncodingException e) {
             // the unthinkable has occurred; UTF-8 not supported by this very java instance
@@ -47,7 +51,7 @@ public class PlainTextObject extends BusinessObject {
     @Override
     public void setPayload(byte[] payload) {
         try {
-            this.payload = new String(payload, "UTF-8");
+            this.text = new String(payload, "UTF-8");
         }
         catch (UnsupportedEncodingException e) {
             // the unthinkable has occurred
@@ -56,7 +60,7 @@ public class PlainTextObject extends BusinessObject {
     }
     
     public String toString() {
-        return metadata.getType()+": "+payload;
+        return metadata.getType()+": "+text;
     }
             
 

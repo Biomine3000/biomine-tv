@@ -31,20 +31,7 @@ public class TestServer {
         for (ClientConnection client: clients) {
             client.send(packet);
         }
-    }    
-
-    private void doExit() {
-        log("Should do some exiting");
-    }
-    
-    // Example shutdown hook class
-    class MyShutdown extends Thread {
-        public void run() {
-            log("Starting shutdown thread.");
-            doExit();
-            log("Finished shutdown thread.");                                   
-        }
-    }                   
+    }          
     
     /** 
      * Should never return. Only way to exit is through client request "stop",
@@ -56,8 +43,8 @@ public class TestServer {
             log("["+DateUtils.formatDate()+"] waiting for client...");
             
             try {
-                Socket clientSocket = serverSocket.accept();                
-                log("Client connected, processing client requests.");
+                Socket clientSocket = serverSocket.accept();
+                log("Client connected from "+clientSocket.getRemoteSocketAddress());
                 processSingleClient(clientSocket);
             } 
             catch (IOException e) {
@@ -74,8 +61,12 @@ public class TestServer {
         ReaderListener readerListener;
         boolean closed;
         String name;
+        boolean senderFinished;
+        boolean receiverFinished;
         
         ClientConnection(Socket socket) throws IOException {
+            senderFinished = false;
+            receiverFinished = false;
             this.socket = socket; 
             is = new BufferedInputStream(socket.getInputStream());
             os = socket.getOutputStream();            
@@ -91,12 +82,17 @@ public class TestServer {
         * Assume send queue has unlimited capacity.
         */
         private void send(byte[] packet) {
+            if (senderFinished) {
+                warn("No more sending business");
+                return;
+            }
+            
             try {
                 sender.send(packet);
             }
             catch (IOException e) {
                 error("Failed sending to client "+this, e);
-                close();
+                doSenderFinished();
             }
         }       
         
@@ -106,15 +102,26 @@ public class TestServer {
             readerThread.start();
         }               
         
-        /** Gracefully dispose of a single client */ 
-        private void close() {
+        /**
+         * Gracefully dispose of a single client after ensuring both receiver and sender 
+         * have finished
+         */ 
+        private void doClose() {
             if (closed) {
                 error("Attempting to close a client multiple times", null);
             }
             
+            log("Closing");
+
             try {                                        
                 os.flush();
-                // closing socket should also close streams
+            }
+            catch (IOException e) {
+                // let's not bother to even log the exception at this stage
+            }
+            
+            try {
+                // closing socket also closes streams if needed
                 socket.close();
             }
             catch (IOException e) {
@@ -128,10 +135,42 @@ public class TestServer {
         }                
         
         @Override
-        public void senderFinished() {            
-            log("SenderListener.finished()");               
-            close();
-            log("finished SenderListener.finished()");            
+        public void senderFinished() {
+//            log("SenderListener.finished()");
+            doSenderFinished();
+//            log("finished SenderListener.finished()");                      
+        }
+                
+        private synchronized void doSenderFinished() {
+            log("doSenderFinished");
+            if (senderFinished) {
+                log("Already done");
+                return;
+            }
+            
+            senderFinished = true;
+            
+            if (receiverFinished) {
+                doClose();
+            }                                 
+        }
+
+        private synchronized void doReceiverFinished() {
+            log("doReceiverFinished");
+            if (receiverFinished) {
+                log("Already done");
+                return;
+            }
+            
+            // request stop of sender
+            sender.stop();
+            
+            receiverFinished = true;
+            
+            if (senderFinished) {
+                doClose();
+            }
+                          
         }
         
         private void error(String msg, Exception e) {
@@ -202,12 +241,12 @@ public class TestServer {
         @Override
         public void noMoreObjects() {
             log("noMoreObjects (client closed connection).");                                  
-            client.close();            
+            client.doReceiverFinished();            
         }
 
         private void handleException(Exception e) {            
             error("Exception while reading objects from client "+client, e);                                            
-            client.close();
+            client.doReceiverFinished();
         }
         
         @Override
@@ -250,7 +289,6 @@ public class TestServer {
         Logger.info("TestServer: "+msg);
     }    
     
-    @SuppressWarnings("unused")
     private static void warn(String msg) {
         Logger.warning("TestServer: "+msg);
     }        
