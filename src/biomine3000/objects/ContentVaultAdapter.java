@@ -14,6 +14,8 @@ import biomine3000.objects.ContentVaultProxy.InvalidStateException;
  * updates from an content vault.  
  */
 public class ContentVaultAdapter {
+
+    private static boolean log = false;    
     
     private BusinessObjectHandler handler;
     private boolean firstImageLoaded;
@@ -45,10 +47,11 @@ public class ContentVaultAdapter {
        sender.stop(); 
     }
     
-    /** Sends text as a PlainTextObject */
-    private void send(String msg) {
+    /** Sends event text as a PlainText "service/state-changed" event */
+    private void sendEvent(String msg) {
         log("Sending message: "+msg);
         PlainTextObject obj = new PlainTextObject(msg);
+        obj.metadata.setEvent(BusinessObjectEventType.SERVICE_STATE_CHANGED);
         handler.handle(obj);               
     }       
     
@@ -56,14 +59,14 @@ public class ContentVaultAdapter {
         
         @Override
         public void loadedImageList() {
-            String msg = "Loaded urls for "+contentVaultProxy.getNumLoadedObjects()+" business objects";
-            send(msg);
+            String msg = "Loaded urls for all"+contentVaultProxy.getNumLoadedObjects()+" business objects";
+            sendEvent(msg);
         }
 
         @Override
         public void loadedImage(String image) {
             String msg = "Loaded "+contentVaultProxy.getNumLoadedObjects()+"/"+contentVaultProxy.getTotalNumObjects()+" business objects";            
-            send(msg);            
+            sendEvent(msg);            
             if (firstImageLoaded == false) { 
                 log("First image loaded, starting sender thread to push content to handler");    
                 firstImageLoaded = true;
@@ -92,7 +95,7 @@ public class ContentVaultAdapter {
                     Thread.sleep(3000);
                 }
                 catch (InvalidStateException e) {
-                    send(ExceptionUtils.format(e,"; "));
+                    handler.handle(new ErrorObject(ExceptionUtils.format(e,"; ")));
                     try {
                         Thread.sleep(3000);
                     }
@@ -109,7 +112,7 @@ public class ContentVaultAdapter {
         }
         
         private void log(String msg) {
-            Logger.info("ContentVaultAdapter.Sender: "+msg);
+            if (log) Logger.info("ContentVaultAdapter.Sender: "+msg);
         }
     }      
       
@@ -126,7 +129,7 @@ public class ContentVaultAdapter {
     }
        
     private static void log(String msg) {
-        Logger.info("ContentVaultAdapter: "+msg);
+        if (log) Logger.info("ContentVaultAdapter: "+msg);
     }    
            
     

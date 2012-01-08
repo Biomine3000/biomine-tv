@@ -20,20 +20,25 @@ public class ContentVaultSender implements BusinessObjectHandler {
 
     private boolean stopped;
     private ContentVaultAdapter vaultAdapter;
+    private int nSent;
+    private Integer nToSend;
+    
     
     private Socket socket;
     /** Listens to (skipping) reader that reads input stream of server socket */
     private ServerReaderListener serverReaderListener;
     
     /** {@link #startLoadingContent} has to be called separately */
-    private ContentVaultSender(String host, int port) throws UnknownHostException, IOException {                                                                                
+    private ContentVaultSender(String host, int port, Integer nToSend) throws UnknownHostException, IOException {                                                                                
         // init content vault proxy
-        stopped = false;
-        vaultAdapter = new ContentVaultAdapter(this);
+        this.stopped = false;
+        this.nSent = 0;
+        this.nToSend = nToSend; 
+        this.vaultAdapter = new ContentVaultAdapter(this);
                
         // init communications with the server
-        socket = new Socket(host, port);
-        serverReaderListener = new ServerReaderListener();
+        this.socket = new Socket(host, port);
+        this.serverReaderListener = new ServerReaderListener();
         SkippingStreamReader serverReader = new SkippingStreamReader(socket.getInputStream(), serverReaderListener);
         Thread readerThread = new Thread(serverReader);                       
         readerThread.start();              
@@ -54,15 +59,21 @@ public class ContentVaultSender implements BusinessObjectHandler {
         }
         catch (IOException e) {
             error("Failed shutting down socket output", e);
-        }
-        
+        }        
     }
                 
     public void handle(BusinessObject obj) {
         if (stopped) {
             // no more buizness
+            log("No more buizness");
             return;
         }
+        
+        if (obj.isEvent()) {
+            log("Not sending event: "+obj);
+            return;
+        }
+        
         obj.getMetaData().put("channel", "virityskuva");        
         log("Writing an object with following metadata: "+obj.getMetaData());
         
@@ -70,10 +81,16 @@ public class ContentVaultSender implements BusinessObjectHandler {
             byte[] bytes = obj.bytes();                    
             IOUtils.writeBytes(socket.getOutputStream(), bytes);
             socket.getOutputStream().flush();
+            nSent++;
+            if (nToSend != null && nSent >= nToSend) {
+                stopSending();
+            }
         } catch (IOException e) {
             error("Failed writing business object, stopping", e);
             vaultAdapter.stop();
         }
+        
+        
     }    
     
     /** Listens to a single dedicated reader thread reading objects from the input stream of a single client */
@@ -108,18 +125,27 @@ public class ContentVaultSender implements BusinessObjectHandler {
         Logger.addStream("ContentVaultSender.log", 1);            
         
         try {
-            ContentVaultSender sender= new ContentVaultSender(TestServer.DEFAULT_HOST, TestServer.DEFAULT_PORT);
-            sender.startLoadingContent();            
+            Integer nToSend = null;
             if (args.length > 0) {
-                log("Creating stopper thread");
-                int nsec = Integer.parseInt(args[0]);
-                Stopper stopper = new Stopper(sender, nsec);
-                stopper.start();
-                log("Started stopper thread");
-            }
+                nToSend = Integer.parseInt(args[0]);
+                log("Only sending "+nToSend+" objects");
+            }                                                        
+//                log("Creating stopper thread");
+//                int nsec = Integer.parseInt(args[0]);
+//                Stopper stopper = new Stopper(sender, nsec);
+//                stopper.start();
+//                log("Started stopper thread");
+//            }
             else {
                 log("No args");
             }
+            
+            ContentVaultSender sender= new ContentVaultSender(TestServer.DEFAULT_HOST, TestServer.DEFAULT_PORT, nToSend);
+                        
+            
+            
+            log("Request startLoadingContent");
+            sender.startLoadingContent();
             log("Exiting main thread");
         }
         catch (IOException e) {
@@ -127,28 +153,28 @@ public class ContentVaultSender implements BusinessObjectHandler {
         }                
     }
     
-    private static class Stopper extends Thread {
-        ContentVaultSender sender;
-        int nsec;
-        
-        private Stopper(ContentVaultSender sender, int nsec) {
-            this.sender = sender;
-            this.nsec = nsec;
-        }
-        
-        public void run() {
-            try {
-                log("Sleeping for "+nsec+" seconds before requesting STOP");
-                Thread.sleep(1000*nsec);
-            }
-            catch (InterruptedException e) {
-                // nuisance
-            }
-            log("Requesting stop");
-            sender.stopSending();
-            Logger.endLog();
-        }
-    }
+//    private static class Stopper extends Thread {
+//        ContentVaultSender sender;
+//        int nsec;
+//        
+//        private Stopper(ContentVaultSender sender, int nsec) {
+//            this.sender = sender;
+//            this.nsec = nsec;
+//        }
+//        
+//        public void run() {
+//            try {
+//                log("Sleeping for "+nsec+" seconds before requesting STOP");
+//                Thread.sleep(1000*nsec);
+//            }
+//            catch (InterruptedException e) {
+//                // nuisance
+//            }
+//            log("Requesting stop");
+//            sender.stopSending();
+//            Logger.endLog();
+//        }
+//    }
     
     private static void log(String msg) {
         Logger.info("ContentVaultSender: "+msg);

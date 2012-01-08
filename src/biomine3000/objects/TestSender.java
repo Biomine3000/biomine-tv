@@ -104,24 +104,24 @@ public class TestSender {
     
     /** Just for trivial testing */
     public static void main(String[] pArgs) throws Exception {
-        TestSender client = new TestSender(TestServer.DEFAULT_HOST, TestServer.DEFAULT_PORT);
+        TestSender sender = new TestSender(TestServer.DEFAULT_HOST, TestServer.DEFAULT_PORT);
         BusinessObject sendObj, rcvObj;
          
         sendObj = new PlainTextObject("This is a ZOMBI notification");
         info("Sending object 1: "+sendObj);
-        client.send(sendObj);
-        rcvObj = client.receive();
+        sender.send(sendObj);
+        rcvObj = sender.receive();
         info("Received object 1: "+rcvObj);
          
         sendObj = new PlainTextObject("This is a COMPETITION declaration");
         info("Sending object 2: "+sendObj);
-        client.send(sendObj);
-        rcvObj = client.receive();
+        sender.send(sendObj);
+        rcvObj = sender.receive();
         info("Received object 2: "+rcvObj);
         
-        client.requestClose();        
+        sender.requestClose();        
          
-        client.receiverFinished = true;
+        sender.receiverFinished = true;
         info("Ending main thread");
     }
 

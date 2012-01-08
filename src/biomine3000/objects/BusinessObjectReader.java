@@ -2,6 +2,8 @@ package biomine3000.objects;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.Socket;
+
 
 import util.collections.Pair;
 import util.dbg.Logger;
@@ -16,15 +18,17 @@ import util.dbg.Logger;
  * TODO: generalize this to obtain a generic PacketReader.
  */
 public class BusinessObjectReader implements Runnable {
-    
+           
     private InputStream is;
     private Listener listener;
     private String name;
+    private boolean constructDedicatedImplementations;
     
-    public BusinessObjectReader(InputStream is, Listener listener, String name) {
+    public BusinessObjectReader(InputStream is, Listener listener, String name, boolean constructDedicatedImplementations) {
         this.is = is;
         this.listener = listener;
         this.name = name;
+        this.constructDedicatedImplementations = constructDedicatedImplementations;
     }
             
     public void run() {
@@ -36,11 +40,17 @@ public class BusinessObjectReader implements Runnable {
             Pair<BusinessObjectMetadata, byte[]> packet = BusinessObject.readPacket(is);            
         
             while (packet != null) {
-                BusinessObject bo = new BusinessObject(packet.getObj1(), packet.getObj2());                
+                BusinessObject bo;
+                if (constructDedicatedImplementations) {
+                    bo = BusinessObject.makeObject(packet);
+                }
+                else {
+                    bo = new BusinessObject(packet.getObj1(), packet.getObj2());
+                }
                 listener.objectReceived(bo);                                        
                 
                 log("Reading packet...");
-                packet = BusinessObject.readPacket(is);                
+                packet = BusinessObject.readPacket(is);
             }
                         
             listener.noMoreObjects();
@@ -67,6 +77,59 @@ public class BusinessObjectReader implements Runnable {
     
     private void log(String msg) {
         Logger.info(this+": "+msg);
+    }
+    
+    /** Test by connecting to the server and reading everything. */
+    public static void main(String[] args) throws Exception {
+        Socket socket = new Socket(TestServer.DEFAULT_HOST, TestServer.DEFAULT_PORT);
+        BusinessObjectReader readerRunnable = new BusinessObjectReader(socket.getInputStream(), new DefaultListener(), "dummy reader", true);
+        Thread readerThread = new Thread(readerRunnable);
+        readerThread.start();
+    }
+    
+    public static class DefaultListener implements Listener {                                                  
+
+        @Override
+        public void objectReceived(BusinessObject bo) {
+            log("Received business object: "+bo);
+        }
+
+        @Override
+        public void noMoreObjects() {
+            log("noMoreObjects (client closed connection).");                                                             
+        }
+
+        protected void handleException(Exception e) {            
+            error("Exception while reading", e);                                                            
+        }
+        
+        @Override
+        public void handle(IOException e) {
+            handleException(e);
+        }
+
+        @Override
+        public void handle(InvalidPacketException e) {
+            handleException(e);            
+        }
+
+        @Override
+        public void handle(BusinessObjectException e) {
+            handleException(e);            
+        }
+
+        @Override
+        public void handle(RuntimeException e) {
+            handleException(e);            
+        }                
+    
+        private void log(String msg) {
+            Logger.info("BusinessObjectReader.DummyListener: "+msg);
+        }
+        
+        private void error(String msg, Exception e) {
+            Logger.error("BusinessObjectReader.DummyListener: "+msg, e);
+        }   
     }
     
     public interface Listener {    

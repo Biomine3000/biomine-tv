@@ -193,6 +193,13 @@ public class BusinessObjectMetadata {
         return asJSON();
     }
     
+    public void setEvent(String event) {
+        put("event", event);
+    }
+    
+    public void setEvent(BusinessObjectEventType et) {
+        put("event", et.toString());
+    }
           
     /** 
      * Mandatory. See {@link BiomineTVMimeType} for known types.
@@ -244,6 +251,13 @@ public class BusinessObjectMetadata {
      */
     public String getSender() {
         return getString("sender");        
+    }
+    
+    /** 
+     * @return null if no channel.
+     */
+    public String getChannel() {
+        return getString("channel");        
     }          
        
     /** 
@@ -265,6 +279,10 @@ public class BusinessObjectMetadata {
             // should not be possible
             throw new BusinessObjectException(ExType.JSON_IMPLEMENTATION_MELTDOWN);
         }
+    }
+
+    public boolean isEvent() {
+        return json.has("event");
     }
     
     

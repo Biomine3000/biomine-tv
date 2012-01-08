@@ -64,9 +64,7 @@ public enum BiomineTVMimeType {
 	/** An entry participating in an COMPETITION described above. */
 	COMPETITION_ENTRY("application/biomine_competition_entry");
 	
-	static 
-	
-	private Map<String, BiomineTVMimeType> typeByName;
+	static private Map<String, BiomineTVMimeType> typeByName;
 	private String typeString; 	
 	private Class<? extends BusinessObject> implementationClass;
 	

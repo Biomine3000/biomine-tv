@@ -5,6 +5,7 @@ import gui.image.ImageUtils;
 
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
@@ -27,13 +28,14 @@ public class BiomineTVImagePanel extends JPanel implements
 
     public BiomineTVImagePanel(BiomineTV tv, String initialMessage) {
         this.tv = tv;
-        setContent(initialMessage);
+        setMessage(initialMessage);
         img = null;
+        Font font = new Font("Dialog", Font.PLAIN, 20);
+        this.setFont(font);
         // setContent(urlStr);
-    }
-        
+    }        
     
-    public void setContent(String msg) {
+    public void setMessage(String msg) {
         if (this.msg != null) {
             synchronized(this.msg) {
                 this.msg = msg;
@@ -46,7 +48,7 @@ public class BiomineTVImagePanel extends JPanel implements
         repaint();
     }
     
-    public void setContent(ImageObject img) {
+    public void setImage(ImageObject img) {
         if (this.img != null) {
             synchronized(this.img) {
                 // synchronization needed, otherwise we could change the image

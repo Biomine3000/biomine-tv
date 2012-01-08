@@ -149,6 +149,10 @@ public class BusinessObject {
         return bo;
     }
     
+    public boolean isEvent() {
+        return metadata.isEvent();
+    }
+    
     /** Create a business object supposedly being received and parsed earlier from the biomine business objects bus */
     public BusinessObject(BusinessObjectMetadata metadata, byte[] payload) {
         this.metadata = metadata;

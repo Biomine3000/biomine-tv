@@ -10,6 +10,14 @@ import util.DateUtils;
 import util.dbg.Logger;
 import util.net.NonBlockingSender;
 
+/**
+ * Test server which reads business objects from each client and breadcasts back everything it reads
+ * to all clients.
+ * 
+ * Once a client closes its sockets outputstream (the inputstream of the server's socket),
+ * the server stops sending to that client and closes the socket. 
+ *
+ */
 public class TestServer {
 
     public static String DEFAULT_HOST = "localhost";
@@ -27,7 +35,7 @@ public class TestServer {
         clients = new ArrayList<ClientConnection>();
     }                            
 
-    public synchronized void sendToAllClients(byte[] packet) {
+    private synchronized void sendToAllClients(byte[] packet) {
         for (ClientConnection client: clients) {
             client.send(packet);
         }
@@ -75,6 +83,10 @@ public class TestServer {
             closed = false;
             name = "ClientConnection-"+socket.getRemoteSocketAddress();
             log("Initialization done");
+            synchronized(TestServer.this) {
+                clients.add(this);
+            }
+            
         }        
         
        /**
@@ -97,7 +109,7 @@ public class TestServer {
         }       
         
         private void startReaderThread() {
-            BusinessObjectReader readerRunnable = new BusinessObjectReader(is, readerListener, "BusinessObjectReader-"+socket.getRemoteSocketAddress());
+            BusinessObjectReader readerRunnable = new BusinessObjectReader(is, readerListener, "BusinessObjectReader-"+socket.getRemoteSocketAddress(), false);
             Thread readerThread = new Thread(readerRunnable);
             readerThread.start();
         }               
@@ -169,8 +181,7 @@ public class TestServer {
             
             if (senderFinished) {
                 doClose();
-            }
-                          
+            }                         
         }
         
         private void error(String msg, Exception e) {
@@ -185,8 +196,7 @@ public class TestServer {
             return name;
         }
     }
-                
-    
+                    
     private void processSingleClient(Socket clientSocket) {
         
         ClientConnection client;
@@ -220,8 +230,7 @@ public class TestServer {
         }
         System.exit(pExitCode);
     }
-                 
-    
+                     
     /** Listens to a single dedicated reader thread reading objects from the input stream of a single client */
     private class ReaderListener implements BusinessObjectReader.Listener {
         ClientConnection client;
@@ -235,7 +244,7 @@ public class TestServer {
             log("Received business object: "+bo);
             log("Sending the very same object...");
             TestServer.this.sendToAllClients(bo.bytes());
-            client.send(bo.bytes());
+            // client.send(bo.bytes());
         }
 
         @Override
