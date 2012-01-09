@@ -1,5 +1,7 @@
 package biomine3000.objects;
 
+import static biomine3000.objects.Biomine3000Constants.*;
+
 import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
@@ -22,8 +24,7 @@ public class ContentVaultSender implements BusinessObjectHandler {
     private ContentVaultAdapter vaultAdapter;
     private int nSent;
     private Integer nToSend;
-    
-    
+        
     private Socket socket;
     /** Listens to (skipping) reader that reads input stream of server socket */
     private ServerReaderListener serverReaderListener;
@@ -88,9 +89,7 @@ public class ContentVaultSender implements BusinessObjectHandler {
         } catch (IOException e) {
             error("Failed writing business object, stopping", e);
             vaultAdapter.stop();
-        }
-        
-        
+        }         
     }    
     
     /** Listens to a single dedicated reader thread reading objects from the input stream of a single client */
@@ -130,17 +129,11 @@ public class ContentVaultSender implements BusinessObjectHandler {
                 nToSend = Integer.parseInt(args[0]);
                 log("Only sending "+nToSend+" objects");
             }                                                        
-//                log("Creating stopper thread");
-//                int nsec = Integer.parseInt(args[0]);
-//                Stopper stopper = new Stopper(sender, nsec);
-//                stopper.start();
-//                log("Started stopper thread");
-//            }
             else {
                 log("No args");
             }
             
-            ContentVaultSender sender= new ContentVaultSender(TestServer.DEFAULT_HOST, TestServer.DEFAULT_PORT, nToSend);
+            ContentVaultSender sender= new ContentVaultSender(DEFAULT_HOST, DEFAULT_PORT, nToSend);
                         
             
             
@@ -152,29 +145,6 @@ public class ContentVaultSender implements BusinessObjectHandler {
             error("Failed initializing server", e);
         }                
     }
-    
-//    private static class Stopper extends Thread {
-//        ContentVaultSender sender;
-//        int nsec;
-//        
-//        private Stopper(ContentVaultSender sender, int nsec) {
-//            this.sender = sender;
-//            this.nsec = nsec;
-//        }
-//        
-//        public void run() {
-//            try {
-//                log("Sleeping for "+nsec+" seconds before requesting STOP");
-//                Thread.sleep(1000*nsec);
-//            }
-//            catch (InterruptedException e) {
-//                // nuisance
-//            }
-//            log("Requesting stop");
-//            sender.stopSending();
-//            Logger.endLog();
-//        }
-//    }
     
     private static void log(String msg) {
         Logger.info("ContentVaultSender: "+msg);

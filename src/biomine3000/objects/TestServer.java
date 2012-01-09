@@ -1,5 +1,7 @@
 package biomine3000.objects;
 
+import static biomine3000.objects.Biomine3000Constants.*;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -20,8 +22,9 @@ import util.net.NonBlockingSender;
  */
 public class TestServer {
 
-    public static String DEFAULT_HOST = "localhost";
-    public static int DEFAULT_PORT = 9876;    
+//    public static String DEFAULT_HOST = "localhost";
+//    public static int DEFAULT_PORT = 9876;
+    
     public static final DateFormat DEFAULT_DATE_FORMAT = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM);
         
     private ServerSocket serverSocket;    

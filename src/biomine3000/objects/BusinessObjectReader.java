@@ -1,5 +1,7 @@
 package biomine3000.objects;
 
+import static biomine3000.objects.Biomine3000Constants.*;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
@@ -81,7 +83,7 @@ public class BusinessObjectReader implements Runnable {
     
     /** Test by connecting to the server and reading everything. */
     public static void main(String[] args) throws Exception {
-        Socket socket = new Socket(TestServer.DEFAULT_HOST, TestServer.DEFAULT_PORT);
+        Socket socket = new Socket(DEFAULT_HOST, DEFAULT_PORT);
         BusinessObjectReader readerRunnable = new BusinessObjectReader(socket.getInputStream(), new DefaultListener(), "dummy reader", true);
         Thread readerThread = new Thread(readerRunnable);
         readerThread.start();

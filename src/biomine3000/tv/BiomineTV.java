@@ -1,5 +1,7 @@
 package biomine3000.tv;
 
+import static biomine3000.objects.Biomine3000Constants.*;
+
 import java.awt.BorderLayout;
 
 import java.awt.event.KeyEvent;
@@ -12,19 +14,18 @@ import java.util.LinkedList;
 
 import javax.swing.*;
 
+import biomine3000.objects.BiomineTVMimeType;
 import biomine3000.objects.BusinessObject;
 import biomine3000.objects.BusinessObjectHandler;
 import biomine3000.objects.BusinessObjectReader;
 import biomine3000.objects.ContentVaultAdapter;
 import biomine3000.objects.ImageObject;
 import biomine3000.objects.PlainTextObject;
-import biomine3000.objects.TestServer;
-
 import util.ExceptionUtils;
 import util.dbg.Logger;
 
 public class BiomineTV extends JFrame implements BusinessObjectHandler {
-	   
+       
     /////////////////
     // GUI
 	private JLabel zombiLabel;
@@ -32,6 +33,7 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
 	private JLabel statusLabel;
 	private LinkedList<String> logLines;
 	private BiomineTVImagePanel contentPanel;
+	private BMTVMp3Player mp3Player;
 
 	//////////////////
 	// BUSINESS
@@ -40,15 +42,24 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
 	private ContentVaultAdapter contentVaultAdapter;
 	private Socket serverSocket;
 	        	   
-    public BiomineTV() throws IOException {
+    public BiomineTV() {
 	    init();
     }
 
     static int LOG_SIZE = 10;
-        
-    private void init() throws IOException {               
+          
+    /** TODO: support playing in a streaming fashion */     
+    private void playMP3(BusinessObject bo) {
+//        FileInputStream mp3fis = new FileInputStream(DEFAULT_SONG);
+//        byte[] data = IOUtils.readBytes(mp3fis);
+        contentPanel.setMessage("Playing: "+bo.getMetaData().get("name"));
+        mp3Player.play(bo.getPayload());
+    }
+    
+    private void init()  {               
     
         contentPanel = new BiomineTVImagePanel(this, "Initializing content...");
+        mp3Player = new BMTVMp3Player();
                                
 	    setTitle("Biomine TV®");
 	    zombiLabel = new JLabel("For relaxing times, make it zombie time");
@@ -97,7 +108,7 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
         
         @Override
         public void objectReceived(BusinessObject bo) {
-            log("Received business object: "+bo);
+//            log("Received business object: "+bo);
             BiomineTV.this.handle(bo);
         }
 
@@ -143,13 +154,19 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
     	}    	
     }    
     
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args)  {
         BiomineTV tv = new BiomineTV();
         tv.setSize(800,600);
         tv.setLocation(300,300);
         tv.setVisible(true);
                 
-        tv.startReceivingContentFromServer(TestServer.DEFAULT_HOST, TestServer.DEFAULT_PORT);
+        try {
+            tv.startReceivingContentFromServer(DEFAULT_HOST, DEFAULT_PORT);
+        }
+        catch (IOException e) {
+            error("Failed connecting to server", e);
+            tv.contentPanel.setMessage("Failed connecting to server");
+        }                              
     }
   
     public void close() {
@@ -169,13 +186,20 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
         
         if (bo instanceof ImageObject) {
             contentPanel.setImage((ImageObject)bo);
-            contentPanel.setMessage(null);
+            String oldMsg = contentPanel.getMessage();
+            if (oldMsg != null && oldMsg.equals("Awaiting content from server...")) {
+                contentPanel.setMessage(null);
+            }
         }
         else if (bo instanceof PlainTextObject) {
             contentPanel.setMessage(((PlainTextObject)bo).getText());
         }
+        else if (bo.getMetaData().getOfficialType() == BiomineTVMimeType.MP3) {
+            playMP3(bo);
+        }        
         else {
-            log("Unable to display content:" +bo);
+            // plain object with no or unsupported official type 
+            log("Unable to display content:" +bo);            
         }
     }
     

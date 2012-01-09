@@ -35,10 +35,15 @@ public class BiomineTVImagePanel extends JPanel implements
         // setContent(urlStr);
     }        
     
+    public String getMessage() {
+        return msg;
+    }
+    
     public void setMessage(String msg) {
         if (this.msg != null) {
             synchronized(this.msg) {
                 this.msg = msg;
+                log("Message set to: "+msg);
             }
         }
         else {
@@ -175,9 +180,19 @@ public class BiomineTVImagePanel extends JPanel implements
         return new Dimension(100, 100);
     }
 
+       
+    private static void log(String msg) {
+        Logger.info("BiomineTVImagePanel: "+msg);
+    }    
     
     @SuppressWarnings("unused")
-    private void log(String msg) {
-        System.out.println(msg);
+    private static void warn(String msg) {
+        Logger.warning("BiomineTVImagePanel: "+msg);
+    }        
+    
+    @SuppressWarnings("unused")
+    private static void error(String msg, Exception e) {
+        Logger.error("BiomineTVImagePanel: "+msg, e);
     }
+
 }

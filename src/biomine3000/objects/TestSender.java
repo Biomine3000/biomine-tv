@@ -1,6 +1,6 @@
 package biomine3000.objects;
 
-// import static biomine.db.query.CrawlerCacheServer.*;
+import static biomine3000.objects.Biomine3000Constants.*;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -104,7 +104,7 @@ public class TestSender {
     
     /** Just for trivial testing */
     public static void main(String[] pArgs) throws Exception {
-        TestSender sender = new TestSender(TestServer.DEFAULT_HOST, TestServer.DEFAULT_PORT);
+        TestSender sender = new TestSender(DEFAULT_HOST, DEFAULT_PORT);
         BusinessObject sendObj, rcvObj;
          
         sendObj = new PlainTextObject("This is a ZOMBI notification");

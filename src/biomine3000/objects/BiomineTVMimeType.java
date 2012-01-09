@@ -28,7 +28,7 @@ public enum BiomineTVMimeType {
 	ZOMBI_ALERT("message/zombialert"),
 	
 	/**
-	 * Announcement of a pl�tk� match soon to be initiated. Meta-data format to be decided, probably represented as JSON.
+	 * Announcement of a plötkä match soon to be initiated. Meta-data format to be decided, probably represented as JSON.
 	 * Relevant information includes, but is not limited to: match (or tournament?) participants, time, location, mode of play
 	 * (matsi 40:een, 5 min, etc)
 	 */  
@@ -51,6 +51,8 @@ public enum BiomineTVMimeType {
 	
 	/** URL to an already existing image in the familiar INTERNET */
 	IMAGEURL("text/url", PlainTextObject.class),
+
+	MP3("audio/mp3"),
 	
 	/** Mielivaltaista kontenttia */
 	ARBITRARY("application/arbitrary"),
