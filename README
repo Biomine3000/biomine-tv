@@ -1,10 +1,27 @@
 BIOMINE-TV reference implementation be here
 -------------------------------------------
 
- - First task shall be to write some specs, naturally.
-   The problem is, how to scrabble them from the 
-   depths of !biomine log.
+ IT HAS BEEN IMPLEMENTED 2012-01-08
+  - This intergalactic Biomine TV® Java® suite is now fully operational,
+    containing tv, server and tuning channel sender utilizing biomine3000
+    image vault.
 
- - Regrettably, no content as of yet, as the author
-   is presently stuck in the process of initiating 
-   GIT usage and parsing channel noise of !biomine.
+ SUPPORTS FOLLOWING KONTENTTI TYPES:
+   - images (including, but not limited to: png,gif,jpg)
+   - mp3 
+   - plain text
+
+ COMING UP NEXT:
+   - adding leronen utils to biomine3000
+   - linux installation package
+   - ant build file
+
+ TO BE ADDED LATER 
+   - more intresting functionalitæ.
+
+ NUISANCES TODO
+   - Some specs should be written. The problem is, how to scrabble
+     them from the depths of !biomine log; that would require
+     implementing relevant functionality to tv, which cannot be done 
+     without specs...
+
