@@ -1,13 +1,13 @@
 package biomine3000.objects;
 
-import static biomine3000.objects.Biomine3000Constants.*;
-
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.List;
+
+import util.CmdLineArgs2;
 import util.DateUtils;
 import util.dbg.Logger;
 import util.net.NonBlockingSender;
@@ -30,12 +30,13 @@ public class TestServer {
     private ServerSocket serverSocket;    
     private int serverPort;
     private List<ClientConnection> clients;
-               
+                   
+    
     public TestServer(int port) throws IOException {                                                                   
         this.serverPort = port;
-        serverSocket = new ServerSocket(serverPort);
-        log(getClass().getName()+" running at port: "+serverPort);
+        serverSocket = new ServerSocket(serverPort);        
         clients = new ArrayList<ClientConnection>();
+        log("Listening.");
     }                            
 
     private synchronized void sendToAllClients(byte[] packet) {
@@ -126,7 +127,7 @@ public class TestServer {
                 error("Attempting to close a client multiple times", null);
             }
             
-            log("Closing");
+            log("Closing connection with client: "+this);
 
             try {                                        
                 os.flush();
@@ -284,12 +285,28 @@ public class TestServer {
         }        
     }
                     
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] pArgs) throws Exception {
         
-        log("Starting test server at "+DateUtils.formatDate());
+        CmdLineArgs2 args = new CmdLineArgs2(pArgs);
+        
+        String portStr = args.getOpt("host");
+        Integer port = null; 
+        if (portStr != null) {
+             port = Integer.parseInt(portStr);
+        }
+        else {
+            port = Biomine3000Utils.conjurePortByHostName();
+        }
+        
+        if (port == null) {
+            error("No port");
+            System.exit(1);
+        }
+        
+        log("Starting test server at port "+port +" ("+DateUtils.formatOrderableDate()+")");
                        
         try {
-            TestServer server = new TestServer(DEFAULT_PORT);
+            TestServer server = new TestServer(port);
             server.mainLoop();
         }
         catch (IOException e) {
@@ -304,6 +321,10 @@ public class TestServer {
     private static void warn(String msg) {
         Logger.warning("TestServer: "+msg);
     }        
+    
+    private static void error(String msg) {
+        Logger.error("TestServer: "+msg);
+    }
     
     private static void error(String msg, Exception e) {
         Logger.error("TestServer: "+msg, e);

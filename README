@@ -11,17 +11,14 @@ BIOMINE-TV reference implementation be here
    - mp3 
    - plain text
 
- COMING UP NEXT:
-   - adding leronen utils to biomine3000
-   - linux installation package
-   - ant build file
+ BUILD INSTRUCTIONS
+   - git pull git@github.com:leronen/leronen-java.git
+   - point LERONEN_JAVA_ROOT to the resulting directory
+   - run ant in this directory (with no arguments)
 
  TO BE ADDED LATER 
+   - intructions for running tv components
    - more intresting functionalitæ.
 
- NUISANCES TODO
-   - Some specs should be written. The problem is, how to scrabble
-     them from the depths of !biomine log; that would require
-     implementing relevant functionality to tv, which cannot be done 
-     without specs...
 
+ 

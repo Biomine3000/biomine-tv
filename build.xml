@@ -1,0 +1,44 @@
+<project name="biomine-tv" default="jar">
+    
+	<property environment="env"/>
+	
+	<property name="src" location="src"/>	
+    <property name="classes" location="ant-build"/>
+	<property name="jar" location="biomine-tv.jar"/>
+	<property name="leronen-java-root" value="${env.LERONEN_JAVA_ROOT}"/>
+	<property name="leronen-java-root" value="${env.HOME}/leronen-git/leronen-java"/> <!-- not set if already defined! -->	
+
+	<target name="check-leronen-java" depends="leronen-java-exists" unless="dir.exists">
+		<fail message="LERONEN_JAVA_ROOT not set or does not point to an accessible directory."/>		
+	</target>
+
+	<target name="leronen-java-exists">
+	  <condition property="dir.exists">
+	    <available file="${leronen-java-root}" type="dir"/>	  	
+      </condition>
+	</target>
+	
+    <target name="leronen-java" depends="check-leronen-java">
+    	<echo message="Building leronen-java at ${leronen-java-root}"/>
+    	<ant inheritAll="false" dir="${leronen-java-root}"/>    	
+    </target>          	
+	
+	<target name="classes" depends="leronen-java">
+    	<mkdir dir="${classes}"/>
+        <javac srcdir="${src}" destdir="${classes}" includeantruntime="false">                            
+            <classpath>                
+            	<pathelement path="${leronen-java-root}/ant-build"/>
+            	<pathelement location="lib/jl1.0.1.jar"/>
+                <pathelement location="lib/json.jar"/>
+            </classpath>
+        </javac>
+    </target>  
+	     
+    <target name="jar" depends="classes">
+        <jar destfile="${jar}">
+        	<fileset dir="${classes}"/>  
+        	<fileset dir="${leronen-java-root}/ant-build"/>          	
+        </jar>
+    </target>		
+
+</project>

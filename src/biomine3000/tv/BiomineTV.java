@@ -1,7 +1,5 @@
 package biomine3000.tv;
 
-import static biomine3000.objects.Biomine3000Constants.*;
-
 import java.awt.BorderLayout;
 
 import java.awt.event.KeyEvent;
@@ -21,11 +19,15 @@ import biomine3000.objects.BusinessObjectReader;
 import biomine3000.objects.ContentVaultAdapter;
 import biomine3000.objects.ImageObject;
 import biomine3000.objects.PlainTextObject;
+import biomine3000.objects.ServerAddress;
 import util.ExceptionUtils;
 import util.dbg.Logger;
 
 public class BiomineTV extends JFrame implements BusinessObjectHandler {
-       
+
+    // CONSTANTS
+    private static final double RETRY_INTERVAL_SEC = 1.0;
+    
     /////////////////
     // GUI
 	private JLabel zombiLabel;
@@ -41,7 +43,11 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
 	// Kontenttia; either read directly from a vault using contentVaultAdapter, of from a server	 
 	private ContentVaultAdapter contentVaultAdapter;
 	private Socket serverSocket;
-	        	   
+	
+
+	// CONTROL
+	MonitorThread monitorThread;
+	
     public BiomineTV() {
 	    init();
     }
@@ -84,26 +90,75 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
 	 	});	    	    	    	    	    
     } 
 
+    private void startConnectionMonitorThread() {
+        monitorThread = new MonitorThread();
+        monitorThread.start();
+    }
+    
+    private synchronized void stopMonitorThread() {        
+        if (monitorThread != null) {
+            monitorThread.stop = true;
+            monitorThread = null;
+        }
+    }
+    
     public void startReceivingContentFromVault() {
         contentVaultAdapter = new ContentVaultAdapter(this);
         contentVaultAdapter.startLoading();
     }
     
-       
-    /** Currently, only one server can be received from at a time */
-    public void startReceivingContentFromServer(String server, int port) throws IOException {
-        serverSocket = new Socket(server, port);
+    public boolean connected() {
+        return serverSocket != null; 
+    }
+    
+    /** Try all known servers... */
+    public synchronized void startReceivingContentFromServer() throws IOException {
+        IOException e = null;
+        try {            
+            startReceivingContentFromServer(ServerAddress.LERONEN_HIMA);            
+        }
+        catch (IOException ex) {
+            e = ex;
+        }
+        
+        if (e != null) {
+            try {
+                log("Failed connecting to local server, trying the one at leronen-kapsi");
+                startReceivingContentFromServer(ServerAddress.LERONEN_KAPSI);
+            }
+            catch (IOException ex) {
+                throw (ex);
+            }
+        }
+        
+    }
+    
+    
+    /** Currently, only one server can be received from at a time. */
+    public synchronized void startReceivingContentFromServer(ServerAddress server) throws IOException {
+        startReceivingContentFromServer(server.host, server.port);
+    }
+    
+    /** Currently, only one server can be received from at a time. */
+    public synchronized void startReceivingContentFromServer(String host, int port) throws IOException {
+        if (connected()) {
+            closeConnectionToServer();
+        }
+        
+        contentPanel.setMessage("Connecting to server: "+host+":"+port);
+        
+        serverSocket = new Socket(host, port);
         BusinessObjectReader readerRunnable = new BusinessObjectReader(serverSocket.getInputStream(), new ServerReaderListener(), "server reader", true);
         contentPanel.setMessage("Awaiting content from server...");
         Thread readerThread = new Thread(readerRunnable);
         readerThread.start();        
     }
-
     
     public void stopReceivingContentFromServer() {
         closeConnectionToServer();
     }
     
+    /** Listener to receive objects read by BusinessObjectReader from the server */
     private class ServerReaderListener extends BusinessObjectReader.DefaultListener {        
         
         @Override
@@ -159,24 +214,48 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
         tv.setSize(800,600);
         tv.setLocation(300,300);
         tv.setVisible(true);
-                
-        try {
-            tv.startReceivingContentFromServer(DEFAULT_HOST, DEFAULT_PORT);
-        }
-        catch (IOException e) {
-            error("Failed connecting to server", e);
-            tv.contentPanel.setMessage("Failed connecting to server");
-        }                              
+                                
+        // will connect to the server, and keep trying every second until successful
+        tv.startConnectionMonitorThread();
+        
     }
   
-    public void close() {
+    private class MonitorThread extends Thread {
+        private boolean stop = false;        
+        public void run() {                        
+            try {
+                while(!stop) {                    
+                    synchronized(BiomineTV.this) {
+                        if  (!connected()) {
+                            try {                                
+                                startReceivingContentFromServer();                                
+                            }
+                            catch (IOException e) {
+                                error("Failed connecting to server", e);
+                            }
+                        }
+                    }
+                    Thread.sleep((long)(RETRY_INTERVAL_SEC*1000));                    
+                }
+            }
+            catch (InterruptedException e) {
+                // no action 
+            }
+        }
+    }
+    
+    public synchronized void close() {
         Logger.info("Starting BiomineTV.close");
+        stopMonitorThread();
+        
         if (contentVaultAdapter != null) {
             contentVaultAdapter.stop();
         }
+        
         if (serverSocket != null) {
             closeConnectionToServer();
         }
+        
     	System.exit(0);
     }
   
