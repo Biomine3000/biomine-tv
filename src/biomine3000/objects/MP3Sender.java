@@ -1,6 +1,5 @@
 package biomine3000.objects;
 
-import static biomine3000.objects.Biomine3000Constants.*;
 
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
@@ -15,7 +14,11 @@ import util.dbg.Logger;
 public class MP3Sender {
     
     private Socket socket = null;
-        
+    
+    public MP3Sender(ServerAddress server) throws UnknownHostException, IOException {
+        init(server.host, server.port);
+    }
+    
     public MP3Sender(String host, int port) throws UnknownHostException, IOException {                              
         init(host, port);                                             
     }         
@@ -59,7 +62,17 @@ public class MP3Sender {
 
     public static void main(String[] args) throws Exception {
         String file = args[0];
-        MP3Sender sender = new MP3Sender(DEFAULT_HOST, DEFAULT_PORT);
+        MP3Sender sender = null;
+        try {
+            sender = new MP3Sender(ServerAddress.LERONEN_HIMA);
+        }
+        catch (IOException e) {
+            log("No server at LERONEN_HIMA");
+        }
+        if (sender == null) {
+            sender = new MP3Sender(ServerAddress.LERONEN_KAPSI);
+            log("Connected to LERONEN_KAPSI");
+        }
         sender.send(file);
         log("Sent mp3 file, closing");
         sender.socket.close();

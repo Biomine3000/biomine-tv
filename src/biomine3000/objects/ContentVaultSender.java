@@ -1,6 +1,5 @@
 package biomine3000.objects;
 
-import static biomine3000.objects.Biomine3000Constants.*;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -29,6 +28,10 @@ public class ContentVaultSender implements BusinessObjectHandler {
     /** Listens to (skipping) reader that reads input stream of server socket */
     private ServerReaderListener serverReaderListener;
     
+    public ContentVaultSender(ServerAddress server, Integer nToSend) throws UnknownHostException, IOException {
+        this(server.host, server.port, nToSend);
+    }
+    
     /** {@link #startLoadingContent} has to be called separately */
     private ContentVaultSender(String host, int port, Integer nToSend) throws UnknownHostException, IOException {                                                                                
         // init content vault proxy
@@ -45,7 +48,7 @@ public class ContentVaultSender implements BusinessObjectHandler {
         readerThread.start();              
     }
     
-    /** Stop your business */
+    /** Start your business */
     public void startLoadingContent() {
         vaultAdapter.startLoading();
     }
@@ -91,8 +94,7 @@ public class ContentVaultSender implements BusinessObjectHandler {
             vaultAdapter.stop();
         }         
     }    
-    
-    /** Listens to a single dedicated reader thread reading objects from the input stream of a single client */
+        
     private class ServerReaderListener implements SkippingStreamReader.Listener {
 
         @Override
@@ -131,12 +133,20 @@ public class ContentVaultSender implements BusinessObjectHandler {
             }                                                        
             else {
                 log("No args");
-            }
-            
-            ContentVaultSender sender= new ContentVaultSender(DEFAULT_HOST, DEFAULT_PORT, nToSend);
+            }                      
                         
-            
-            
+            ContentVaultSender sender = null;
+            try {
+                sender = new ContentVaultSender(ServerAddress.LERONEN_HIMA, nToSend);
+            }
+            catch (IOException e) {
+                log("No server at LERONEN_HIMA");
+            }
+            if (sender == null) {
+                sender = new ContentVaultSender(ServerAddress.LERONEN_KAPSI, nToSend);
+                log("Connected to LERONEN_KAPSI");
+            }
+                        
             log("Request startLoadingContent");
             sender.startLoadingContent();
             log("Exiting main thread");
