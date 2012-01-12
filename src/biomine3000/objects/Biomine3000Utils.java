@@ -25,6 +25,16 @@ public class Biomine3000Utils {
         }
     }
     
+    public static boolean atBC() {
+        String host = getHostName();
+        if (host != null && host.equals("xl2")) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    
     public static boolean atVoodoomasiina() {
         String host = getHostName();
         if (host != null && host.equals("voodoomasiina")) { 

@@ -131,12 +131,11 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
             }
         }
         
-    }
-    
+    }   
     
     /** Currently, only one server can be received from at a time. */
     public synchronized void startReceivingContentFromServer(ServerAddress server) throws IOException {
-        startReceivingContentFromServer(server.host, server.port);
+        startReceivingContentFromServer(server.getHost(), server.port);
     }
     
     /** Currently, only one server can be received from at a time. */
