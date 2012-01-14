@@ -16,7 +16,7 @@ public class MP3Sender {
     private Socket socket = null;
     
     public MP3Sender(ServerAddress server) throws UnknownHostException, IOException {
-        init(server.host, server.port);
+        init(server.getHost(), server.getPort());
     }
     
     public MP3Sender(String host, int port) throws UnknownHostException, IOException {                              

@@ -13,26 +13,28 @@ import util.dbg.Logger;
 import util.net.NonBlockingSender;
 
 /**
- * Test server which reads business objects from each client and breadcasts back everything it reads
+ * Advanced Business Objects Exchange Server.
+ * 
+ * Reads business objects from each client, broadcasting back everything it reads
  * to all clients.
+ * 
+ * Two dedicated threads will created for each client, one for sending and one for reading {@link
+ * BusinessObject}s.  
  * 
  * Once a client closes its sockets outputstream (the inputstream of the server's socket),
  * the server stops sending to that client and closes the socket. 
  *
  */
-public class TestServer {
-
-//    public static String DEFAULT_HOST = "localhost";
-//    public static int DEFAULT_PORT = 9876;
-    
+public class ABBOEServer {
+   
     public static final DateFormat DEFAULT_DATE_FORMAT = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM);
         
     private ServerSocket serverSocket;    
     private int serverPort;
     private List<ClientConnection> clients;
-                   
-    
-    public TestServer(int port) throws IOException {                                                                   
+                      
+    /** Create server data structures and start listening */
+    public ABBOEServer(int port) throws IOException {                                                                   
         this.serverPort = port;
         serverSocket = new ServerSocket(serverPort);        
         clients = new ArrayList<ClientConnection>();
@@ -87,7 +89,7 @@ public class TestServer {
             closed = false;
             name = "ClientConnection-"+socket.getRemoteSocketAddress();
             log("Initialization done");
-            synchronized(TestServer.this) {
+            synchronized(ABBOEServer.this) {
                 clients.add(this);
             }
             
@@ -144,7 +146,7 @@ public class TestServer {
                 // let's not bother to even log the exception at this stage
             }
             
-            synchronized(TestServer.this) {
+            synchronized(ABBOEServer.this) {
                 clients.remove(this);
                 closed = true;
             }
@@ -247,7 +249,7 @@ public class TestServer {
         public void objectReceived(BusinessObject bo) {
             log("Received business object: "+bo);
             log("Sending the very same object...");
-            TestServer.this.sendToAllClients(bo.bytes());
+            ABBOEServer.this.sendToAllClients(bo.bytes());
             // client.send(bo.bytes());
         }
 
@@ -288,13 +290,10 @@ public class TestServer {
     public static void main(String[] pArgs) throws Exception {
         
         CmdLineArgs2 args = new CmdLineArgs2(pArgs);
+                        
+        Integer port = args.getIntOpt("port");
         
-        String portStr = args.getOpt("host");
-        Integer port = null; 
-        if (portStr != null) {
-             port = Integer.parseInt(portStr);
-        }
-        else {
+        if (port == null) {             
             port = Biomine3000Utils.conjurePortByHostName();
         }
         
@@ -306,7 +305,7 @@ public class TestServer {
         log("Starting test server at port "+port +" ("+DateUtils.formatOrderableDate()+")");
                        
         try {
-            TestServer server = new TestServer(port);
+            ABBOEServer server = new ABBOEServer(port);
             server.mainLoop();
         }
         catch (IOException e) {

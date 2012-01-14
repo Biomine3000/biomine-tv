@@ -103,7 +103,7 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
     }
     
     public void startReceivingContentFromVault() {
-        contentVaultAdapter = new ContentVaultAdapter(this);
+        contentVaultAdapter = new ContentVaultAdapter(this, 3000);
         contentVaultAdapter.startLoading();
     }
     
@@ -135,7 +135,7 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
     
     /** Currently, only one server can be received from at a time. */
     public synchronized void startReceivingContentFromServer(ServerAddress server) throws IOException {
-        startReceivingContentFromServer(server.getHost(), server.port);
+        startReceivingContentFromServer(server.getHost(), server.getPort());
     }
     
     /** Currently, only one server can be received from at a time. */

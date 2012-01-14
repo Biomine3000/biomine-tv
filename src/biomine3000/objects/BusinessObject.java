@@ -16,12 +16,14 @@ import util.dbg.StdErrLogger;
 
 
 /**
+ * <pre>
  * BEGIN Message Format 
  *     JSON METADATA in UTF-8 encoding
  *     NULL byte ('\0')
  *     PAYLOAD (raw bytes)
  * END Message Format
- *
+ * </pre> 
+ * 
  * The JSON metadata MUST contain at least the keys "size" and "type" to specify the length (in bytes) 
  * and type (or "mimetype", as preferred by some pundits) of the payload to follow.
  * 
@@ -31,6 +33,8 @@ import util.dbg.StdErrLogger;
  * 
  * TODO: move default implementation of storing as bytes to a subclass "DefaultBusinessObject" and make
  * this class Abstract?
+ * 
+ * TODO: move payload implementations to different class?
  * 
  * TBD: are business objects to be immutable, that is can the bytes change?
  *      At 2011-12-06, it appears that the answer should be "no".
@@ -42,7 +46,7 @@ public class BusinessObject {
     
     /**
      * Might be null when subclass is implementing its own payload storage protocol. Should always be accessed through
-     * {@link #getPayload()}, newer directly, even within this class.
+     * {@link #getPayload()}, never directly, even within this very class.
      * */
     private byte[] payload;
     

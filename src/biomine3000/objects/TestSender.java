@@ -104,7 +104,7 @@ public class TestSender {
     
     /** Just for trivial testing */
     public static void main(String[] pArgs) throws Exception {
-        TestSender sender = new TestSender(DEFAULT_HOST, DEFAULT_PORT);
+        TestSender sender = new TestSender(DEFAULT_HOST, LERONEN_HIMA_PORT);
         BusinessObject sendObj, rcvObj;
          
         sendObj = new PlainTextObject("This is a ZOMBI notification");

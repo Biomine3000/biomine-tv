@@ -21,15 +21,21 @@ public class ContentVaultAdapter {
     private boolean firstImageLoaded;
     private ContentVaultProxy contentVaultProxy;
     private ContentListener contentListener;
-    private Sender sender;    
+    private Sender sender;
+    /** Time between sends (in millis) */
+    private int sendInterval;
     
     /**
      * Creates a content vault and starts listening to it. Caller needs to call startLoading 
      * to instruct content vault to start loading content; this shall later trigger
-     * a sender thread to actually push content to the handler. 
+     * a sender thread to actually push content to the handler periodically, as dictated by 
+     * sendInterval.
+     * 
+     * @param sendInterval interval between sent objects (in milliseconds).
      */
-    public ContentVaultAdapter(BusinessObjectHandler handler) {
+    public ContentVaultAdapter(BusinessObjectHandler handler, int sendInterval) {
         this.handler = handler;
+        this.sendInterval = sendInterval;
         // init communications with the server
         firstImageLoaded = false;
         contentVaultProxy = new ContentVaultProxy();
@@ -59,7 +65,7 @@ public class ContentVaultAdapter {
         
         @Override
         public void loadedImageList() {
-            String msg = "Loaded urls for all"+contentVaultProxy.getNumLoadedObjects()+" business objects";
+            String msg = "Loaded urls for all "+contentVaultProxy.getNumLoadedObjects()+" business objects";
             sendEvent(msg);
         }
 
@@ -92,12 +98,12 @@ public class ContentVaultAdapter {
                 try {                    
                     ImageObject randomContent = contentVaultProxy.sampleImage();
                     handler.handle(randomContent);
-                    Thread.sleep(3000);
+                    Thread.sleep(sendInterval);
                 }
                 catch (InvalidStateException e) {
                     handler.handle(new ErrorObject(ExceptionUtils.format(e,"; ")));
                     try {
-                        Thread.sleep(3000);
+                        Thread.sleep(sendInterval);
                     }
                     catch (InterruptedException ie) {
                         // no action
@@ -124,7 +130,7 @@ public class ContentVaultAdapter {
                     public void handle(BusinessObject bo) {                        
                         log("DUMMY HANDLER received object: "+bo);
                     }
-                });
+                }, 3000);
         adapter.startLoading();                        
     }
        
