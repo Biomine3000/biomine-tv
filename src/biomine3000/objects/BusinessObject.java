@@ -34,6 +34,8 @@ import util.dbg.StdErrLogger;
  * TODO: move default implementation of storing as bytes to a subclass "DefaultBusinessObject" and make
  * this class Abstract?
  * 
+ * TODO: move payload type from businessobjectmetadata to this class.
+ * 
  * TODO: move payload implementations to different class?
  * 
  * TBD: are business objects to be immutable, that is can the bytes change?
@@ -42,7 +44,14 @@ import util.dbg.StdErrLogger;
  */
 public class BusinessObject {    
     
-    protected BusinessObjectMetadata metadata;
+    @SuppressWarnings("unused")
+    private static ILogger log = new Logger.ILoggerAdapter("BusinessObject");
+    
+   /**
+    * Implementation note: this should never be set directly, but always using setMetadata.
+    * This is because we always want a reverse link from the metadata to this object.
+    */
+    private BusinessObjectMetadata metadata;
     
     /**
      * Might be null when subclass is implementing its own payload storage protocol. Should always be accessed through
@@ -52,17 +61,20 @@ public class BusinessObject {
     
     /**
      * No-op constructor targeted to enable creating subclasses by reflection.
+     * Do NOT use this to create business objects with empty payload;
+     * use {@link createEmptyObject()} instead. 
      * 
-     * Metadata and payload must be set ASAP by {@link #setPayload()} and 
-     * {@link #setMetadata()}.  
-     * 
-     * that are not able to provide superclass constructor
-     * params on the first line of the constructor due to some mandatory try-catching...
-     * 
-     * Callers need to call {@link #init()} ASAP after this!
+     * Metadata and payload (if not empty) must naturally be set ASAP by {@link #setPayload()} and 
+     * {@link #setMetadata()}.      
      */
     protected BusinessObject() {
         // no action
+    }
+    
+    /** Create an object with no payload */
+    public static BusinessObject createEmptyInstance() {        
+        BusinessObjectMetadata meta = new BusinessObjectMetadata();
+        return new BusinessObject(meta);
     }
      
     public static BusinessObject readObject(InputStream is) throws IOException, InvalidPacketException, BusinessObjectException {        
@@ -71,7 +83,7 @@ public class BusinessObject {
     }
     
     /**
-     * @return null if no more business objects in stream.
+     * @return null if no more business objects in stream. Note that payload may be null!
      * @throws InvalidPacketException when packet is not correctly formatted
      * @throws InvalidJSONException JSON metadata is not correctly formatted json
      * @throws BusinessObjectException when some other errors occurs in constructing buziness object 
@@ -92,8 +104,16 @@ public class BusinessObject {
 //        System.err.println("Got metadata bytes: "+new String(metabytes));                                                          
         BusinessObjectMetadata metadata = new BusinessObjectMetadata(metabytes);
 //        System.err.println("Got metadata: "+metadata);
-        int payloadSz = metadata.getSize();
-        byte[] payload = IOUtils.readBytes(is, payloadSz);
+        byte[] payload;
+        if (metadata.hasPayload()) {
+            log.info("Metadata has payload");
+            int payloadSz = metadata.getSize();
+            payload = IOUtils.readBytes(is, payloadSz);           
+        }
+        else {
+            // no payload
+            payload = null;
+        }
         return new Pair<BusinessObjectMetadata, byte[]>(metadata, payload);
     }
     
@@ -110,11 +130,24 @@ public class BusinessObject {
         
         byte[] metabytes = Arrays.copyOfRange(data, 0, i);
         BusinessObjectMetadata metadata = new BusinessObjectMetadata(metabytes);
-        byte[] payload = Arrays.copyOfRange(data, i+1, data.length);
+        byte[] payload;
+        if (metadata.hasPayload()) {
+            payload = Arrays.copyOfRange(data, i+1, data.length);
+//            int payloadSz = metadata.getSize();
+//            payload = IOUtils.readBytes(is, payloadSz);           
+        }
+        else {
+            // no payload
+            payload = null;
+        }
+        
         return new Pair<BusinessObjectMetadata, byte[]>(metadata, payload);        
     }
     
     public static BusinessObject makeObject(Pair<BusinessObjectMetadata, byte[]> data) {
+        if (data == null) {
+            throw new RuntimeException("makeObject called with null data");
+        }
         return makeObject(data.getObj1(), data.getObj2());
     }
     
@@ -123,7 +156,9 @@ public class BusinessObject {
      * (managed by class {@link BiomineTVMimeType} 
      * 
      * To construct a raw business object using the default implementation (this very class),
-     * use the constructor with similar params
+     * use the constructor with similar params, instead of this factory method.
+     * 
+     * Payload must be null IFF metadata does not contain field "type"
      */ 
     public static BusinessObject makeObject(BusinessObjectMetadata metadata, byte[] payload) {
         BiomineTVMimeType officialType = metadata.getOfficialType();
@@ -132,7 +167,7 @@ public class BusinessObject {
             // an official type
             try {
                 bo = officialType.makeBusinessObject();
-                bo.setMetaData(metadata);
+                bo.setMetadata(metadata);
                 bo.setPayload(payload);
             }
             catch (IllegalAccessException e) {
@@ -157,26 +192,48 @@ public class BusinessObject {
         return metadata.isEvent();
     }
     
+    /** Create a business object with no payload */
+    public BusinessObject(BusinessObjectMetadata metadata) {
+        setMetadata(metadata);
+    }    
+    
     /** Create a business object supposedly being received and parsed earlier from the biomine business objects bus */
     public BusinessObject(BusinessObjectMetadata metadata, byte[] payload) {
-        this.metadata = metadata;
+        setMetadata(metadata);
         this.payload = payload;
         
-        // sanity check
-        if (metadata.getSize() != payload.length) {
+        // sanity checks
+        if (metadata.hasPayload() != (payload != null)) {
+            throw new BusinessObjectException(BusinessObjectException.ExType.ILLEGAL_PARAMS);
+        }
+        else if (metadata.hasPayload() && metadata.getSize() != payload.length) {
             throw new BusinessObjectException(BusinessObjectException.ExType.ILLEGAL_SIZE);
         }
     }
     
-    /** Create a new business object to be sent; payload length will be set to metadata automatically */
+    /** Create metadata and set type as the only field. */
+    private void initMetadata(String type) {
+        BusinessObjectMetadata meta = new BusinessObjectMetadata();
+        meta.setType(type);
+        setMetadata(meta);
+    }
+    
+    /**
+     * Create a new business object to be sent; payload length will be set to metadata automatically.
+     * Type and payload are required to be non-null here (use constructor with no parameters to create
+     * an object with (at least initially) no payload (and thus no type)
+     */
     protected BusinessObject(String type, byte[] payload) {
-        this.metadata = new BusinessObjectMetadata(type, payload.length);
+        initMetadata(type);
         this.payload = payload; 
     }               
     
-    /** Create a new business object to be sent; payload length will be set to metadata automatically */
+    /**
+     * Create a new business object to be sent; payload length will be set to metadata automatically.
+     * Naturally, both type and payload are required to be non-null.
+     */
     protected BusinessObject(BiomineTVMimeType type, byte[] payload) {
-        this.metadata = new BusinessObjectMetadata(type.toString(), payload.length);
+        initMetadata(type.toString());
         this.payload = payload; 
     }
     
@@ -187,7 +244,10 @@ public class BusinessObject {
      * calling getMetadata().setPayloadSize() after its own construction process has been finished.
      */
     protected BusinessObject(String type) {
-        this.metadata = new BusinessObjectMetadata(type, null);        
+        BusinessObjectMetadata meta = new BusinessObjectMetadata();
+        meta.setType(type);
+        setMetadata(meta);
+        
         this.payload = null;
     }    
     
@@ -195,18 +255,15 @@ public class BusinessObject {
      * Metadata is represented by a json object. However, should we provide some kind of wrapper to access standard fields? 
      * Current implementation does not perform validation of payload size against one reported in metadata.
      */
-    public void setMetaData(BusinessObjectMetadata metadata) {
+    public void setMetadata(BusinessObjectMetadata metadata) {
         this.metadata = metadata;
-    }
+        metadata.setObject(this);
+    }           
     
-	/** Metadata is represented by a json object. However, should we provide some kind of wrapper to access standard fields? */
+	/** 
+	 * Sets correct size to metadata as a side-effect. */
 	public BusinessObjectMetadata getMetaData() {
-	    Integer payloadSz = metadata.getInteger("size");
-	    if (payloadSz == null) {
-	        payloadSz = getPayload().length;
-	        metadata.setPayloadSize(payloadSz);
-	    }
-	    
+//	    setSizeToMetadata();
 	    return metadata;
 	}
 	
@@ -223,6 +280,8 @@ public class BusinessObject {
      * Set payload supposedly received as transmitted bytes. This default implementation just stores a reference to the
      * bytes provided; subclasses desiring to implement storing of payload in some other manner than raw 
      * bytes should override this.
+     * 
+     * Sets size to payload as a side-effect.
      */  
 	public void setPayload(byte[] payload) {
 	    this.payload = payload; 
@@ -237,24 +296,32 @@ public class BusinessObject {
 	 * acceptable for now.
 	 */  
 	public final byte[] bytes() {
-	    // ensure that payload size matches size in metadata at this point...
-	    byte[] payload = getPayload();
-	    metadata.setPayloadSize(payload.length);
 	    byte[] jsonBytes = null;
-	    
 	    try {
-	        jsonBytes = metadata.toString().getBytes("UTF-8");
-	    }
-	    catch (UnsupportedEncodingException e) {
-	        // the unthinkable has occurred
-	        throw new RuntimeException("phintsan has arrived to Helsinki OPEN pl�tk� tournament");
-	    }
-	    byte[] bytes = new byte[jsonBytes.length+1+payload.length];
+            jsonBytes = metadata.toString().getBytes("UTF-8");           
+        }
+        catch (UnsupportedEncodingException e) {
+            // the unthinkable has occurred
+            throw new RuntimeException("phintsan has arrived to Helsinki OPEN plätkä tournament");
+        }
 	    
-	    System.arraycopy(jsonBytes, 0, bytes, 0, jsonBytes.length);
-	    bytes[jsonBytes.length] = '\0';
-	    System.arraycopy(payload, 0, bytes, jsonBytes.length+1, payload.length);
-	    
+	    byte[] bytes;
+	    if (metadata.hasPayload()) {
+    	    // ensure that payload size matches size in metadata at this point...
+    	    byte[] payload = getPayload();
+    	    
+    	    // form packet
+    	    bytes = new byte[jsonBytes.length+1+payload.length];
+    	    System.arraycopy(jsonBytes, 0, bytes, 0, jsonBytes.length);
+            bytes[jsonBytes.length] = '\0';
+            System.arraycopy(payload, 0, bytes, jsonBytes.length+1, payload.length);
+	    }
+	    else {
+	        bytes = new byte[jsonBytes.length+1];
+	        System.arraycopy(jsonBytes, 0, bytes, 0, jsonBytes.length);
+	        bytes[jsonBytes.length] = '\0';
+	    }
+	    	    	    	   	    	    	    	    
 	    return bytes;
 	}
 	
@@ -287,7 +354,7 @@ public class BusinessObject {
 	            // an official type
 	            try {
 	                receivedBO = officialType.makeBusinessObject();
-	                receivedBO.setMetaData(receivedMetadata);
+	                receivedBO.setMetadata(receivedMetadata);
 	                receivedBO.setPayload(receivedPayload);
 	            }
 	            catch (IllegalAccessException e) {
@@ -312,7 +379,10 @@ public class BusinessObject {
 	}
 	
 	public String toString() {
-	    return "BusinessObject <metadata: "+metadata.toString()+"> <payload of "+payload.length+" bytes>";
+	    String payloadStr = metadata.hasPayload() 
+	                      ? "<payload of "+payload.length+" bytes>" 
+	                      : "<no payload>";
+	    return "BusinessObject <metadata: "+metadata.toString()+"> "+payloadStr;
 	}
 	
 }

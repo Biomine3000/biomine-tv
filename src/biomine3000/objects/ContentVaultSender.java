@@ -17,6 +17,9 @@ import biomine3000.objects.ContentVaultProxy;
  * Sends objects from the notorious content vault with a constant interval
  * to provide a tuning image for BiomineTV®.
  * 
+ * Note that sending is synchronous, that is we do not want to accumulate content which 
+ * will not be read by the server anyway.
+ * 
  * Use a {@link ContentVaultProxy} for loading the stuff over the web.
  */
 public class ContentVaultSender implements BusinessObjectHandler {
@@ -30,9 +33,6 @@ public class ContentVaultSender implements BusinessObjectHandler {
     /** Listens to (skipping) reader that reads input stream of server socket */
     private ServerReaderListener serverReaderListener;
     
-//    public ContentVaultSender(Socket socket, Integer nToSend) throws UnknownHostException, IOException {
-//        this(server.getHost(), server.getPort(), nToSend);
-//    }
     
     /**
      * {@link #startLoadingContent} has to be called separately.
@@ -41,13 +41,17 @@ public class ContentVaultSender implements BusinessObjectHandler {
      */
     private ContentVaultSender(Socket socket, Integer nToSend, Integer sendInterval) throws UnknownHostException, IOException {
         this.socket = socket;
+        
+        // register to server
+        BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket("ContentVaultSender");
+        socket.getOutputStream().write(registerObj.bytes());
+        
         this.nToSend = nToSend;        
         
         // init state information
         this.stopped = false;
         this.nSent = 0;
         
-
         // init adapter which we will use to periodically receive business objects from the content vault proxy
         this.vaultAdapter = new ContentVaultAdapter(this, sendInterval);
                
@@ -76,6 +80,7 @@ public class ContentVaultSender implements BusinessObjectHandler {
         }        
     }
                 
+    @Override
     public void handle(BusinessObject obj) {
         if (stopped) {
             // no more buizness

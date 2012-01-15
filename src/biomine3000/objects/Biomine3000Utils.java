@@ -8,7 +8,10 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
+import util.CmdLineArgs2;
+import util.CmdLineArgs2.IllegalArgumentsException;
 import util.dbg.ILogger;
+import util.dbg.Logger;
 
 public class Biomine3000Utils {
     
@@ -97,11 +100,47 @@ public class Biomine3000Utils {
         throw lastEx;
     }
     
+    public static String getUser() {
+        return System.getenv("USER");
+    }
+    
+    /** 
+     * Parse connection params (socket and host) from cmdline args. 
+     * If no such args, we shall try all known server locations.
+     *
+     * Always return a non-null connection when no exception is thrown.
+     */
+    public static Socket connectToServer(String[] pArgs) throws IOException, IllegalArgumentsException {
+        CmdLineArgs2 args = new CmdLineArgs2(pArgs); 
+        String host = args.getOpt("host");
+        Integer port = args.getIntOpt("port");
+        return connectToServer(host, port);
+    }
+    
     /**
      * Socket and host may be null, in which case we shall try all known server locations. 
      * Connection timeout shall be somewhat smaller than the default one.
+     * 
+     * Always return a non-null connection when no exception is thrown.
+     * 
+     * Use default logger (util.dbg.Logger.ILoggerAdapter)
+     * 
+     */
+    public static Socket connectToServer(String host, Integer port) throws IOException {
+        return connectToServer(host, port, null); 
+    }
+    
+    /**
+     * Socket and host may be null, in which case we shall try all known server locations. 
+     * Connection timeout shall be somewhat smaller than the default one.
+     * 
+     * Always return a non-null connection when no exception is thrown.
      */
     public static Socket connectToServer(String host, Integer port, ILogger log) throws IOException {
+        if (log == null) {
+            log = new Logger.ILoggerAdapter();
+        }
+        
         if (host != null && port != null) {
             // connect to a well-defined server
             return connect(new InetSocketAddress(host, port));
@@ -122,7 +161,25 @@ public class Biomine3000Utils {
                 
     }
     
+    /** TODO! */
+    public static String generateMessageId() {
+        // http://www.jwz.org/doc/mid.html
+        return null;
+    }
+    
     public static void main(String[] args) {
         System.out.println("at host: "+getHostName());
+    }
+    
+    public static BusinessObject makeRegisterPacket(String clientName) {
+        BusinessObjectMetadata meta = new BusinessObjectMetadata();
+        meta.setEvent(BusinessObjectEventType.REGISTER_CLIENT);
+        meta.put("name", clientName);
+        String user = getUser();
+        if (user != null) {
+            meta.setUser(user);
+        }
+        
+        return new BusinessObject(meta);
     }
 }

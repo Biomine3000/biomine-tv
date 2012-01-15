@@ -1,18 +1,22 @@
 package biomine3000.objects;
 
-import static biomine3000.objects.Biomine3000Constants.*;
-
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import util.ExceptionUtils;
+
 import util.collections.Pair;
 import util.dbg.Logger;
 import util.net.NonBlockingSender;
 
 
-/** Sends some trivial objects to default address and exits. */ 
-public class TestSender {
+/**
+ * Reads lines from stdin and writes them to the server as PlainTextObjects synchronously.
+ * After writing each line reads one object from the server, again synchronously (the assumption is
+ * that the read object will be the line we just wrote, although that is not guaranteed in any way). 
+ */
+public class TrivialClient {
                       
     private Socket socket = null;
     
@@ -28,15 +32,15 @@ public class TestSender {
     private boolean socketClosed = false;
     private boolean closeRequested = false;
 
-    public TestSender(String host, int port) throws UnknownHostException, IOException {                              
-        init(host, port);                                             
-    }         
+//    public TestSender(String host, int port) throws UnknownHostException, IOException {                              
+//        init(host, port);                                             
+//    }         
     
-    public void init(String host, int port) throws UnknownHostException, IOException {               
+    public TrivialClient(Socket socket) throws UnknownHostException, IOException {               
                                                
         // init communications with the server
-        try {       
-            socket = new Socket(host, port);
+//        try {       
+            this.socket = socket;
             sender = new NonBlockingSender(socket, new SenderListener());
       
             info("TestTCPClient Connected to server");
@@ -44,19 +48,19 @@ public class TestSender {
             MyShutdown sh = new MyShutdown();            
             Runtime.getRuntime().addShutdownHook(sh);
             info("Initialized shutdown hook");
-        }
-        catch (UnknownHostException e) {
-            warning("Cannot connect to cache server: Unknown host: "+host);
-            throw e;
-        } 
-        catch (IOException e) {
-            warning("Error while establishing connection: "+
-                           ExceptionUtils.format(e, " ")+". "+                    
-                          "A probable reason is that a server is not running at "+
-                          host+":"+port+", as supposed.");
-            // e.printStackTrace();            
-            throw e;
-        }        
+//        }
+//        catch (UnknownHostException e) {
+//            error("Cannot connect to cache server", e);
+//            throw e;
+//        } 
+//        catch (IOException e) {
+//            error("Error while establishing connection: "+
+//                  ExceptionUtils.format(e, " ")+". "+                    
+//                  "A probable reason is that a server is not running at "+
+//                  host+":"+port+", as supposed.");
+//            // e.printStackTrace();            
+//            throw e;
+//        }        
     }                
        
     public void send(BusinessObject object) throws IOException {        
@@ -104,20 +108,46 @@ public class TestSender {
     
     /** Just for trivial testing */
     public static void main(String[] pArgs) throws Exception {
-        TestSender sender = new TestSender(DEFAULT_HOST, LERONEN_HIMA_PORT);
+        Socket socket = Biomine3000Utils.connectToServer(pArgs);        
+        TrivialClient sender = new TrivialClient(socket);
+                       
         BusinessObject sendObj, rcvObj;
-         
-        sendObj = new PlainTextObject("This is a ZOMBI notification");
-        info("Sending object 1: "+sendObj);
+
+        // register to server
+        sendObj = Biomine3000Utils.makeRegisterPacket("TrivialClient");
         sender.send(sendObj);
         rcvObj = sender.receive();
-        info("Received object 1: "+rcvObj);
-         
-        sendObj = new PlainTextObject("This is a COMPETITION declaration");
-        info("Sending object 2: "+sendObj);
-        sender.send(sendObj);
-        rcvObj = sender.receive();
-        info("Received object 2: "+rcvObj);
+        System.out.println("Received object: "+rcvObj);                        
+        
+        
+        // start reading user input
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        String line = br.readLine();
+        while (line != null) {
+            sendObj = new PlainTextObject(line);
+            System.out.println("Sending object: "+sendObj );
+//            System.out.write(sendObj.bytes());
+//            System.out.println("");
+            sender.send(sendObj);
+            rcvObj = sender.receive();
+            System.out.println("Received object: "+rcvObj);
+//            System.out.write(rcvObj.bytes());
+//            System.out.println("");
+            info(" "+rcvObj);
+            line = br.readLine();
+        }
+        
+//        sendObj = new PlainTextObject("This is a ZOMBI notification");
+//        info("Sending object 1: "+sendObj);
+//        sender.send(sendObj);
+//        rcvObj = sender.receive();
+//        info("Received object 1: "+rcvObj);
+//         
+//        sendObj = new PlainTextObject("This is a COMPETITION declaration");
+//        info("Sending object 2: "+sendObj);
+//        sender.send(sendObj);
+//        rcvObj = sender.receive();
+//        info("Received object 2: "+rcvObj);
         
         sender.requestClose();        
          
@@ -127,7 +157,7 @@ public class TestSender {
 
     private class SenderListener implements NonBlockingSender.Listener {
         public void senderFinished() {
-            synchronized(TestSender.this) {
+            synchronized(TrivialClient.this) {
                 info("SenderListener.finished()");
                 senderFinished = true;
                 closeSocketIfNeeded();
@@ -152,6 +182,7 @@ public class TestSender {
         Logger.error("TestTCPClient: "+msg, e);
     }
         
+    @SuppressWarnings("unused")
     private static void warning(String msg) {
         Logger.warning("TestTCPClient: "+msg);
     }

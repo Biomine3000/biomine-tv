@@ -9,6 +9,8 @@ import java.util.List;
 
 import util.CmdLineArgs2;
 import util.DateUtils;
+import util.StringUtils;
+import util.dbg.ILogger;
 import util.dbg.Logger;
 import util.net.NonBlockingSender;
 
@@ -25,14 +27,25 @@ import util.net.NonBlockingSender;
  * the server stops sending to that client and closes the socket. 
  *
  */
-public class ABBOEServer {
+public class ABBOEServer {   
    
+    private static ILogger log = new Logger.ILoggerAdapter(null, new DateUtils.BMZGenerator());
+    
     public static final DateFormat DEFAULT_DATE_FORMAT = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM);
         
     private ServerSocket serverSocket;    
     private int serverPort;
     private List<ClientConnection> clients;
-                      
+    
+    
+    private synchronized List<String> clientReport() {
+        List<String> result = new ArrayList<String>();
+        for (ClientConnection client: clients) {
+            result.add(client.name);
+        }
+        return result;
+    }
+    
     /** Create server data structures and start listening */
     public ABBOEServer(int port) throws IOException {                                                                   
         this.serverPort = port;
@@ -54,7 +67,7 @@ public class ABBOEServer {
     private void mainLoop() {         
                           
         while (true) {
-            log("["+DateUtils.formatDate()+"] waiting for client...");
+            log("Waiting for client...");
             
             try {
                 Socket clientSocket = serverSocket.accept();
@@ -67,33 +80,70 @@ public class ABBOEServer {
         }                                        
     }
             
-    private class ClientConnection implements NonBlockingSender.Listener {
+    private class ClientConnection implements NonBlockingSender.Listener {        
         Socket socket;
         BufferedInputStream is;
         OutputStream os;        
         NonBlockingSender sender;
+        BusinessObjectReader reader;
         ReaderListener readerListener;
         boolean closed;
+        String clientName;
+        String user;
+        String addr;
+        /** Derived from clientName, user and addr */
         String name;
         boolean senderFinished;
         boolean receiverFinished;
-        
+                
         ClientConnection(Socket socket) throws IOException {
             senderFinished = false;
             receiverFinished = false;
-            this.socket = socket; 
+            this.socket = socket;
+            addr = socket.getRemoteSocketAddress().toString();
+            initName();
             is = new BufferedInputStream(socket.getInputStream());
             os = socket.getOutputStream();            
-            sender = new NonBlockingSender(socket, this);
+            sender = new NonBlockingSender(socket, this, log);
+            sender.setName(name);
             readerListener = new ReaderListener(this);
             closed = false;
-            name = "ClientConnection-"+socket.getRemoteSocketAddress();
-            log("Initialization done");
+            
+            log("Client connected");
             synchronized(ABBOEServer.this) {
                 clients.add(this);
+            }            
+        }
+        
+        private void initName() {
+            StringBuffer buf = new StringBuffer();
+            if (clientName != null) {
+                buf.append(clientName+"-");
             }
-            
-        }        
+            if (user != null) {
+                buf.append(user+"-");
+            }
+            buf.append(addr);
+            name = buf.toString();
+        }
+        
+        private synchronized void setName(String clientName) {
+            this.clientName = clientName;
+            initName();
+            sender.setName("sender-"+this.name);  
+            reader.setName("reader-"+this.name);
+        }
+        
+        private synchronized void setUser(String user) {
+            this.user = user;
+            initName();
+            sender.setName("sender-"+name);  
+            reader.setName("reader-"+name);
+        }
+        
+        private void send(BusinessObject obj) { 
+            send(obj.bytes());
+        }
         
        /**
         * Put object to queue of messages to be sent (to this one client) and return immediately.        
@@ -115,8 +165,9 @@ public class ABBOEServer {
         }       
         
         private void startReaderThread() {
-            BusinessObjectReader readerRunnable = new BusinessObjectReader(is, readerListener, "BusinessObjectReader-"+socket.getRemoteSocketAddress(), false);
-            Thread readerThread = new Thread(readerRunnable);
+            reader = new BusinessObjectReader(is, readerListener, name, false, log);
+            reader.setName(name);
+            Thread readerThread = new Thread(reader);
             readerThread.start();
         }               
         
@@ -191,11 +242,11 @@ public class ABBOEServer {
         }
         
         private void error(String msg, Exception e) {
-            Logger.error(this+": "+msg, e);
+            log.error(name+": "+msg, e);
         }
         
         private void log(String msg) {
-            Logger.info(this+": "+msg);
+            log.info(name+": "+msg);
         }
         
         public String toString() {
@@ -246,8 +297,47 @@ public class ABBOEServer {
         }
 
         @Override
-        public void objectReceived(BusinessObject bo) {
-            log("Received business object: "+bo);
+        public void objectReceived(BusinessObject bo) {                        
+            if (bo.isEvent()) {
+                BusinessObjectEventType et = bo.getMetaData().getKnownEvent();
+                if (et != null) {                    
+                    if (et == BusinessObjectEventType.REGISTER_CLIENT) {
+                        log("Received REGISTER_CLIENT event: "+bo);
+                        String name = bo.getMetaData().getName();
+                        String user = bo.getMetaData().getUser();
+                        if (name != null) {
+                            client.setName(name);
+                        }
+                        else {
+                            warn("No name in register packet from "+client);
+                        }
+                        if (user != null) {
+                            client.setUser(user);
+                        }     
+                        else {
+                            warn("No user in register packet from "+client);
+                        }
+                        
+                        String abboeUser = Biomine3000Utils.getUser();
+                        String msg = "Welcome to this fully operational java-A.B.B.O.E., run by "+abboeUser+".\n"+
+                                     "List of connected clients:\n"+
+                                     StringUtils.collectionToString(clientReport());
+                                     
+                        BusinessObject welcomeObj = new PlainTextObject(msg);
+                                                  
+                        client.send(welcomeObj);
+                    }
+                    else {
+                        log("Reveiced known event which this ABBOE implementation does not handle: "+bo);
+                    }
+                }
+                else {
+                    log("Reveiced unknown event: "+bo.getMetaData().getEvent());
+                }
+            }
+            else {
+                log("Received content: "+bo);
+            }
             log("Sending the very same object...");
             ABBOEServer.this.sendToAllClients(bo.bytes());
             // client.send(bo.bytes());
@@ -261,6 +351,7 @@ public class ABBOEServer {
 
         private void handleException(Exception e) {            
             error("Exception while reading objects from client "+client, e);                                            
+            e.printStackTrace();
             client.doReceiverFinished();
         }
         
@@ -302,7 +393,7 @@ public class ABBOEServer {
             System.exit(1);
         }
         
-        log("Starting test server at port "+port +" ("+DateUtils.formatOrderableDate()+")");
+        log("Starting test server at port "+port);
                        
         try {
             ABBOEServer server = new ABBOEServer(port);
@@ -314,19 +405,19 @@ public class ABBOEServer {
     }
     
     private static void log(String msg) {
-        Logger.info("TestServer: "+msg);
+        log.info(msg);
     }    
     
     private static void warn(String msg) {
-        Logger.warning("TestServer: "+msg);
+        log.warning(msg);
     }        
     
     private static void error(String msg) {
-        Logger.error("TestServer: "+msg);
+        log.error(msg);
     }
     
     private static void error(String msg, Exception e) {
-        Logger.error("TestServer: "+msg, e);
+        log.error(msg, e);
     }
           
 }

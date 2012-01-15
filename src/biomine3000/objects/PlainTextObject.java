@@ -6,7 +6,10 @@ public class PlainTextObject extends BusinessObject {
     
     private String text;
     
-    /** Create unitialized instance. */
+    /**
+     * Create unitialized instance (used by reflective factorization of
+     * objects based on their type).
+     */
     public PlainTextObject() {
         super();
     }
@@ -14,13 +17,13 @@ public class PlainTextObject extends BusinessObject {
     /** Create a plain text business object with mimetype text/plain */ 
     public PlainTextObject(String text) {
         super(BiomineTVMimeType.PLAINTEXT.toString());
-        this.text = text;               
+        this.text = text;
     }
     
     /** Create a plain text business object with specified mimetype */ 
     public PlainTextObject(String text, String mimeType) {
         super(mimeType);
-        this.text = text;               
+        this.text = text;
     }
     
     /**
@@ -30,7 +33,7 @@ public class PlainTextObject extends BusinessObject {
      */  
     public PlainTextObject(String text, BiomineTVMimeType mimeType) {                
         super(mimeType.toString());
-        this.text = text;               
+        this.text = text;
     }
     
     public String getText() {
@@ -60,7 +63,7 @@ public class PlainTextObject extends BusinessObject {
     }
     
     public String toString() {
-        return metadata.getType()+": "+text;
+        return getMetaData().getType()+": "+text;
     }
             
 

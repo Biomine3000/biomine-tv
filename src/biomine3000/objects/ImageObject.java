@@ -16,8 +16,8 @@ import util.StringUtils;
  * (bytes managed by superclass). An image usually has property "name".
  * 
  * Initialize the BufferedImage from payload on demand. 
- * Unfortunately this means that any errors in decoding are deferred until 
- * image access.
+ * 
+ * Unfortunately this means that any errors in decoding are deferred until image access.
  */ 
 public class ImageObject extends BusinessObject {
             
@@ -32,8 +32,7 @@ public class ImageObject extends BusinessObject {
     public ImageObject() {
         super();
     }
-               
-        
+                       
     /** Create a new business object to be sent; payload length will be set to metadata automatically */
     public ImageObject(BiomineTVMimeType type, byte[] payload) {
         super(type, payload);
@@ -52,8 +51,9 @@ public class ImageObject extends BusinessObject {
             throw new BusinessObjectException(fileName, ExType.UNRECOGNIZED_IMAGE_TYPE);
         }
             
-        metadata = new BusinessObjectMetadata(type, payload.length);
-        metadata.put("name", fileName);
+        BusinessObjectMetadata meta = new BusinessObjectMetadata(type);
+        meta.put("name", fileName);
+        setMetadata(meta);
         
         setPayload(payload);
         
@@ -89,11 +89,11 @@ public class ImageObject extends BusinessObject {
     }
     
     public String toString() {
-        String name = metadata.getString("name");
+        String name = getMetaData().getString("name");
         if (name == null) {
             name = "(no name)";
         }
-        return metadata.getType()+": "+name;
+        return getMetaData().getType()+": "+name;
     }
             
 
