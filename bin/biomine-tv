@@ -1,12 +1,5 @@
 #!/bin/bash
 
 BIOMINE_TV_BIN="$(dirname $0)"
-BIOMINE_TV_ROOT="$(echo "$BIOMINE_TV_BIN" | sed 's{/bin${{')"
-
-CLASSPATH=""
-CLASSPATH="$CLASSPATH:$BIOMINE_TV_ROOT/biomine-tv.jar"
-CLASSPATH="$CLASSPATH:$BIOMINE_TV_ROOT/lib/jl1.0.1.jar"
-CLASSPATH="$CLASSPATH:$BIOMINE_TV_ROOT/lib/json.jar"
-
-java -Xmx256m biomine3000.tv.BiomineTV
+$BIOMINE_TV_BIN/tv-java biomine3000.tv.BiomineTV
 
