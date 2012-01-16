@@ -7,10 +7,11 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import util.CollectionUtils;
+import util.JSONUtils;
+import util.dbg.DevNullLogger;
+import util.dbg.ILogger;
 
 import biomine3000.objects.BusinessObjectException.ExType;
-
-
 
 /**
  * In the initial implementation, mandatory fields are as follows:
@@ -29,14 +30,37 @@ import biomine3000.objects.BusinessObjectException.ExType;
  *  
  */
 public class BusinessObjectMetadata {
+        
+    private BusinessObject obj;
     
+    @SuppressWarnings("unused")
+    private static ILogger log = new DevNullLogger();
+    
+    public static void setLogger(ILogger log) {
+        BusinessObjectMetadata.log = log;
+    }
+            
     private JSONObject json;
-              
+    
+    public void setObject(BusinessObject obj) {
+        this.obj = obj;
+    }
+    
     /** 
      * Construct from JSON represented as UTF-8 coded bytes. Note that behavior is undefined 
      * when the characters are not encoded as UTF-8.
      */
-    public BusinessObjectMetadata (byte[] bytes) throws InvalidJSONException {        
+    public BusinessObjectMetadata (byte[] bytes) throws InvalidJSONException {
+
+//        try {
+////            System.err.println("Creating BusinessObjectMetadata from bytes:");
+////            System.err.write(bytes);
+////            System.err.println();
+//        }
+//        catch (Exception e) {
+//            // foo
+//        }        
+        
         try {            
             json = new JSONObject(new String(bytes, "UTF-8"));
         }
@@ -50,48 +74,53 @@ public class BusinessObjectMetadata {
         }
     }
 
+    public boolean hasPayload() {
+        return getType() != null; 
+    }
+    
+    /** 
+     * Construct an initially empty metadata. Recall that it is allowed to have no contents
+     * in a business object.
+     */
+    public BusinessObjectMetadata() {                          
+        json = new JSONObject();                              
+    }   
+    
     /** 
      * Construct from a JSON string.
      */
-    public BusinessObjectMetadata(String p) throws JSONException {                          
-        json = new JSONObject(p);                              
-    }   
+//    public BusinessObjectMetadata(String p) throws JSONException {                          
+//        json = new JSONObject(p);                              
+//    }   
     
-    /**
-     * Minimal metadata with only (mime)type and size of payload. Actually, even size might be null, if it is
-     * not known at the time of creating the metadata...
-     */
-    public BusinessObjectMetadata(String type, Integer size) {
-        try {
-            // oh, the nuisance: putting throws a CHECKED exception...
-            json = new JSONObject();
-            json.put("type", type);
-            if (size != null) {
-                json.put("size", size);
-            }
-        }
-        catch (JSONException e) {
-            throw new BusinessObjectException(ExType.JSON_IMPLEMENTATION_MELTDOWN);
-        }
+    public void setType(String type) {
+        put("type", type);
     }
     
     /**
      * Minimal metadata with only (mime)type and size of payload. Actually, even size might be null, if it is
      * not known at the time of creating the metadata...
      */
-    public BusinessObjectMetadata(BiomineTVMimeType type, Integer size) {
-        try {
-            // oh, the nuisance: putting throws a CHECKED exception...
-            json = new JSONObject();
-            json.put("type", type.toString());
-            if (size != null) {
-                json.put("size", size);
-            }
-        }
-        catch (JSONException e) {
-            throw new BusinessObjectException(ExType.JSON_IMPLEMENTATION_MELTDOWN);
-        }
+//    public BusinessObjectMetadata(String type) {
+//        try {
+//            // oh, the nuisance: putting throws a CHECKED exception...
+//            json = new JSONObject();
+//            json.put("type", type);           
+//        }
+//        catch (JSONException e) {
+//            throw new BusinessObjectException(ExType.JSON_IMPLEMENTATION_MELTDOWN);
+//        }
+//    }
+    
+    /**
+     * Minimal metadata with only (mime)type and size of payload. Actually, even size might be null, if it is
+     * not known at the time of creating the metadata...
+     */
+    public BusinessObjectMetadata(BiomineTVMimeType type) {
+        json = new JSONObject();
+        setType(type.toString());        
     }
+    
     
     /**
      * Put a simple string value. For more complex values, use the wrapped json object directly
@@ -183,14 +212,14 @@ public class BusinessObjectMetadata {
     }
     
     /** 
-     * Return the JSONObject instance which defines this BusinessObjectMetadata 
+     * Return the JSONObject instance which defines this § 
      * The returned object is a reference to the JSONObject wrapped by this 
      * BusinessObjectMetadata (and not a copy), and is to be used when 
      * updates more complex than setting a simple string value are to 
      * be performed. 
      */
     public JSONObject asJSON() {
-        return asJSON();
+        return json;
     }
     
     public void setEvent(String event) {
@@ -200,49 +229,88 @@ public class BusinessObjectMetadata {
     public void setEvent(BusinessObjectEventType et) {
         put("event", et.toString());
     }
-          
+    
+    public String getEvent() {
+        return getString("event");
+    }
+    
+    /** Return null if no event, or event is not one of BusinessObjectEventType.XXX */
+    public BusinessObjectEventType getKnownEvent() {
+        String event = getEvent();
+        if (event == null) {
+            return null;
+        }        
+        return BusinessObjectEventType.getType(event);
+        
+        
+    }
+            
+    public String getName() {
+        return getString("name");                
+    }
+    
+    public void setName(String name) {
+        put("name", name);                
+    }
+  
+    public String getUser() {
+        return getString("user");                
+    }
+    
+    public void setUser(String user) {
+        put("user", user);                
+    }
+    
     /** 
-     * Mandatory. See {@link BiomineTVMimeType} for known types.
+      See {@link BiomineTVMimeType} for known types. Note that payload is not
+      mandatory, in which case this method returns null!
      * 
      * @see #getOfficialType()
      */
     public String getType() throws BusinessObjectException {
-        String type = getString("type");        
-        if (type == null) {
-            throw new BusinessObjectException(ExType.MISSING_TYPE);
-        }
-        return type;
+        return getString("type");                
     }
     
     /**
      * Get a official type (which might have a dedicated implementation class) 
      *
-     * @return null, when the type in question is not officially supported by the java reference implementation.
+     * @return null, when the type in question is not officially supported by the java reference implementation,
+     * of when there is no payload.
      * @see #getType()
      */
     public BiomineTVMimeType getOfficialType() throws BusinessObjectException {
         String typeName = getType();
+        if (typeName == null) {
+            return null;
+        }
         return BiomineTVMimeType.getType(typeName);
     }
     
-    /**
-     * Set size of payload. Note that is is possible to create metadata without yet knowing the payload size,
-     * hence the need for this method. 
-     */
-    public void setPayloadSize(int size) {
-        put("size", size);        
-    }
-    
+//    /**
+//     * Set size of payload. Note that is is possible to create metadata without yet knowing the payload size,
+//     * hence the need for this method. 
+//     */
+//    public void setPayloadSize(int size) {
+//        put("size", size);        
+//    }
+        
     /**
      * Get size of payload. In the current implementation, this max size is limited to 
-     * Integer.MAX_VALUE.
+     * Integer.MAX_VALUE. If there is an business object, return the size from the object.
+     * Otherwise, return field "size".
      */
     public int getSize() {
-        Integer size = getInteger("size");
-        if (size == null) {
-            throw new BusinessObjectException(ExType.MISSING_SIZE);
+        
+        if (obj != null) {
+            return obj.getPayload().length;
         }
-        return size;
+        else {             
+            Integer size = getInteger("size");
+            if (size == null) {
+                throw new BusinessObjectException(ExType.MISSING_SIZE);
+            }
+            return size;
+        }
     }
     
     /** 
@@ -259,7 +327,26 @@ public class BusinessObjectMetadata {
     public String getChannel() {
         return getString("channel");        
     }          
-       
+    
+    /** Return JSONObject with field "size" derived from the business object */ 
+    private JSONObject jsonObjectWithSize() {        
+        if (hasPayload()) {            
+            JSONObject json = JSONUtils.clone(this.json);
+            try {
+                json.put("size", obj.getPayload().length);
+            }
+            catch (JSONException e) {
+                // should not be possible
+                throw new BusinessObjectException(ExType.JSON_IMPLEMENTATION_MELTDOWN);
+            }               
+            return json;
+        }
+        else {            
+            // return as is
+            return this.json;
+        }
+    }
+    
     /** 
      * Return a compact json representation of the business object. Use {@link toString(int)}
      * for a pretty-printing version. 
@@ -267,18 +354,23 @@ public class BusinessObjectMetadata {
      * Note that we are here diverging from normal leronen policy of keeping toString reserved
      * for purely debug purposes.  
      */
+    @Override
     public String toString() {
+        JSONObject json = jsonObjectWithSize();                       
         return json.toString();        
     }
     
-    public String toString(int indentFactor) {
+    
+    public String toString(int indentFactor) {        
+        JSONObject json = jsonObjectWithSize();
         try {
             return json.toString(indentFactor);
         }
         catch (JSONException e) {
             // should not be possible
             throw new BusinessObjectException(ExType.JSON_IMPLEMENTATION_MELTDOWN);
-        }
+        }  
+                
     }
 
     public boolean isEvent() {

@@ -5,7 +5,14 @@ import java.util.Map;
 
 public enum BusinessObjectEventType {
     ERROR("error"),
-    SERVICE_STATE_CHANGED("service/state-changed");
+    SERVICE_STATE_CHANGED("service/state-changed"),
+    /** 
+     * <pre>
+     * Mandatory fields: 
+     *   "name" - name of the client.
+     * <pre> 
+     */
+    REGISTER_CLIENT("service/register-client");
     
     private static Map<String, BusinessObjectEventType> typeByName;
     private String typeString;  

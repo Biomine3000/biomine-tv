@@ -12,6 +12,7 @@ import java.util.LinkedList;
 
 import javax.swing.*;
 
+import biomine3000.objects.Biomine3000Utils;
 import biomine3000.objects.BiomineTVMimeType;
 import biomine3000.objects.BusinessObject;
 import biomine3000.objects.BusinessObjectHandler;
@@ -22,6 +23,7 @@ import biomine3000.objects.PlainTextObject;
 import biomine3000.objects.ServerAddress;
 import util.ExceptionUtils;
 import util.dbg.Logger;
+import util.net.NonBlockingSender;
 
 public class BiomineTV extends JFrame implements BusinessObjectHandler {
 
@@ -43,7 +45,8 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
 	// Kontenttia; either read directly from a vault using contentVaultAdapter, of from a server	 
 	private ContentVaultAdapter contentVaultAdapter;
 	private Socket serverSocket;
-	
+
+	private SenderListener senderListener;        
 
 	// CONTROL
 	MonitorThread monitorThread;
@@ -103,7 +106,7 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
     }
     
     public void startReceivingContentFromVault() {
-        contentVaultAdapter = new ContentVaultAdapter(this);
+        contentVaultAdapter = new ContentVaultAdapter(this, 3000);
         contentVaultAdapter.startLoading();
     }
     
@@ -135,7 +138,7 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
     
     /** Currently, only one server can be received from at a time. */
     public synchronized void startReceivingContentFromServer(ServerAddress server) throws IOException {
-        startReceivingContentFromServer(server.getHost(), server.port);
+        startReceivingContentFromServer(server.getHost(), server.getPort());
     }
     
     /** Currently, only one server can be received from at a time. */
@@ -147,6 +150,12 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
         contentPanel.setMessage("Connecting to server: "+host+":"+port);
         
         serverSocket = new Socket(host, port);
+                
+        senderListener = new SenderListener(); 
+        NonBlockingSender sender = new NonBlockingSender(serverSocket, senderListener);
+        BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket("BiomineTV-java");
+        sender.send(registerObj.bytes());
+                        
         BusinessObjectReader readerRunnable = new BusinessObjectReader(serverSocket.getInputStream(), new ServerReaderListener(), "server reader", true);
         contentPanel.setMessage("Awaiting content from server...");
         Thread readerThread = new Thread(readerRunnable);
@@ -159,6 +168,10 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
     
     /** Listener to receive objects read by BusinessObjectReader from the server */
     private class ServerReaderListener extends BusinessObjectReader.DefaultListener {        
+        
+//        ServerReaderListener(ILogger log) {
+//            super(log);
+//        }
         
         @Override
         public void objectReceived(BusinessObject bo) {
@@ -281,6 +294,13 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
         }
     }
     
+    private class SenderListener implements NonBlockingSender.Listener {
+        public void senderFinished() {
+            log("Sender finished");
+        }
+    
+    }
+    
     /**
      * For now, the sole purpose of this listener is to enable closing the 
      * tv using ctrl+q instead of the abodominable ALT+F4.
@@ -322,5 +342,6 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
     private static void error(String msg, Exception e) {
         Logger.error("BiomineTV: "+msg, e);
     }
+    
 
 }

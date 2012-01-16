@@ -22,6 +22,7 @@ public class BusinessObjectException extends RuntimeException {
         ILLEGAL_FORMAT,
         MISSING_TYPE,
         MISSING_SIZE,
-        ILLEGAL_SIZE;
+        ILLEGAL_SIZE,
+        ILLEGAL_PARAMS;
     }
 }

@@ -8,7 +8,9 @@ import java.net.Socket;
 
 
 import util.collections.Pair;
-import util.dbg.Logger;
+import util.dbg.DevNullLogger;
+import util.dbg.ILogger;
+import util.dbg.StdErrLogger;
 
 /**
  * Thread for reading business objects from a stream and notifying a single registered {@link Listener} 
@@ -21,18 +23,34 @@ import util.dbg.Logger;
  */
 public class BusinessObjectReader implements Runnable {
            
+    private ILogger log;
+    
     private InputStream is;
     private Listener listener;
     private String name;
     private boolean constructDedicatedImplementations;
     
     public BusinessObjectReader(InputStream is, Listener listener, String name, boolean constructDedicatedImplementations) {
+        this(is, listener, name, constructDedicatedImplementations, null);
+    }
+    
+    public BusinessObjectReader(InputStream is, Listener listener, String name, boolean constructDedicatedImplementations, ILogger log) {
         this.is = is;
         this.listener = listener;
         this.name = name;
         this.constructDedicatedImplementations = constructDedicatedImplementations;
+        if (log != null) {
+            this.log = log;
+        }
+        else {
+            this.log = DevNullLogger.SINGLETON;
+        }
     }
             
+    public void setName(String name) {
+        this.name = name;
+    }
+    
     public void run() {
         
         log("Starting run()");
@@ -78,12 +96,12 @@ public class BusinessObjectReader implements Runnable {
     }       
     
     private void log(String msg) {
-        Logger.info(this+": "+msg);
+        log.info(name+": "+msg);
     }
     
     /** Test by connecting to the server and reading everything. */
     public static void main(String[] args) throws Exception {
-        Socket socket = new Socket(DEFAULT_HOST, DEFAULT_PORT);
+        Socket socket = new Socket("localhost", LERONEN_HIMA_PORT);
         BusinessObjectReader readerRunnable = new BusinessObjectReader(socket.getInputStream(), new DefaultListener(), "dummy reader", true);
         Thread readerThread = new Thread(readerRunnable);
         readerThread.start();
@@ -91,6 +109,16 @@ public class BusinessObjectReader implements Runnable {
     
     public static class DefaultListener implements Listener {                                                  
 
+        protected ILogger log;
+        
+        public DefaultListener() {
+            log = new StdErrLogger();
+        }
+        
+        public DefaultListener(ILogger log) {
+            this.log = log;
+        }
+        
         @Override
         public void objectReceived(BusinessObject bo) {
             log("Received business object: "+bo);
@@ -126,11 +154,11 @@ public class BusinessObjectReader implements Runnable {
         }                
     
         private void log(String msg) {
-            Logger.info("BusinessObjectReader.DummyListener: "+msg);
+            log.info("BusinessObjectReader.DummyListener: "+msg);
         }
         
         private void error(String msg, Exception e) {
-            Logger.error("BusinessObjectReader.DummyListener: "+msg, e);
+            log.error("BusinessObjectReader.DummyListener: "+msg, e);
         }   
     }
     

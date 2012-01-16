@@ -5,18 +5,18 @@ public class ErrorObject extends BusinessObject {
     /** Create unitialized instance. */
     public ErrorObject() {
         super();
-        metadata.setEvent(BusinessObjectEventType.ERROR);
+        getMetaData().setEvent(BusinessObjectEventType.ERROR);
     }
         
     public ErrorObject(String text) {
         super(BiomineTVMimeType.PLAINTEXT.toString());
-        metadata.setEvent(BusinessObjectEventType.ERROR);
+        getMetaData().setEvent(BusinessObjectEventType.ERROR);
         this.setPayload(text.getBytes());               
     }
         
     public ErrorObject(String text, String mimeType) {
         super(mimeType);
-        metadata.setEvent(BusinessObjectEventType.ERROR);
+        getMetaData().setEvent(BusinessObjectEventType.ERROR);
         this.setPayload(text.getBytes());
     }
     
@@ -27,7 +27,7 @@ public class ErrorObject extends BusinessObject {
      */  
     public ErrorObject(String text, BiomineTVMimeType mimeType) {                
         super(mimeType.toString());
-        metadata.setEvent(BusinessObjectEventType.ERROR);
+        getMetaData().setEvent(BusinessObjectEventType.ERROR);
         this.setPayload(text.getBytes());
     }
     
@@ -36,7 +36,7 @@ public class ErrorObject extends BusinessObject {
     }
                       
     public String toString() {
-        return "ERROR ("+metadata.getType()+": "+getText()+")";
+        return "ERROR ("+getMetaData().getType()+": "+getText()+")";
     }            
 
 }

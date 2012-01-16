@@ -1,0 +1,22 @@
+
+OBJECT SYSTEM
+-------------
+- generic abstract Client class to minimize nuisance of implementing new clients 
+- streaming of objects
+  • reading: listeners that can return content in packets of reasonable size
+  • specific class StreamingBusinessObject?
+     • listener interface to receive notifications from new content being delivered to the business object. 
+
+SERVER
+------
+- routing
+- message id:s
+
+TV
+--
+- some support for notifications
+- channels/users
+- nelikentät
+- receive from multiple servers
+- some GUI controls
+- better management of mp3 playing  
