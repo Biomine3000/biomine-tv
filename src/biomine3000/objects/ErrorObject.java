@@ -9,7 +9,7 @@ public class ErrorObject extends BusinessObject {
     }
         
     public ErrorObject(String text) {
-        super(BiomineTVMimeType.PLAINTEXT.toString());
+        super(Biomine3000Mimetype.PLAINTEXT.toString());
         getMetaData().setEvent(BusinessObjectEventType.ERROR);
         this.setPayload(text.getBytes());               
     }
@@ -25,7 +25,7 @@ public class ErrorObject extends BusinessObject {
      * It is left at the responsibility of the caller that the mimetype actually be representable
      * as a plain text object.
      */  
-    public ErrorObject(String text, BiomineTVMimeType mimeType) {                
+    public ErrorObject(String text, Biomine3000Mimetype mimeType) {                
         super(mimeType.toString());
         getMetaData().setEvent(BusinessObjectEventType.ERROR);
         this.setPayload(text.getBytes());

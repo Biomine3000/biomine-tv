@@ -50,7 +50,7 @@ public class MP3Sender {
         BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
         byte[] payload = IOUtils.readBytes(bis);
         bis.close();
-        BusinessObject bo = new BusinessObject(BiomineTVMimeType.MP3, payload);
+        BusinessObject bo = new BusinessObject(Biomine3000Mimetype.MP3, payload);
         bo.getMetaData().put("name", file);
         
         

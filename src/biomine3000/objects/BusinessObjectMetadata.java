@@ -16,7 +16,7 @@ import biomine3000.objects.BusinessObjectException.ExType;
 /**
  * In the initial implementation, mandatory fields are as follows:
  *   -"size" to specify length of payload in bytes.
- *   -"type" one of {@link BiomineTVMimeType}.
+ *   -"type" one of {@link Biomine3000Mimetype}.
  *   
  * TBD:
  *   -Should we enforce the type of known fields, such as sender?
@@ -116,7 +116,7 @@ public class BusinessObjectMetadata {
      * Minimal metadata with only (mime)type and size of payload. Actually, even size might be null, if it is
      * not known at the time of creating the metadata...
      */
-    public BusinessObjectMetadata(BiomineTVMimeType type) {
+    public BusinessObjectMetadata(Biomine3000Mimetype type) {
         json = new JSONObject();
         setType(type.toString());        
     }
@@ -249,8 +249,34 @@ public class BusinessObjectMetadata {
         return getString("name");                
     }
     
+//    public String getValue() {
+//        return getString("value");                
+//    }
+    
     public void setName(String name) {
         put("name", name);                
+    }
+    
+//    public void setValue(String name) {
+//        put("value", name);                
+//    }
+    
+    public void setBoolean(String key, boolean value) {
+        try {
+            json.put(key, value);
+        }
+        catch (Exception e) {
+            throw new RuntimeException("Inconveivable");
+        }
+    }
+    
+    public Boolean getBoolean(String key) {
+        try {
+            return json.getBoolean(key);
+        }
+        catch (JSONException e) {
+            throw new BusinessObjectException(ExType.INVALID_JSON);
+        }
     }
   
     public String getUser() {
@@ -262,7 +288,7 @@ public class BusinessObjectMetadata {
     }
     
     /** 
-      See {@link BiomineTVMimeType} for known types. Note that payload is not
+      See {@link Biomine3000Mimetype} for known types. Note that payload is not
       mandatory, in which case this method returns null!
      * 
      * @see #getOfficialType()
@@ -278,12 +304,12 @@ public class BusinessObjectMetadata {
      * of when there is no payload.
      * @see #getType()
      */
-    public BiomineTVMimeType getOfficialType() throws BusinessObjectException {
+    public Biomine3000Mimetype getOfficialType() throws BusinessObjectException {
         String typeName = getType();
         if (typeName == null) {
             return null;
         }
-        return BiomineTVMimeType.getType(typeName);
+        return Biomine3000Mimetype.getType(typeName);
     }
     
 //    /**
@@ -319,6 +345,14 @@ public class BusinessObjectMetadata {
      */
     public String getSender() {
         return getString("sender");        
+    }
+    
+    /** 
+     * The sender field is as of 2+11-12-12 estimated to be optional.
+     * @return null if no sender
+     */
+    public void setSender(String sender) {
+        put("sender", sender);        
     }
     
     /** 

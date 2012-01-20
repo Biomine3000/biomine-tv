@@ -35,13 +35,18 @@ public class ABBOEServer {
         
     private ServerSocket serverSocket;    
     private int serverPort;
-    private List<ClientConnection> clients;
+    private List<Client> clients;
     
     
-    private synchronized List<String> clientReport() {
+    private synchronized List<String> clientReport(Client you) {
         List<String> result = new ArrayList<String>();
-        for (ClientConnection client: clients) {
-            result.add(client.name);
+        for (Client client: clients) {
+            if (client == you) {
+                result.add(client.name+" (you)");
+            }
+            else {
+                result.add(client.name);
+            }
         }
         return result;
     }
@@ -50,13 +55,15 @@ public class ABBOEServer {
     public ABBOEServer(int port) throws IOException {                                                                   
         this.serverPort = port;
         serverSocket = new ServerSocket(serverPort);        
-        clients = new ArrayList<ClientConnection>();
+        clients = new ArrayList<Client>();
         log("Listening.");
     }                            
 
-    private synchronized void sendToAllClients(byte[] packet) {
-        for (ClientConnection client: clients) {
-            client.send(packet);
+    private synchronized void sendToAllClients(Client src, byte[] packet) {
+        for (Client client: clients) {
+            if (client != src || client.echo) {
+                client.send(packet);               
+            }
         }
     }          
     
@@ -80,7 +87,7 @@ public class ABBOEServer {
         }                                        
     }
             
-    private class ClientConnection implements NonBlockingSender.Listener {        
+    private class Client implements NonBlockingSender.Listener {        
         Socket socket;
         BufferedInputStream is;
         OutputStream os;        
@@ -95,8 +102,9 @@ public class ABBOEServer {
         String name;
         boolean senderFinished;
         boolean receiverFinished;
+        boolean echo = true;
                 
-        ClientConnection(Socket socket) throws IOException {
+        Client(Socket socket) throws IOException {
             senderFinished = false;
             receiverFinished = false;
             this.socket = socket;
@@ -141,7 +149,8 @@ public class ABBOEServer {
             reader.setName("reader-"+name);
         }
         
-        private void send(BusinessObject obj) { 
+        private void send(BusinessObject obj) {
+            obj.getMetaData().setSender("ABBOE");
             send(obj.bytes());
         }
         
@@ -252,14 +261,25 @@ public class ABBOEServer {
         public String toString() {
             return name;
         }
+
+        public void setEcho(boolean val) {
+            echo = val;            
+        }
     }
                     
     private void processSingleClient(Socket clientSocket) {
         
-        ClientConnection client;
+        Client client;
          
         try {
-            client = new ClientConnection(clientSocket);
+            client = new Client(clientSocket);
+            String abboeUser = Biomine3000Utils.getUser();
+            String msg = "Welcome to this fully operational java-A.B.B.O.E., run by "+abboeUser+".\n"+
+                         "List of connected clients:\n"+
+                         StringUtils.collectionToString(clientReport(client));                        
+            BusinessObject welcomeObj = new PlainTextObject(msg);
+                                      
+            client.send(welcomeObj);
         }
         catch (IOException e) {
             error("Failed creating streams on socket", e);
@@ -290,9 +310,9 @@ public class ABBOEServer {
                      
     /** Listens to a single dedicated reader thread reading objects from the input stream of a single client */
     private class ReaderListener implements BusinessObjectReader.Listener {
-        ClientConnection client;
+        Client client;
         
-        ReaderListener(ClientConnection client) {
+        ReaderListener(Client client) {
             this.client = client;
         }
 
@@ -300,9 +320,9 @@ public class ABBOEServer {
         public void objectReceived(BusinessObject bo) {                        
             if (bo.isEvent()) {
                 BusinessObjectEventType et = bo.getMetaData().getKnownEvent();
-                if (et != null) {                    
-                    if (et == BusinessObjectEventType.REGISTER_CLIENT) {
-                        log("Received REGISTER_CLIENT event: "+bo);
+                if (et != null) {
+                    log("Received "+et+" event: "+bo);
+                    if (et == BusinessObjectEventType.CLIENT_REGISTER) {                        
                         String name = bo.getMetaData().getName();
                         String user = bo.getMetaData().getUser();
                         if (name != null) {
@@ -317,15 +337,35 @@ public class ABBOEServer {
                         else {
                             warn("No user in register packet from "+client);
                         }
-                        
-                        String abboeUser = Biomine3000Utils.getUser();
-                        String msg = "Welcome to this fully operational java-A.B.B.O.E., run by "+abboeUser+".\n"+
-                                     "List of connected clients:\n"+
-                                     StringUtils.collectionToString(clientReport());
+                                                
+                        String msg = "Registered you as "+name+"-"+user;                                     
                                      
-                        BusinessObject welcomeObj = new PlainTextObject(msg);
-                                                  
-                        client.send(welcomeObj);
+                        BusinessObject replyObj = new PlainTextObject(msg);                                                
+                        client.send(replyObj);
+                    }
+                    else if (et == BusinessObjectEventType.SET_PROPERTY) {
+                        BusinessObjectMetadata meta = bo.getMetaData();
+                        String name = meta.getName();                                                
+                        log.info("name: "+name);                        
+                        if (name == null) {
+                            sendErrorReply(client, "No name in SET_PROPERTY event");
+                        }                        
+                        else  {
+                            if (name.equals("echo")) {                                
+                                Boolean value = meta.getBoolean("value");
+                                log.info("value: "+value);
+                                if (value== null) {
+                                    sendErrorReply(client, "No value in SET_PROPERTY event");
+                                }
+                                else {
+                                    client.setEcho(value);                                    
+                                    sendTextReply(client, "Echo set to "+value);
+                                }                                                                
+                            }
+                            else {
+                                sendErrorReply(client, "Unknown property: "+name+", no effect");
+                            }
+                        }
                     }
                     else {
                         log("Reveiced known event which this ABBOE implementation does not handle: "+bo);
@@ -336,13 +376,16 @@ public class ABBOEServer {
                 }
             }
             else {
+                // not an event, assume mythical "content"
                 log("Received content: "+bo);
+                log("Sending the very same content to all clients...");
+                ABBOEServer.this.sendToAllClients(client, bo.bytes());
             }
-            log("Sending the very same object...");
-            ABBOEServer.this.sendToAllClients(bo.bytes());
-            // client.send(bo.bytes());
+            
         }
 
+        
+        
         @Override
         public void noMoreObjects() {
             log("noMoreObjects (client closed connection).");                                  
@@ -377,7 +420,22 @@ public class ABBOEServer {
             
         }        
     }
-                    
+        
+    private void sendErrorReply(Client client, String error) {
+        PlainTextObject reply = new PlainTextObject();
+        reply.getMetaData().setEvent(BusinessObjectEventType.ERROR);
+        reply.setText(error);
+        log("Sending error reply to client "+client+": "+error);
+        client.send(reply);        
+    }
+       
+    private void sendTextReply(Client client, String text) {
+        PlainTextObject reply = new PlainTextObject();        
+        reply.setText(text);
+        log("Sending plain text reply to client "+client+": "+text);
+        client.send(reply);        
+    }
+
     public static void main(String[] pArgs) throws Exception {
         
         CmdLineArgs2 args = new CmdLineArgs2(pArgs);

@@ -4,192 +4,62 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
-import java.net.UnknownHostException;
+import java.rmi.UnknownHostException;
 
-import util.collections.Pair;
-import util.dbg.Logger;
-import util.net.NonBlockingSender;
+import util.dbg.ILogger;
+import util.dbg.StdErrLogger;
 
-
-/**
- * Reads lines from stdin and writes them to the server as PlainTextObjects synchronously.
- * After writing each line reads one object from the server, again synchronously (the assumption is
- * that the read object will be the line we just wrote, although that is not guaranteed in any way). 
- */
-public class TrivialClient {
-                      
-    private Socket socket = null;
+public class TrivialClient extends AbstractClient {
     
-    /**
-     * A dedicated sender used to send stuff (that is: buziness objects)
-     * in a non-blocking manner. 
-     */
-    private NonBlockingSender sender = null;
+    String user;
     
-    private boolean senderFinished = false;
-    private boolean receiverFinished = false;
-    
-    private boolean socketClosed = false;
-    private boolean closeRequested = false;
-
-//    public TestSender(String host, int port) throws UnknownHostException, IOException {                              
-//        init(host, port);                                             
-//    }         
-    
-    public TrivialClient(Socket socket) throws UnknownHostException, IOException {               
-                                               
-        // init communications with the server
-//        try {       
-            this.socket = socket;
-            sender = new NonBlockingSender(socket, new SenderListener());
-      
-            info("TestTCPClient Connected to server");
-            
-            MyShutdown sh = new MyShutdown();            
-            Runtime.getRuntime().addShutdownHook(sh);
-            info("Initialized shutdown hook");
-//        }
-//        catch (UnknownHostException e) {
-//            error("Cannot connect to cache server", e);
-//            throw e;
-//        } 
-//        catch (IOException e) {
-//            error("Error while establishing connection: "+
-//                  ExceptionUtils.format(e, " ")+". "+                    
-//                  "A probable reason is that a server is not running at "+
-//                  host+":"+port+", as supposed.");
-//            // e.printStackTrace();            
-//            throw e;
-//        }        
-    }                
-       
-    public void send(BusinessObject object) throws IOException {        
-        sender.send(object.bytes());
+    /** Call {@link mainReadLoop()} to perform actual processing */
+    TrivialClient(Socket socket, ILogger log) throws IOException, UnknownHostException {
+        super(socket, "TrivialClient", true, false, log);//        
     }
-    
-    /** Return null when no more business objects available */
-    public BusinessObject receive() throws IOException, InvalidPacketException {
-        Pair<BusinessObjectMetadata, byte[]> packet = BusinessObject.readPacket(socket.getInputStream());               
-//        Logger.info("Received packet: "+packet);
-//        Logger.info("Making business object...");
-        BusinessObject bo = BusinessObject.makeObject(packet);
-        return bo;
-    }
-        
-    private synchronized void closeSocketIfNeeded() {
-        if (senderFinished && receiverFinished && !socketClosed) {
-            info("Closing socket");
-            try {
-                socket.close();
-                info("Closed socket");
-            }
-            catch (IOException e) {
-                error("Failed closing socket", e);
-            }
-        }
-        else {
-            info("Socket already closed");
-        }
-    }
-            
-   /* 
-    * Closing occurs by sending a packet that causes NonBlockingSender to stop, which after
-    * some intermediate processing should lead to our SenderListener being notified,
-    * at which point actual closing will occur. 
-    */              
-    public synchronized void requestClose() {
-        
-        if (!closeRequested) {
-            closeRequested = true;
-            info("Requesting sender to close");
-            sender.stop();
-        }
-    }       
-    
-    /** Just for trivial testing */
-    public static void main(String[] pArgs) throws Exception {
-        Socket socket = Biomine3000Utils.connectToServer(pArgs);        
-        TrivialClient sender = new TrivialClient(socket);
-                       
-        BusinessObject sendObj, rcvObj;
 
-        // register to server
-        sendObj = Biomine3000Utils.makeRegisterPacket("TrivialClient");
-        sender.send(sendObj);
-        rcvObj = sender.receive();
-        System.out.println("Received object: "+rcvObj);                        
-        
-        
-        // start reading user input
+    private void mainReadLoop() throws IOException {
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         String line = br.readLine();
-        while (line != null) {
-            sendObj = new PlainTextObject(line);
-            System.out.println("Sending object: "+sendObj );
-//            System.out.write(sendObj.bytes());
-//            System.out.println("");
-            sender.send(sendObj);
-            rcvObj = sender.receive();
-            System.out.println("Received object: "+rcvObj);
-//            System.out.write(rcvObj.bytes());
-//            System.out.println("");
-            info(" "+rcvObj);
+        while (line != null) {    
+            BusinessObject sendObj = new PlainTextObject(line);
+            sendObj.getMetaData().setSender(user);
+            // log.dbg("Sending object: "+sendObj );  
+            send(sendObj);
             line = br.readLine();
         }
-        
-//        sendObj = new PlainTextObject("This is a ZOMBI notification");
-//        info("Sending object 1: "+sendObj);
-//        sender.send(sendObj);
-//        rcvObj = sender.receive();
-//        info("Received object 1: "+rcvObj);
-//         
-//        sendObj = new PlainTextObject("This is a COMPETITION declaration");
-//        info("Sending object 2: "+sendObj);
-//        sender.send(sendObj);
-//        rcvObj = sender.receive();
-//        info("Received object 2: "+rcvObj);
-        
-        sender.requestClose();        
-         
-        sender.receiverFinished = true;
-        info("Ending main thread");
+    }
+    
+    @Override
+    public void handle(RuntimeException e) {
+        log.error(e);        
     }
 
-    private class SenderListener implements NonBlockingSender.Listener {
-        public void senderFinished() {
-            synchronized(TrivialClient.this) {
-                info("SenderListener.finished()");
-                senderFinished = true;
-                closeSocketIfNeeded();
-                info("finished SenderListener.finished()");
-            }
+    @Override
+    public void objectReceived(BusinessObject bo) {
+        String sender = bo.getMetaData().getSender();
+        if (sender == null) {
+            sender = "<anonymous>";
         }
-    }       
-    
-    class MyShutdown extends Thread {
-        public void run() {
-            System.err.println("Requesting close at shutdown thread...");
-            requestClose();
+        else {
+            sender = "<"+sender+">";
         }
+        System.out.println(sender+" "+bo);        
+    }    
+    
+    @Override
+    public void noMoreObjects() {
+        // TODO Auto-generated method stub        
+    }
+
+    @Override
+    protected void handleException(Exception e) {
+        log.error(e);        
     }
     
-    @SuppressWarnings("unused")
-    private static void error(String msg) {
-        Logger.error("TestTCPClient: "+msg);
+    public static void main(String args[]) throws Exception {
+        Socket socket = Biomine3000Utils.connectToServer(args);
+        TrivialClient client = new TrivialClient(socket, new StdErrLogger());
+        client.mainReadLoop();
     }
-        
-    private static void error(String msg, Exception e) {
-        Logger.error("TestTCPClient: "+msg, e);
-    }
-        
-    @SuppressWarnings("unused")
-    private static void warning(String msg) {
-        Logger.warning("TestTCPClient: "+msg);
-    }
-    
-    private static void info(String msg) {
-        Logger.info("TestTCPClient: "+msg);
-    }
-    
 }
-

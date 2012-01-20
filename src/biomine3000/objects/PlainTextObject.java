@@ -16,7 +16,7 @@ public class PlainTextObject extends BusinessObject {
     
     /** Create a plain text business object with mimetype text/plain */ 
     public PlainTextObject(String text) {
-        super(BiomineTVMimeType.PLAINTEXT.toString());
+        super(Biomine3000Mimetype.PLAINTEXT.toString());
         this.text = text;
     }
     
@@ -31,13 +31,17 @@ public class PlainTextObject extends BusinessObject {
      * It is left at the responsibility of the caller that the mimetype actually be representable
      * as a plain text object.
      */  
-    public PlainTextObject(String text, BiomineTVMimeType mimeType) {                
+    public PlainTextObject(String text, Biomine3000Mimetype mimeType) {                
         super(mimeType.toString());
         this.text = text;
     }
     
     public String getText() {
         return text;
+    }
+    
+    public void setText(String text) {
+        this.text = text;
     }
         
     @Override

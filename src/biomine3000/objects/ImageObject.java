@@ -34,7 +34,7 @@ public class ImageObject extends BusinessObject {
     }
                        
     /** Create a new business object to be sent; payload length will be set to metadata automatically */
-    public ImageObject(BiomineTVMimeType type, byte[] payload) {
+    public ImageObject(Biomine3000Mimetype type, byte[] payload) {
         super(type, payload);
     }
     
@@ -46,7 +46,7 @@ public class ImageObject extends BusinessObject {
             throw new BusinessObjectException(fileName,  ExType.UNRECOGNIZED_IMAGE_TYPE);
         }
         
-        BiomineTVMimeType type = BiomineTVMimeType.getByExtension(extension);
+        Biomine3000Mimetype type = Biomine3000Mimetype.getByExtension(extension);
         if (type == null) {
             throw new BusinessObjectException(fileName, ExType.UNRECOGNIZED_IMAGE_TYPE);
         }

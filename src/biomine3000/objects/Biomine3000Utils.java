@@ -173,7 +173,7 @@ public class Biomine3000Utils {
     
     public static BusinessObject makeRegisterPacket(String clientName) {
         BusinessObjectMetadata meta = new BusinessObjectMetadata();
-        meta.setEvent(BusinessObjectEventType.REGISTER_CLIENT);
+        meta.setEvent(BusinessObjectEventType.CLIENT_REGISTER);
         meta.put("name", clientName);
         String user = getUser();
         if (user != null) {

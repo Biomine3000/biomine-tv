@@ -60,22 +60,14 @@ public class BusinessObject {
     private byte[] payload;
     
     /**
-     * No-op constructor targeted to enable creating subclasses by reflection.
-     * Do NOT use this to create business objects with empty payload;
-     * use {@link createEmptyObject()} instead. 
+     * Metadata shall be empty, and there will be no payload.
      * 
      * Metadata and payload (if not empty) must naturally be set ASAP by {@link #setPayload()} and 
      * {@link #setMetadata()}.      
      */
     protected BusinessObject() {
-        // no action
-    }
-    
-    /** Create an object with no payload */
-    public static BusinessObject createEmptyInstance() {        
-        BusinessObjectMetadata meta = new BusinessObjectMetadata();
-        return new BusinessObject(meta);
-    }
+        this(new BusinessObjectMetadata());
+    }       
      
     public static BusinessObject readObject(InputStream is) throws IOException, InvalidPacketException, BusinessObjectException {        
         Pair<BusinessObjectMetadata, byte[]> packet = readPacket(is);
@@ -106,7 +98,7 @@ public class BusinessObject {
 //        System.err.println("Got metadata: "+metadata);
         byte[] payload;
         if (metadata.hasPayload()) {
-            log.info("Metadata has payload");
+            // log.info("Metadata has payload");
             int payloadSz = metadata.getSize();
             payload = IOUtils.readBytes(is, payloadSz);           
         }
@@ -153,7 +145,7 @@ public class BusinessObject {
     
     /**
      * Construct a BusinessObject using a dedicated implementation class, if one exists
-     * (managed by class {@link BiomineTVMimeType} 
+     * (managed by class {@link Biomine3000Mimetype} 
      * 
      * To construct a raw business object using the default implementation (this very class),
      * use the constructor with similar params, instead of this factory method.
@@ -161,7 +153,7 @@ public class BusinessObject {
      * Payload must be null IFF metadata does not contain field "type"
      */ 
     public static BusinessObject makeObject(BusinessObjectMetadata metadata, byte[] payload) {
-        BiomineTVMimeType officialType = metadata.getOfficialType();
+        Biomine3000Mimetype officialType = metadata.getOfficialType();
         BusinessObject bo = null;
         if (officialType != null) {
             // an official type
@@ -232,7 +224,7 @@ public class BusinessObject {
      * Create a new business object to be sent; payload length will be set to metadata automatically.
      * Naturally, both type and payload are required to be non-null.
      */
-    protected BusinessObject(BiomineTVMimeType type, byte[] payload) {
+    protected BusinessObject(Biomine3000Mimetype type, byte[] payload) {
         initMetadata(type.toString());
         this.payload = payload; 
     }
@@ -340,7 +332,7 @@ public class BusinessObject {
 	
 	public static void main(String[] args) {
 	    String msgStr = "It has been implemented";
-	    PlainTextObject sentBO = new PlainTextObject(msgStr, BiomineTVMimeType.BIOMINE_ANNOUNCEMENT);
+	    PlainTextObject sentBO = new PlainTextObject(msgStr, Biomine3000Mimetype.BIOMINE_ANNOUNCEMENT);
 	    ILogger log = new StdErrLogger();
 	    System.out.println("Sent bo: "+sentBO);
 	    byte[] msgBytes = sentBO.bytes();
@@ -348,7 +340,7 @@ public class BusinessObject {
 	        Pair<BusinessObjectMetadata, byte[]> tmp = parseBytes(msgBytes);
 	        BusinessObjectMetadata receivedMetadata = tmp.getObj1();
 	        byte[] receivedPayload = tmp.getObj2();	        
-	        BiomineTVMimeType officialType = receivedMetadata.getOfficialType();
+	        Biomine3000Mimetype officialType = receivedMetadata.getOfficialType();
 	        BusinessObject receivedBO = null;
 	        if (officialType != null) {
 	            // an official type
@@ -381,7 +373,7 @@ public class BusinessObject {
 	public String toString() {
 	    String payloadStr = metadata.hasPayload() 
 	                      ? "<payload of "+payload.length+" bytes>" 
-	                      : "<no payload>";
+	                      : (isEvent() ? "" : "<no payload>");
 	    return "BusinessObject <metadata: "+metadata.toString()+"> "+payloadStr;
 	}
 	

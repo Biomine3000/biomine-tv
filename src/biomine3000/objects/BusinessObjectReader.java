@@ -56,7 +56,7 @@ public class BusinessObjectReader implements Runnable {
         log("Starting run()");
         
         try {
-            log("Reading packet...");
+            // log("Reading packet...");
             Pair<BusinessObjectMetadata, byte[]> packet = BusinessObject.readPacket(is);            
         
             while (packet != null) {
@@ -69,7 +69,7 @@ public class BusinessObjectReader implements Runnable {
                 }
                 listener.objectReceived(bo);                                        
                 
-                log("Reading packet...");
+                // log("Reading packet...");
                 packet = BusinessObject.readPacket(is);
             }
                         
