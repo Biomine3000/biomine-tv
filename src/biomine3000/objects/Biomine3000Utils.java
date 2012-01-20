@@ -27,7 +27,7 @@ public class Biomine3000Utils {
     
     public static boolean atLakka() {
         String host = getHostName();
-        if (host != null && host.equals("lakka")) {
+        if (host != null && host.equals("lakka.kapsi.fi")) {
             return true;
         }
         else {
