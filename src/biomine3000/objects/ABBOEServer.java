@@ -58,11 +58,17 @@ public class ABBOEServer {
         clients = new ArrayList<Client>();
         log("Listening.");
     }                            
-
-    private synchronized void sendToAllClients(Client src, byte[] packet) {
+    
+    /** Send an object to all applicable clients */
+    private synchronized void sendToAllClients(Client src, BusinessObject bo) {
+        // defer constructing send bytes to time when sending to first applicable client (there might be none) 
+        byte[] bytes = null;
         for (Client client: clients) {
-            if (client != src || client.echo) {
-                client.send(packet);               
+            if (client.shouldSend(src, bo)) {
+                if (bytes == null) {
+                    bytes = bo.bytes();
+                }
+                client.send(bytes);               
             }
         }
     }          
@@ -94,6 +100,8 @@ public class ABBOEServer {
         NonBlockingSender sender;
         BusinessObjectReader reader;
         ReaderListener readerListener;
+        // send everything to clients by default:
+        ClientReceiveMode receiveMode = ClientReceiveMode.ALL;
         boolean closed;
         String clientName;
         String user;
@@ -102,7 +110,7 @@ public class ABBOEServer {
         String name;
         boolean senderFinished;
         boolean receiverFinished;
-        boolean echo = true;
+//        boolean echo = true;
                 
         Client(Socket socket) throws IOException {
             senderFinished = false;
@@ -151,7 +159,28 @@ public class ABBOEServer {
         
         private void send(BusinessObject obj) {
             obj.getMetaData().setSender("ABBOE");
+            log.info("Sending: "+obj);
             send(obj.bytes());
+        }
+
+        /** Should the object <bo> from client <source> be sent to this client? */ 
+        public boolean shouldSend(Client source, BusinessObject bo) {
+            if (receiveMode == ClientReceiveMode.ALL) {
+                return true;
+            }
+            else if (receiveMode == ClientReceiveMode.NONE) {
+                return false;
+            }
+            else if (receiveMode == ClientReceiveMode.EVENTS_ONLY) {
+                return bo.isEvent();               
+            }
+            else if (receiveMode == ClientReceiveMode.NO_ECHO) {
+                return source != this;
+            }
+            else {
+                log.error("Unknown receive mode: "+receiveMode+"; not sending!");
+                return false;
+            }
         }
         
        /**
@@ -164,7 +193,7 @@ public class ABBOEServer {
                 return;
             }
             
-            try {
+            try {                
                 sender.send(packet);
             }
             catch (IOException e) {
@@ -210,6 +239,10 @@ public class ABBOEServer {
                 clients.remove(this);
                 closed = true;
             }
+            
+            PlainTextObject msg = new PlainTextObject("Client "+this+" disconnected");
+            msg.getMetaData().setSender("ABBOE");
+            sendToAllClients(this, msg);
         }                
         
         @Override
@@ -262,9 +295,9 @@ public class ABBOEServer {
             return name;
         }
 
-        public void setEcho(boolean val) {
-            echo = val;            
-        }
+//        public void setEcho(boolean val) {
+//            echo = val;            
+//        }
     }
                     
     private void processSingleClient(Socket clientSocket) {
@@ -274,12 +307,11 @@ public class ABBOEServer {
         try {
             client = new Client(clientSocket);
             String abboeUser = Biomine3000Utils.getUser();
-            String msg = "Welcome to this fully operational java-A.B.B.O.E., run by "+abboeUser+".\n"+
-                         "List of connected clients:\n"+
+            String welcome = "Welcome to this fully operational java-A.B.B.O.E., run by "+abboeUser+".\n"+
+                             "Please register by sending an \"client/register\" event.\n"+
+                             "List of connected clients:\n"+
                          StringUtils.collectionToString(clientReport(client));                        
-            BusinessObject welcomeObj = new PlainTextObject(msg);
-                                      
-            client.send(welcomeObj);
+            sendTextReply(client, welcome);
         }
         catch (IOException e) {
             error("Failed creating streams on socket", e);
@@ -320,11 +352,14 @@ public class ABBOEServer {
         public void objectReceived(BusinessObject bo) {                        
             if (bo.isEvent()) {
                 BusinessObjectEventType et = bo.getMetaData().getKnownEvent();
-                if (et != null) {
+                boolean sendEvent = true;
+                if (et != null) {                    
                     log("Received "+et+" event: "+bo);
-                    if (et == BusinessObjectEventType.CLIENT_REGISTER) {                        
-                        String name = bo.getMetaData().getName();
-                        String user = bo.getMetaData().getUser();
+                    if (et == BusinessObjectEventType.CLIENT_REGISTER) {
+                        BusinessObjectMetadata meta = bo.getMetaData(); 
+                        String name = meta.getName();
+                        String user = meta.getUser();
+                        String receiveModeName = meta.getString(ClientReceiveMode.KEY); 
                         if (name != null) {
                             client.setName(name);
                         }
@@ -337,49 +372,45 @@ public class ABBOEServer {
                         else {
                             warn("No user in register packet from "+client);
                         }
+                        ClientReceiveMode recvMode = ClientReceiveMode.getMode(receiveModeName);
+                        if (recvMode == null) {
+                            sendErrorReply(client, "Unrecognized rcv mode in packet: "+recvMode);
+                        }
+                        else {
+                            client.receiveMode = recvMode;
+                        }
                                                 
-                        String msg = "Registered you as "+name+"-"+user;                                     
+                        String msg = "Registered you as "+name+"-"+user+".";                                     
+                        if (recvMode != null) {
+                            msg+=" Your receive mode is now: "+recvMode;
+                        }
                                      
                         BusinessObject replyObj = new PlainTextObject(msg);                                                
                         client.send(replyObj);
-                    }
-                    else if (et == BusinessObjectEventType.SET_PROPERTY) {
-                        BusinessObjectMetadata meta = bo.getMetaData();
-                        String name = meta.getName();                                                
-                        log.info("name: "+name);                        
-                        if (name == null) {
-                            sendErrorReply(client, "No name in SET_PROPERTY event");
-                        }                        
-                        else  {
-                            if (name.equals("echo")) {                                
-                                Boolean value = meta.getBoolean("value");
-                                log.info("value: "+value);
-                                if (value== null) {
-                                    sendErrorReply(client, "No value in SET_PROPERTY event");
-                                }
-                                else {
-                                    client.setEcho(value);                                    
-                                    sendTextReply(client, "Echo set to "+value);
-                                }                                                                
-                            }
-                            else {
-                                sendErrorReply(client, "Unknown property: "+name+", no effect");
-                            }
-                        }
-                    }
+                        sendEvent = false;
+                        
+                        PlainTextObject registeredMsg = new PlainTextObject("Client "+client+" registered");
+                        registeredMsg.getMetaData().setSender("ABBOE");
+                        sendToAllClients(client, registeredMsg);
+                    }                    
                     else {
                         log("Reveiced known event which this ABBOE implementation does not handle: "+bo);
                     }
                 }
                 else {
-                    log("Reveiced unknown event: "+bo.getMetaData().getEvent());
+                    log("Received unknown event: "+bo.getMetaData().getEvent());
+                }
+                // send the event if needed 
+                if (sendEvent) {
+                    log("Sending the very same event to all clients...");
+                    ABBOEServer.this.sendToAllClients(client, bo);
                 }
             }
             else {
                 // not an event, assume mythical "content"
                 log("Received content: "+bo);
                 log("Sending the very same content to all clients...");
-                ABBOEServer.this.sendToAllClients(client, bo.bytes());
+                ABBOEServer.this.sendToAllClients(client, bo);
             }
             
         }
@@ -392,9 +423,14 @@ public class ABBOEServer {
             client.doReceiverFinished();            
         }
 
-        private void handleException(Exception e) {            
-            error("Exception while reading objects from client "+client, e);                                            
-            e.printStackTrace();
+        private void handleException(Exception e) {
+            if (e.getMessage().equals("Connection reset")) {
+                log.info("Client "+this.client+" disconnected");
+            }
+            else {          
+                error("Exception while reading objects from client "+client, e);                                            
+                log.error(e);                
+            }
             client.doReceiverFinished();
         }
         
@@ -451,7 +487,7 @@ public class ABBOEServer {
             System.exit(1);
         }
         
-        log("Starting test server at port "+port);
+        log("Starting ABBOE at port "+port);
                        
         try {
             ABBOEServer server = new ABBOEServer(port);

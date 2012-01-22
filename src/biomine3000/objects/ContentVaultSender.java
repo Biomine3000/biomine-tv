@@ -43,7 +43,7 @@ public class ContentVaultSender implements BusinessObjectHandler {
         this.socket = socket;
         
         // register to server
-        BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket("ContentVaultSender");
+        BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket("ContentVaultSender", ClientReceiveMode.NONE);
         socket.getOutputStream().write(registerObj.bytes());
         
         this.nToSend = nToSend;        

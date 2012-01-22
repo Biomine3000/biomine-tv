@@ -97,6 +97,10 @@ public class BusinessObjectMetadata {
         put("type", type);
     }
     
+    public void setType(Biomine3000Mimetype type) {
+        put("type", type.toString());
+    }
+    
     /**
      * Minimal metadata with only (mime)type and size of payload. Actually, even size might be null, if it is
      * not known at the time of creating the metadata...

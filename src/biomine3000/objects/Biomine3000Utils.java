@@ -27,7 +27,7 @@ public class Biomine3000Utils {
     
     public static boolean atLakka() {
         String host = getHostName();
-        if (host != null && host.equals("lakka.kapsi.fi")) {
+        if (host != null && host.startsWith("lakka")) {
             return true;
         }
         else {
@@ -171,10 +171,22 @@ public class Biomine3000Utils {
         System.out.println("at host: "+getHostName());
     }
     
-    public static BusinessObject makeRegisterPacket(String clientName) {
-        BusinessObjectMetadata meta = new BusinessObjectMetadata();
-        meta.setEvent(BusinessObjectEventType.CLIENT_REGISTER);
+    
+    /**
+     * Make a register packet to be sent to the server,
+     * e.g.: <pre>
+     *   "event": "client/register",
+     *   "receive: "only_events"
+     * </pre>
+     * @param clientName
+     * @param receiveMode 
+     */
+    public static BusinessObject makeRegisterPacket(String clientName,
+                                                    ClientReceiveMode receiveMode) {
+        BusinessObjectMetadata meta = new BusinessObjectMetadata();        
+        meta.setEvent(BusinessObjectEventType.CLIENT_REGISTER);        
         meta.put("name", clientName);
+        meta.put(ClientReceiveMode.KEY, receiveMode.toString());
         String user = getUser();
         if (user != null) {
             meta.setUser(user);

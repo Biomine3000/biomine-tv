@@ -15,7 +15,9 @@ public class TrivialClient extends AbstractClient {
     
     /** Call {@link mainReadLoop()} to perform actual processing */
     TrivialClient(Socket socket, ILogger log) throws IOException, UnknownHostException {
-        super(socket, "TrivialClient", true, false, log);//        
+        super(new ReaderListener(), "TrivialClient", ClientReceiveMode.NO_ECHO, false, log);
+        
+        init(socket);
     }
 
     private void mainReadLoop() throws IOException {
@@ -30,33 +32,41 @@ public class TrivialClient extends AbstractClient {
         }
     }
     
-    @Override
-    public void handle(RuntimeException e) {
-        log.error(e);        
-    }
-
-    @Override
-    public void objectReceived(BusinessObject bo) {
-        String sender = bo.getMetaData().getSender();
-        if (sender == null) {
-            sender = "<anonymous>";
-        }
-        else {
-            sender = "<"+sender+">";
-        }
-        System.out.println(sender+" "+bo);        
-    }    
+    private static class ReaderListener extends BusinessObjectReader.DefaultListener {
     
-    @Override
-    public void noMoreObjects() {
-        // TODO Auto-generated method stub        
-    }
-
-    @Override
-    protected void handleException(Exception e) {
-        log.error(e);        
-    }
+        @Override
+        public void handle(RuntimeException e) {
+            log.error(e);        
+        }
     
+        @Override
+        public void objectReceived(BusinessObject bo) {
+            String sender = bo.getMetaData().getSender();
+            if (sender == null) {
+                sender = "<anonymous>";
+            }
+            else {
+                sender = "<"+sender+">";
+            }
+            System.out.println(sender+" "+bo);        
+        }    
+        
+        @Override
+        public void noMoreObjects() {
+            // TODO Auto-generated method stub        
+        }
+    
+        @Override
+        protected void handleException(Exception e) {
+            if (e.getMessage().equals("Connection reset")) {
+                log.info("Connection reset by the server");
+            }
+            else {
+                log.error(e);        
+            }
+        }
+    }
+        
     public static void main(String args[]) throws Exception {
         Socket socket = Biomine3000Utils.connectToServer(args);
         TrivialClient client = new TrivialClient(socket, new StdErrLogger());

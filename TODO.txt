@@ -1,7 +1,8 @@
 
 OBJECT SYSTEM
 -------------
-- generic abstract Client class to minimize nuisance of implementing new clients 
+- generic abstract Client class to minimize nuisance of implementing new clients
+  • in progress 
 - streaming of objects
   • reading: listeners that can return content in packets of reasonable size
   • specific class StreamingBusinessObject?
@@ -9,8 +10,14 @@ OBJECT SYSTEM
 
 SERVER
 ------
-- routing
-- message id:s
+- registering clients
+  • in progress
+- subscribe functionality
+  • need possibility to limit received content types
+    * packets might still be received, but without the actual content (as it will not be handled anyway!) 
+- routing SERVICE requests/replies
+- generating client id:s (ip:port suffices...)
+- generating message id:s
 
 TV
 --

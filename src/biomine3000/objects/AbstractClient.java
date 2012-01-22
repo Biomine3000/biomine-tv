@@ -13,12 +13,13 @@ import util.net.NonBlockingSender;
  * only methods in BusinessObjectReader.Listener. Implementors should use method 
  * {@link #send(BusinessObject)} to send stuff. 
  */
-public abstract class AbstractClient implements BusinessObjectReader.Listener {
+public abstract class AbstractClient  {
                    
     protected ILogger log;
-    private String name;
-    boolean echo;
+    private ClientReceiveMode receiveMode;
+    private String name;    
     String user;
+    private BusinessObjectReader.Listener readerListener;
     
     private Socket socket = null;       
     
@@ -41,19 +42,22 @@ public abstract class AbstractClient implements BusinessObjectReader.Listener {
      * @name arbitrary name for the client (will be sent to server)
      * @param construcDedicatedImplementations Use dedicated java implementation class for business ' 
      *        object where applicable (as dictated by {@link Biomine3000Mimetype}, instead of the 
-     *        generic {@link BusinessObject}. 
+     *        generic {@link BusinessObject}.
+     * @param echo should server echo everything 
      * @param log the log
      * @throws UnknownHostException
      * @throws IOException
      */
-    public AbstractClient(Socket socket, String name, 
-                          boolean construcDedicatedImplementations, 
-                          boolean echo,
+    public AbstractClient(BusinessObjectReader.Listener readerListener,
+                          String name, 
+                          ClientReceiveMode receiveMode,
+                          boolean constructDedicatedImplementations,                           
                           ILogger log) throws UnknownHostException, IOException {                                
-        this.socket = socket;
+        
+        this.readerListener = readerListener;        
         this.name = name;
-        this.log = log;
-        this.echo = echo;
+        this.receiveMode = receiveMode;
+        this.log = log;        
         this.user = System.getenv("USER");
         if (user == null) {
             user = "anonymous";
@@ -62,17 +66,21 @@ public abstract class AbstractClient implements BusinessObjectReader.Listener {
         MyShutdown sh = new MyShutdown();            
         Runtime.getRuntime().addShutdownHook(sh);
         log.info("Initialized shutdown hook");
+    }
+     
+    protected void init(Socket socket) throws IOException {        
+        this.socket = socket;
         
         // init sender
         sender = new NonBlockingSender(socket, new SenderListener());
                       
         // send register packet to server
-        BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket(name);
+        BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket(name, receiveMode);
         sender.send(registerObj.bytes());
         
         // send set echo=false packet to server
-        log.info("Setting echo to false");
-        setEcho(false);        
+//        log.info("Setting echo to false");
+//        setEcho(false);
         
         // start listening to objects from server
         log.info("Starting listening to server...");
@@ -120,7 +128,7 @@ public abstract class AbstractClient implements BusinessObjectReader.Listener {
     }       
     
     protected void startReaderThread() throws IOException {
-        reader = new BusinessObjectReader(socket.getInputStream(), this, name, true, log);
+        reader = new BusinessObjectReader(socket.getInputStream(), readerListener, name, true, log);
         reader.setName(name);
         Thread readerThread = new Thread(reader);
         readerThread.start();
@@ -137,14 +145,14 @@ public abstract class AbstractClient implements BusinessObjectReader.Listener {
         }
     }       
     
-    protected void setEcho(boolean value) throws IOException {
-        BusinessObject obj = new BusinessObject();
-        BusinessObjectMetadata meta = obj.getMetaData();
-        meta.setEvent(BusinessObjectEventType.SET_PROPERTY);
-        meta.setName("echo");
-        meta.setBoolean("value", echo);
-        send(obj);
-    }
+//    protected void setEcho(boolean value) throws IOException {
+//        BusinessObject obj = new BusinessObject();
+//        BusinessObjectMetadata meta = obj.getMetaData();
+//        meta.setEvent(BusinessObjectEventType.SET_PROPERTY);
+//        meta.setName("echo");
+//        meta.setBoolean("value", echo);
+//        send(obj);
+//    }
     
     class MyShutdown extends Thread {
         public void run() {
@@ -152,34 +160,35 @@ public abstract class AbstractClient implements BusinessObjectReader.Listener {
             requestClose();
         }
     }        
-           
+         
+    
     /** 
-     * This should be implemented by subclasses. Always receive a non-null object. 
-     * Probably {@link #send(BusinessObjec)} will need to be called. This is synchronized 
-     * by default, so the subclass need not bother with synchronization    
-     */
-    @Override
-    public abstract void objectReceived(BusinessObject bo);       
+//     * This should be implemented by subclasses. Always receive a non-null object. 
+//     * Probably {@link #send(BusinessObjec)} will need to be called. This is synchronized 
+//     * by default, so the subclass need not bother with synchronization    
+//     */
+//    @Override
+//    public abstract void objectReceived(BusinessObject bo);       
+//    
+//    /** Called when nothing more to read from stream */
+//    @Override
+//    public abstract void noMoreObjects();
     
-    /** Called when nothing more to read from stream */
-    @Override
-    public abstract void noMoreObjects();
+//    @Override
+//    public void handle(IOException e) {
+//        handleException(e);
+//    }
     
-    @Override
-    public void handle(IOException e) {
-        handleException(e);
-    }
-    
-    @Override
-    public void handle(InvalidPacketException e) {
-        handleException(e);
-    }
-        
-    @Override
-    public void handle(BusinessObjectException e) {
-        handleException(e);
-    }
-    
-    protected abstract void handleException(Exception e);
+//    @Override
+//    public void handle(InvalidPacketException e) {
+//        handleException(e);
+//    }
+//        
+//    @Override
+//    public void handle(BusinessObjectException e) {
+//        handleException(e);
+//    }
+//    
+//    protected abstract void handleException(Exception e);
 }
 

@@ -10,19 +10,21 @@ public enum BusinessObjectEventType {
     SERVICE_REGISTER("services/register"),
     SERVICE_UNREGISTER("services/unregister"),
     SERVICES_LIST("services/list"),
-    /** set a server property */
+    /** set a (client-specific) property at the server*/
     SET_PROPERTY("set-property"),
     /** 
      * <pre>
      * Mandatory fields: 
      *   "name" - name of the client.
+     * Optional fields:
+     *   "echo" - boolean
+     *   "receive" - boolean; false if client does not want to receive anything (true by default)
      * <pre> 
      */
     CLIENT_REGISTER("client/register");
     
     private static Map<String, BusinessObjectEventType> typeByName;
     private String typeString;  
-//    private Class<? extends BusinessObject> implementationClass;
     
     static {
         typeByName = new HashMap<String, BusinessObjectEventType>();

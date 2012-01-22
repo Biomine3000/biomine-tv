@@ -12,11 +12,13 @@ public class PlainTextObject extends BusinessObject {
      */
     public PlainTextObject() {
         super();
+        getMetaData().setType(Biomine3000Mimetype.PLAINTEXT);
     }
     
     /** Create a plain text business object with mimetype text/plain */ 
     public PlainTextObject(String text) {
-        super(Biomine3000Mimetype.PLAINTEXT.toString());
+        super();
+        getMetaData().setType(Biomine3000Mimetype.PLAINTEXT);
         this.text = text;
     }
     
