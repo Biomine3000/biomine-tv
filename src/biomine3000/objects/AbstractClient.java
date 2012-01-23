@@ -27,7 +27,7 @@ public abstract class AbstractClient  {
      * A dedicated sender used to send stuff (that is: buziness objects)
      * in a non-blocking manner. 
      */
-    NonBlockingSender sender = null;
+    private NonBlockingSender sender = null;
 
     private BusinessObjectReader reader = null;
     
@@ -48,13 +48,12 @@ public abstract class AbstractClient  {
      * @throws UnknownHostException
      * @throws IOException
      */
-    public AbstractClient(BusinessObjectReader.Listener readerListener,
-                          String name, 
+    public AbstractClient(String name, 
                           ClientReceiveMode receiveMode,
                           boolean constructDedicatedImplementations,                           
                           ILogger log) throws UnknownHostException, IOException {                                
         
-        this.readerListener = readerListener;        
+                
         this.name = name;
         this.receiveMode = receiveMode;
         this.log = log;        
@@ -65,10 +64,12 @@ public abstract class AbstractClient  {
     
         MyShutdown sh = new MyShutdown();            
         Runtime.getRuntime().addShutdownHook(sh);
-        log.info("Initialized shutdown hook");
+//        log.dbg("Initialized shutdown hook");
     }
      
-    protected void init(Socket socket) throws IOException {        
+    protected void init(BusinessObjectReader.Listener readerListener,
+                        Socket socket) throws IOException {
+        this.readerListener = readerListener;
         this.socket = socket;
         
         // init sender
@@ -76,12 +77,9 @@ public abstract class AbstractClient  {
                       
         // send register packet to server
         BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket(name, receiveMode);
+        log.info("Sending register packet:" +new String(registerObj.bytes()));
         sender.send(registerObj.bytes());
-        
-        // send set echo=false packet to server
-//        log.info("Setting echo to false");
-//        setEcho(false);
-        
+                
         // start listening to objects from server
         log.info("Starting listening to server...");
         startReaderThread();
@@ -89,26 +87,34 @@ public abstract class AbstractClient  {
     
     protected void send(BusinessObject object) throws IOException {
         object.getMetaData().setSender(user);
-        sender.send(object.bytes());
+        sender.send(object.bytes());        
     }       
         
     public String getName() {
         return name;
     }
     
+    /** Closing of socket may be needed after sender or receiver has finished */
     private synchronized void closeSocketIfNeeded() {
+        log.dbg("closeSocketIfNeeded");
         if (senderFinished && receiverFinished && !socketClosed) {
-            log.info("Closing socket");
+            log.dbg("Closing socket");
             try {
                 socket.close();
-                log.info("Closed socket");
+                log.dbg("Closed socket");
             }
             catch (IOException e) {
                 log.error("Failed closing socket", e);
             }
         }
+        else if (!senderFinished) {            
+            log.dbg("Sender not yet finished, not closing socket");
+        }
+        else if (!receiverFinished) {
+            log.dbg("Receiver not yet finished, not closing socket");
+        }
         else {
-            log.info("Socket already closed");
+            log.dbg("Socket already closed");
         }
     }
             
@@ -117,78 +123,82 @@ public abstract class AbstractClient  {
     * it to stop (done using method stop()), which after some intermediate processing 
     * should lead to our beloved SenderListener being notified, at which point actual
     * closing will occur. 
+    * 
+    * Only the first call to this method will have any effect.
     */              
-    protected synchronized void requestClose() {
-        
+    protected synchronized void requestCloseOutput() {        
         if (!closeRequested) {
             closeRequested = true;
-            log.info("Requesting sender to close");
-            sender.stop();
+            log.dbg("Requesting sender to finish");
+            sender.requestStop();
         }
     }       
     
-    protected void startReaderThread() throws IOException {
-        reader = new BusinessObjectReader(socket.getInputStream(), readerListener, name, true, log);
-        reader.setName(name);
+    private void startReaderThread() throws IOException {
+        reader = new BusinessObjectReader(socket.getInputStream(), readerListener, "reader-"+name, true, log);
+        
         Thread readerThread = new Thread(reader);
         readerThread.start();
     }
     
+    /**
+     * Need to listen to sender sending it's last packet (or having received
+     * an error). At this point it is necessary to close the output channel 
+     * of the socket and possibly the whole socket (if also input has been closed) 
+     */
     private class SenderListener implements NonBlockingSender.Listener {
         public void senderFinished() {
             synchronized(AbstractClient.this) {
-                log.info("SenderListener.finished()");
+                log.dbg("Sender finished");
+                log.info("Closing output to server");
                 senderFinished = true;
-                closeSocketIfNeeded();
-                log.info("finished SenderListener.finished()");
+                try {
+                    socket.shutdownOutput();
+                }
+                catch (IOException e) {
+                    log.error("Failed shutting down send channel", e);
+                }
+                
+                closeSocketIfNeeded();                
             }
         }
     }       
     
-//    protected void setEcho(boolean value) throws IOException {
-//        BusinessObject obj = new BusinessObject();
-//        BusinessObjectMetadata meta = obj.getMetaData();
-//        meta.setEvent(BusinessObjectEventType.SET_PROPERTY);
-//        meta.setName("echo");
-//        meta.setBoolean("value", echo);
-//        send(obj);
-//    }
+    /**
+     * To be called from subclass reader listener when receiving a noMoreObjects notification from
+     * the reader (probably resulting from the fact that server has closed connection). 
+     * 
+     * This method:<pre> 
+     *  • sets {@link #receiverFinished} to true to indicate that receiving has been finished
+     *  • closes input of socket 
+     *  • calls {@link #closeSocketIfNeeded} to shutdown socket, is also sending has been finished earlier.</pre> 
+     * Requiring this call to be performed just by convention is not an very satisfactory solution, 
+     * as there is no way of enforcing the subclass implementation to do so, possibly
+     * leading to an inconsistent state of the client.
+     */
+    protected synchronized void handleNoMoreObjects() {
+        log.dbg("handleNoMoreObjects");
+        receiverFinished = true;
+        try {           
+            socket.shutdownInput();
+        }
+        catch (IOException e) {
+            log.error("Failed shutting down socket input", e);
+        }
+
+        requestCloseOutput();
+        
+        closeSocketIfNeeded();        
+    }
     
     class MyShutdown extends Thread {
         public void run() {
-            System.err.println("Requesting close at shutdown thread...");
-            requestClose();
+            // this should be sufficient to commence a complete clean up of the connection,
+            // if that has not occured yet
+            requestCloseOutput();
         }
     }        
-         
-    
-    /** 
-//     * This should be implemented by subclasses. Always receive a non-null object. 
-//     * Probably {@link #send(BusinessObjec)} will need to be called. This is synchronized 
-//     * by default, so the subclass need not bother with synchronization    
-//     */
-//    @Override
-//    public abstract void objectReceived(BusinessObject bo);       
-//    
-//    /** Called when nothing more to read from stream */
-//    @Override
-//    public abstract void noMoreObjects();
-    
-//    @Override
-//    public void handle(IOException e) {
-//        handleException(e);
-//    }
-    
-//    @Override
-//    public void handle(InvalidPacketException e) {
-//        handleException(e);
-//    }
-//        
-//    @Override
-//    public void handle(BusinessObjectException e) {
-//        handleException(e);
-//    }
-//    
-//    protected abstract void handleException(Exception e);
+             
+
 }
 

@@ -117,6 +117,28 @@ public class Biomine3000Utils {
         return connectToServer(host, port);
     }
     
+    public static void configureLogging(String[] pArgs) throws IOException, IllegalArgumentsException {        
+        CmdLineArgs2 args = new CmdLineArgs2(pArgs);
+        
+        Integer loglevel = args.getIntOpt("loglevel");
+        if (loglevel != null) {
+            // Logger.info("Setting log level to: "+loglevel);
+            Logger.setLogLevel(loglevel);
+        }        
+        
+        String logfile = args.getOpt("logfile");
+        if (logfile != null) {
+            Logger.info("Writing log to file: "+logfile);
+            Logger.addStream(logfile, Logger.LOGLEVEL_INFO);
+        }
+        
+        String warningfile = args.getOpt("warningfile");
+        if (warningfile != null) {
+            Logger.info("Writing warnings to file: "+warningfile);
+            Logger.addStream(warningfile, Logger.LOGLEVEL_WARNING);
+        }
+    }
+    
     /**
      * Socket and host may be null, in which case we shall try all known server locations. 
      * Connection timeout shall be somewhat smaller than the default one.

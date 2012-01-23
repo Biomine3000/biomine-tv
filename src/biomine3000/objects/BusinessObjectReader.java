@@ -53,7 +53,7 @@ public class BusinessObjectReader implements Runnable {
     
     public void run() {
         
-        log("Starting run()");
+        dbg("Starting run()");
         
         try {
             // log("Reading packet...");
@@ -88,16 +88,20 @@ public class BusinessObjectReader implements Runnable {
             listener.handle(e);
         }
         
-        log("Finished run()");
+        dbg("Finished run()");
     }
     
     public String toString() {
         return name;
     }       
     
-    private void log(String msg) {
-        log.info(name+": "+msg);
+    private void dbg(String msg) {
+        log.dbg(name+": "+msg);
     }
+    
+//    private void log(String msg) {
+//        log.info(name+": "+msg);
+//    }
     
     /** Test by connecting to the server and reading everything. */
     public static void main(String[] args) throws Exception {

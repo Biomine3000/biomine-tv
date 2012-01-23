@@ -203,8 +203,7 @@ public class ABBOEServer {
         }       
         
         private void startReaderThread() {
-            reader = new BusinessObjectReader(is, readerListener, name, false, log);
-            reader.setName(name);
+            reader = new BusinessObjectReader(is, readerListener, name, false, log);            
             Thread readerThread = new Thread(reader);
             readerThread.start();
         }               
@@ -274,7 +273,7 @@ public class ABBOEServer {
             }
             
             // request stop of sender
-            sender.stop();
+            sender.requestStop();
             
             receiverFinished = true;
             

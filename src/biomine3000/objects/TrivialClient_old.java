@@ -83,7 +83,7 @@ public class TrivialClient_old {
         if (!closeRequested) {
             closeRequested = true;
             info("Requesting sender to close");
-            sender.stop();
+            sender.requestStop();
         }
     }       
     

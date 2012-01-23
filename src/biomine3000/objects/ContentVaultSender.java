@@ -73,6 +73,7 @@ public class ContentVaultSender implements BusinessObjectHandler {
         stopped = true;
         vaultAdapter.stop();
         try {
+            // no more packets shall be sent
             socket.shutdownOutput();
         }
         catch (IOException e) {

@@ -7,36 +7,65 @@ import java.net.Socket;
 import java.rmi.UnknownHostException;
 
 import util.dbg.ILogger;
-import util.dbg.StdErrLogger;
+import util.dbg.Logger;
 
 public class TrivialClient extends AbstractClient {
-    
-    String user;
+        
+    boolean stdinClosed = false;
     
     /** Call {@link mainReadLoop()} to perform actual processing */
     TrivialClient(Socket socket, ILogger log) throws IOException, UnknownHostException {
-        super(new ReaderListener(), "TrivialClient", ClientReceiveMode.NO_ECHO, false, log);
-        
-        init(socket);
+        super("TrivialClient", ClientReceiveMode.NO_ECHO, false, log);        
+        init(new ReaderListener(), socket);
     }
 
     private void mainReadLoop() throws IOException {
-        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-        String line = br.readLine();
-        while (line != null) {    
-            BusinessObject sendObj = new PlainTextObject(line);
-            sendObj.getMetaData().setSender(user);
-            // log.dbg("Sending object: "+sendObj );  
-            send(sendObj);
-            line = br.readLine();
+        try {
+            BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+            String line = br.readLine();
+            while (line != null) {    
+                BusinessObject sendObj = new PlainTextObject(line);
+                sendObj.getMetaData().setSender(user);
+                // log.dbg("Sending object: "+sendObj );  
+                send(sendObj);
+                line = br.readLine();
+            }
+            
+            log.info("Finished reading stdin");
+            requestCloseOutput();
+        }
+        catch (IOException e) {
+            if (e.getMessage().equals("Stream closed") && stdinClosed) {
+                // this was to be expected => no action 
+            }
+            else {
+                log.error("Failed reading stdin", e);
+            }
+        }
+
+    }
+    
+    private void terminateStdinReadLoop() {
+        
+        stdinClosed = true;
+        // TODO: come up with a better way to terminate main read loop
+        try {
+            System.in.close();
+        }
+        catch (IOException e) {
+            log.error("Failed closing System.in", e);
         }
     }
     
-    private static class ReaderListener extends BusinessObjectReader.DefaultListener {
+    private class ReaderListener extends BusinessObjectReader.DefaultListener {
     
         @Override
         public void handle(RuntimeException e) {
-            log.error(e);        
+            log.error(e);
+            
+            terminateStdinReadLoop();
+            // delegate to outer class superclass AbstractClient
+            handleNoMoreObjects();
         }
     
         @Override
@@ -53,7 +82,13 @@ public class TrivialClient extends AbstractClient {
         
         @Override
         public void noMoreObjects() {
-            // TODO Auto-generated method stub        
+            // server has closed connection?
+            
+            terminateStdinReadLoop();
+            
+            // delegate to outer class superclass AbstractClient
+            handleNoMoreObjects();
+
         }
     
         @Override
@@ -64,12 +99,17 @@ public class TrivialClient extends AbstractClient {
             else {
                 log.error(e);        
             }
+            
+            terminateStdinReadLoop();
+            // delegate to outer class superclass AbstractClient
+            handleNoMoreObjects();
         }
     }
         
     public static void main(String args[]) throws Exception {
         Socket socket = Biomine3000Utils.connectToServer(args);
-        TrivialClient client = new TrivialClient(socket, new StdErrLogger());
+        Biomine3000Utils.configureLogging(args);
+        TrivialClient client = new TrivialClient(socket, new Logger.ILoggerAdapter());
         client.mainReadLoop();
     }
 }
