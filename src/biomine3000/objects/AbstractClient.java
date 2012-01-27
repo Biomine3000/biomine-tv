@@ -17,6 +17,7 @@ public abstract class AbstractClient  {
                    
     protected ILogger log;
     private ClientReceiveMode receiveMode;
+    private Subscriptions subscriptions;
     private String name;    
     String user;
     private BusinessObjectReader.Listener readerListener;
@@ -50,12 +51,14 @@ public abstract class AbstractClient  {
      */
     public AbstractClient(String name, 
                           ClientReceiveMode receiveMode,
+                          Subscriptions subscriptions,
                           boolean constructDedicatedImplementations,                           
                           ILogger log) throws UnknownHostException, IOException {                                
         
                 
         this.name = name;
         this.receiveMode = receiveMode;
+        this.subscriptions = subscriptions;
         this.log = log;        
         this.user = System.getenv("USER");
         if (user == null) {
@@ -76,7 +79,7 @@ public abstract class AbstractClient  {
         sender = new NonBlockingSender(socket, new SenderListener());
                       
         // send register packet to server
-        BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket(name, receiveMode);
+        BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket(name, receiveMode, subscriptions);
         log.info("Sending register packet:" +new String(registerObj.bytes()));
         sender.send(registerObj.bytes());
                 

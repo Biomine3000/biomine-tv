@@ -88,7 +88,7 @@ public class BusinessObjectReader implements Runnable {
             listener.handle(e);
         }
         
-        dbg("Finished run()");
+        dbg("Finished.");
     }
     
     public String toString() {

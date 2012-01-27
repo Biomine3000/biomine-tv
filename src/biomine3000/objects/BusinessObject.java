@@ -74,6 +74,10 @@ public class BusinessObject {
         return makeObject(packet);
     }
     
+    public boolean hasPayload() {
+        return metadata.hasPayload();
+    }
+    
     /**
      * @return null if no more business objects in stream. Note that payload may be null!
      * @throws InvalidPacketException when packet is not correctly formatted
@@ -281,8 +285,10 @@ public class BusinessObject {
 	
 	/**
 	 * Represent business object as transmittable bytes. Returns a byte array containing both the header and payload, 
-	 * separated by a null character, as emphasized elsewhere. Note that in order to avoid memory waste,
-	 * some byte iterator or other more abstract representation should be used to avoid copying the payload bytes... 
+	 * separated by a null character, as emphasized elsewhere. Note that in order to avoid laying memory to waste,
+	 * some byte iterator or other more abstract representation should be used to avoid copying the payload bytes...
+	 *
+	 * Also, the content is not cached, so calling this multiple times will result in multiple memory initializations.
 	 * 
 	 * Alas, somewhere, in some time, there might exist a garbage collector, which should make copying the bytes 
 	 * acceptable for now.

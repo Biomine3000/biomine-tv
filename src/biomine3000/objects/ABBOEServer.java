@@ -100,8 +100,10 @@ public class ABBOEServer {
         NonBlockingSender sender;
         BusinessObjectReader reader;
         ReaderListener readerListener;
+        
         // send everything to clients by default:
         ClientReceiveMode receiveMode = ClientReceiveMode.ALL;
+        Subscriptions subscriptions = Subscriptions.ALL;
         boolean closed;
         String clientName;
         String user;
@@ -165,23 +167,33 @@ public class ABBOEServer {
 
         /** Should the object <bo> from client <source> be sent to this client? */ 
         public boolean shouldSend(Client source, BusinessObject bo) {
+            
+            boolean result;
+            
             if (receiveMode == ClientReceiveMode.ALL) {
-                return true;
+                result = true;
             }
             else if (receiveMode == ClientReceiveMode.NONE) {
-                return false;
+                result = false;
             }
             else if (receiveMode == ClientReceiveMode.EVENTS_ONLY) {
-                return bo.isEvent();               
+                result = bo.isEvent();               
             }
             else if (receiveMode == ClientReceiveMode.NO_ECHO) {
-                return source != this;
+                result = (source != this);
             }
             else {
                 log.error("Unknown receive mode: "+receiveMode+"; not sending!");
-                return false;
+                result = false;
             }
+            
+            if (result == true) {
+                result = subscriptions.shouldSend(bo);
+            }
+            
+            return result;
         }
+        
         
        /**
         * Put object to queue of messages to be sent (to this one client) and return immediately.        
@@ -307,7 +319,7 @@ public class ABBOEServer {
             client = new Client(clientSocket);
             String abboeUser = Biomine3000Utils.getUser();
             String welcome = "Welcome to this fully operational java-A.B.B.O.E., run by "+abboeUser+".\n"+
-                             "Please register by sending an \"client/register\" event.\n"+
+                             "Please register by sending a \"client/register\" event.\n"+
                              "List of connected clients:\n"+
                          StringUtils.collectionToString(clientReport(client));                        
             sendTextReply(client, welcome);
@@ -351,6 +363,7 @@ public class ABBOEServer {
         public void objectReceived(BusinessObject bo) {                        
             if (bo.isEvent()) {
                 BusinessObjectEventType et = bo.getMetaData().getKnownEvent();
+                // does this event need to be sent to other clients?
                 boolean sendEvent = true;
                 if (et != null) {                    
                     log("Received "+et+" event: "+bo);
@@ -371,21 +384,46 @@ public class ABBOEServer {
                         else {
                             warn("No user in register packet from "+client);
                         }
-                        ClientReceiveMode recvMode = ClientReceiveMode.getMode(receiveModeName);
-                        if (recvMode == null) {
-                            sendErrorReply(client, "Unrecognized rcv mode in packet: "+recvMode);
+                        
+                        String msg = "Registered you as \""+name+"-"+user+"\".";
+                        
+                        if (receiveModeName != null) {
+                            ClientReceiveMode recvMode = ClientReceiveMode.getMode(receiveModeName);
+                            if (recvMode == null) {
+                                sendErrorReply(client, "Unrecognized rcv mode in packet: "+recvMode+", using the default: "+client.receiveMode);
+                            }
+                            else {
+                                client.receiveMode = recvMode;
+                                msg+=" Your receive mode is set to: \""+recvMode+".";
+                            }
                         }
                         else {
-                            client.receiveMode = recvMode;
+                            msg+=" No receive mode specified, using the default: "+client.receiveMode;
+                        }                                                                       
+                        
+                        Subscriptions subscriptions = null;
+                        try {
+                            subscriptions = meta.getSubscriptions();
                         }
-                                                
-                        String msg = "Registered you as "+name+"-"+user+".";                                     
-                        if (recvMode != null) {
-                            msg+=" Your receive mode is now: "+recvMode;
+                        catch (InvalidJSONException e) {
+                            sendErrorReply(client, "Unrecognized subscriptions in packet: "+e.getMessage());
+                        }                                                                                    
+                        
+                        if (subscriptions != null) {
+                            msg+=" Your subsciptions are set to: "+subscriptions+".";                            
                         }
+                        else {
+                            msg+=" You did not specify subscriptions; using the default: "+client.subscriptions;                            
+                        }                        
                                      
                         BusinessObject replyObj = new PlainTextObject(msg);                                                
                         client.send(replyObj);
+
+                        // only set after sending the plain text reply                        
+                        if (subscriptions != null) {
+                            client.subscriptions = subscriptions;                            
+                        }
+                        
                         sendEvent = false;
                         
                         PlainTextObject registeredMsg = new PlainTextObject("Client "+client+" registered");
@@ -399,6 +437,7 @@ public class ABBOEServer {
                 else {
                     log("Received unknown event: "+bo.getMetaData().getEvent());
                 }
+                
                 // send the event if needed 
                 if (sendEvent) {
                     log("Sending the very same event to all clients...");
@@ -475,7 +514,7 @@ public class ABBOEServer {
         
         CmdLineArgs2 args = new CmdLineArgs2(pArgs);
                         
-        Integer port = args.getIntOpt("port");
+        Integer port = args.getInt("port");
         
         if (port == null) {             
             port = Biomine3000Utils.conjurePortByHostName();

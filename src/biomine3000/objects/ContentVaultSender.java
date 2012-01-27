@@ -143,7 +143,7 @@ public class ContentVaultSender implements BusinessObjectHandler {
         Logger.addStream("ContentVaultSender.log", 1);
         ILogger log = new Logger.ILoggerAdapter();
                 
-        Integer nToSend = args.getIntOpt("n");
+        Integer nToSend = args.getInt("n");
         if (nToSend != null) {
             log("Only sending "+nToSend+" objects");
         }
@@ -153,8 +153,8 @@ public class ContentVaultSender implements BusinessObjectHandler {
             log("Only sending "+nToSend+" objects");
         }
                         
-        String host = args.getOpt("host");
-        Integer port = args.getIntOpt("port");
+        String host = args.get("host");
+        Integer port = args.getInt("port");
                     
         ContentVaultSender sender = null;
         try {

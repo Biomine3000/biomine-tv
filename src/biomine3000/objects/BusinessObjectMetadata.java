@@ -97,6 +97,26 @@ public class BusinessObjectMetadata {
         put("type", type);
     }
     
+    /** null if no subscriptions defined. */
+    public Subscriptions getSubscriptions() throws InvalidJSONException {
+        try {
+            Object json = this.json.opt("subscriptions");
+            if (json == null) {
+                return null;
+            }
+            else {
+                return Subscriptions.make(json);
+            }
+        }
+        catch (JSONException e) {
+            throw new InvalidJSONException(e);
+        }
+    }
+    
+    public void setSubsciptions(Subscriptions subscriptions) throws JSONException {             
+        json.put("subscriptions", subscriptions.toJSON());
+    }
+    
     public void setType(Biomine3000Mimetype type) {
         put("type", type.toString());
     }
@@ -313,7 +333,7 @@ public class BusinessObjectMetadata {
         if (typeName == null) {
             return null;
         }
-        return Biomine3000Mimetype.getType(typeName);
+        return Biomine3000Mimetype.getByName(typeName);
     }
     
 //    /**
