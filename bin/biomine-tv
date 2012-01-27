@@ -1,5 +1,5 @@
 #!/bin/bash
 
 BIOMINE_TV_BIN="$(dirname $0)"
-$BIOMINE_TV_BIN/tv-java biomine3000.tv.BiomineTV
+$BIOMINE_TV_BIN/tv-java biomine3000.tv.BiomineTV "$@"
 
