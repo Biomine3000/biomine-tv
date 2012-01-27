@@ -394,7 +394,7 @@ public class ABBOEServer {
                             }
                             else {
                                 client.receiveMode = recvMode;
-                                msg+=" Your receive mode is set to: \""+recvMode+".";
+                                msg+=" Your receive mode is set to: \""+recvMode+"\".";
                             }
                         }
                         else {
