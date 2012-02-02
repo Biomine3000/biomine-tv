@@ -11,7 +11,6 @@ import util.JSONUtils;
 import util.dbg.DevNullLogger;
 import util.dbg.ILogger;
 
-import biomine3000.objects.BusinessObjectException.ExType;
 
 /**
  * In the initial implementation, mandatory fields are as follows:
@@ -230,7 +229,7 @@ public class BusinessObjectMetadata {
             return o;
         }
         else {
-            throw new BusinessObjectException(ExType.CEASE_CONJURING);
+            throw new RuntimeException("THEN HE'S GONE (read the javadoc, pal!)");
         }
        
     }
@@ -293,13 +292,15 @@ public class BusinessObjectMetadata {
             throw new RuntimeException("Inconveivable");
         }
     }
+        
     
-    public Boolean getBoolean(String key) {
+    /** @throws InvalidJSONException if the value is not booleanizable */
+    public Boolean getBoolean(String key) throws InvalidJSONException {
         try {
             return json.getBoolean(key);
         }
         catch (JSONException e) {
-            throw new BusinessObjectException(ExType.INVALID_JSON);
+            throw new InvalidJSONException(e);
         }
     }
   
@@ -317,7 +318,7 @@ public class BusinessObjectMetadata {
      * 
      * @see #getOfficialType()
      */
-    public String getType() throws BusinessObjectException {
+    public String getType() {
         return getString("type");                
     }
     
@@ -328,7 +329,7 @@ public class BusinessObjectMetadata {
      * of when there is no payload.
      * @see #getType()
      */
-    public Biomine3000Mimetype getOfficialType() throws BusinessObjectException {
+    public Biomine3000Mimetype getOfficialType() {
         String typeName = getType();
         if (typeName == null) {
             return null;
@@ -347,19 +348,14 @@ public class BusinessObjectMetadata {
     /**
      * Get size of payload. In the current implementation, this max size is limited to 
      * Integer.MAX_VALUE. If there is an business object, return the size from the object.
-     * Otherwise, return field "size".
+     * Otherwise, return field "size", if it exists; if it does not exist, return null.
      */
-    public int getSize() {
-        
+    public Integer getSize() {
         if (obj != null) {
             return obj.getPayload().length;
         }
         else {             
-            Integer size = getInteger("size");
-            if (size == null) {
-                throw new BusinessObjectException(ExType.MISSING_SIZE);
-            }
-            return size;
+            return getInteger("size");                       
         }
     }
     
@@ -395,7 +391,7 @@ public class BusinessObjectMetadata {
             }
             catch (JSONException e) {
                 // should not be possible
-                throw new BusinessObjectException(ExType.JSON_IMPLEMENTATION_MELTDOWN);
+                throw new RuntimeException("JSON Implementation meltdown", e);
             }               
             return json;
         }
@@ -426,7 +422,7 @@ public class BusinessObjectMetadata {
         }
         catch (JSONException e) {
             // should not be possible
-            throw new BusinessObjectException(ExType.JSON_IMPLEMENTATION_MELTDOWN);
+            throw new RuntimeException("JSON implementation meltdown");
         }  
                 
     }

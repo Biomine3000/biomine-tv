@@ -80,10 +80,7 @@ public class BusinessObjectReader implements Runnable {
         }
         catch (InvalidPacketException e) {
             listener.handle(e);
-        }
-        catch (BusinessObjectException e) {
-            listener.handle(e);
-        }
+        }        
         catch (RuntimeException e) {
             listener.handle(e);
         }
@@ -145,12 +142,7 @@ public class BusinessObjectReader implements Runnable {
         @Override
         public void handle(InvalidPacketException e) {
             handleException(e);            
-        }
-
-        @Override
-        public void handle(BusinessObjectException e) {
-            handleException(e);            
-        }
+        }       
 
         @Override
         public void handle(RuntimeException e) {
@@ -169,11 +161,23 @@ public class BusinessObjectReader implements Runnable {
     public interface Listener {    
         /** Always receive a non-null object */
         public void objectReceived(BusinessObject bo);
-        /** Called when nothing more to read from stream */
-        public void noMoreObjects();        
+        /** Called when nothing more to read from stream (but there are no exceptions) */
+        public void noMoreObjects();
+        /**
+         * Generic response on receiving an invalid packet is to close the connection, as there is
+         * currently no way to locate the beginning of a new packet...    
+         */
         public void handle(IOException e);
+        /**
+         * Generic response on receiving an invalid packet is to close the connection, as there is
+         * currently no way to locate the beginning of a new packet...    
+         */
         public void handle(InvalidPacketException e);
-        public void handle(BusinessObjectException e);
+
+        /**
+         * Generic response on receiving a RuntimeException is to close the connection, as there is 
+         * currently no way to locate the beginning of a new packet...    
+         */
         public void handle(RuntimeException e);
     }
 }

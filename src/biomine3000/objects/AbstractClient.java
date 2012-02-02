@@ -13,7 +13,7 @@ import util.net.NonBlockingSender;
  * only methods in BusinessObjectReader.Listener. Implementors should use method 
  * {@link #send(BusinessObject)} to send stuff. 
  */
-public abstract class AbstractClient  {
+public class AbstractClient  {
                    
     protected ILogger log;
     private ClientReceiveMode receiveMode;
@@ -78,7 +78,7 @@ public abstract class AbstractClient  {
         // init sender
         sender = new NonBlockingSender(socket, new SenderListener());
                       
-        // send register packet to server
+        // send registration to server
         BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket(name, receiveMode, subscriptions);
         log.info("Sending register packet:" +new String(registerObj.bytes()));
         sender.send(registerObj.bytes());
@@ -138,6 +138,9 @@ public abstract class AbstractClient  {
     }       
     
     private void startReaderThread() throws IOException {
+        if (readerListener == null) {
+            throw new RuntimeException("No readederListener");
+        }
         reader = new BusinessObjectReader(socket.getInputStream(), readerListener, "reader-"+name, true, log);
         
         Thread readerThread = new Thread(reader);

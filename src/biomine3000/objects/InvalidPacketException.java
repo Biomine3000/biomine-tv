@@ -1,5 +1,6 @@
 package biomine3000.objects;
 
+/** Should this be called "InvalidBusinessObjectException" */
 public class InvalidPacketException extends Exception {    
                               
     private Throwable cause;

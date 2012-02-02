@@ -5,8 +5,6 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 
-import biomine3000.objects.BusinessObjectException.ExType;
-
 import util.IOUtils;
 import util.IOUtils.UnexpectedEndOfStreamException;
 import util.collections.Pair;
@@ -69,7 +67,7 @@ public class BusinessObject {
         this(new BusinessObjectMetadata());
     }       
      
-    public static BusinessObject readObject(InputStream is) throws IOException, InvalidPacketException, BusinessObjectException {        
+    public static BusinessObject readObject(InputStream is) throws IOException, InvalidPacketException {        
         Pair<BusinessObjectMetadata, byte[]> packet = readPacket(is);
         return makeObject(packet);
     }
@@ -85,7 +83,7 @@ public class BusinessObject {
      * @throws BusinessObjectException when some other errors occurs in constructing buziness object 
      * @throws IOException in case of general io error.
      */ 
-    public static Pair<BusinessObjectMetadata, byte[]> readPacket(InputStream is) throws IOException, InvalidPacketException, BusinessObjectException {
+    public static Pair<BusinessObjectMetadata, byte[]> readPacket(InputStream is) throws IOException, InvalidPacketException {
         byte[] metabytes;
         try {
             metabytes = IOUtils.readBytesUntilNull(is);
@@ -114,14 +112,14 @@ public class BusinessObject {
     }
     
     /** Parse businessobject represented as raw bytes into medatata and payload */ 
-    public static Pair<BusinessObjectMetadata, byte[]> parseBytes(byte[] data) throws InvalidJSONException, BusinessObjectException {
+    public static Pair<BusinessObjectMetadata, byte[]> parseBytes(byte[] data) throws InvalidPacketException {
         int i = 0;
         while (data[i] != '\0' && i < data.length) {
             i++;
         }
         
         if (i >= data.length) {
-            throw new BusinessObjectException(ExType.ILLEGAL_FORMAT);
+            throw new InvalidPacketException("No null byte in business object");
         }
         
         byte[] metabytes = Arrays.copyOfRange(data, 0, i);
@@ -200,11 +198,8 @@ public class BusinessObject {
         
         // sanity checks
         if (metadata.hasPayload() != (payload != null)) {
-            throw new BusinessObjectException(BusinessObjectException.ExType.ILLEGAL_PARAMS);
-        }
-        else if (metadata.hasPayload() && metadata.getSize() != payload.length) {
-            throw new BusinessObjectException(BusinessObjectException.ExType.ILLEGAL_SIZE);
-        }
+            throw new RuntimeException("Cannot construct a BusinessObject with a type and no payload");
+        }        
     }
     
     /** Create metadata and set type as the only field. */
@@ -354,7 +349,7 @@ public class BusinessObject {
 	                receivedBO = officialType.makeBusinessObject();
 	                receivedBO.setMetadata(receivedMetadata);
 	                receivedBO.setPayload(receivedPayload);
-	            }
+	            }	            
 	            catch (IllegalAccessException e) {
 	                log.error("Failed constructing an instance of an official business object type", e);	                 
 	            }
@@ -371,7 +366,7 @@ public class BusinessObject {
 	        }
 	        log.info("Received business object: "+receivedBO);
 	    }
-	    catch (InvalidJSONException e) {
+	    catch (InvalidPacketException e) {
 	        log.error("Received business object with invalid JSON: "+e);	        
 	    }
 	}

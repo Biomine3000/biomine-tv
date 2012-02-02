@@ -484,11 +484,6 @@ public class ABBOEServer {
         }
 
         @Override
-        public void handle(BusinessObjectException e) {
-            handleException(e);            
-        }
-
-        @Override
         public void handle(RuntimeException e) {
             handleException(e);
             

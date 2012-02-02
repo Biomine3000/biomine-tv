@@ -11,16 +11,7 @@ public enum BusinessObjectEventType {
     SERVICE_UNREGISTER("services/unregister"),
     SERVICES_LIST("services/list"),
     /** set a (client-specific) property at the server*/
-    SET_PROPERTY("set-property"),
-    /** 
-     * <pre>
-     * Mandatory fields: 
-     *   "name" - name of the client.
-     * Optional fields:
-     *   "echo" - boolean
-     *   "receive" - boolean; false if client does not want to receive anything (true by default)
-     * <pre> 
-     */
+    SET_PROPERTY("set-property"),    
     CLIENT_REGISTER("client/register");
     
     private static Map<String, BusinessObjectEventType> typeByName;
