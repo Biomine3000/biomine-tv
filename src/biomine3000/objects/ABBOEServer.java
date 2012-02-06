@@ -136,7 +136,6 @@ public class ABBOEServer {
         String name;
         boolean senderFinished;
         boolean receiverFinished;
-//        boolean echo = true;
                 
         Client(Socket socket) throws IOException {
             senderFinished = false;
@@ -286,13 +285,15 @@ public class ABBOEServer {
         }                
         
         @Override
-        public void senderFinished() {
-//            log("SenderListener.finished()");
-            doSenderFinished();
-//            log("finished SenderListener.finished()");                      
+        public void senderFinished() {            
+            doSenderFinished();                     
         }
             
-        /** Actually, just initiate closing of output channel */
+        /** 
+         * Actually, just initiate closing of output channel. On noticing this,
+         * client should close its socket, which will then be noticed on this server
+         * as a {@link BusinessObjectReader.Listener#noMoreObjects()} notification from the {@link #reader}.  
+         */
         public void initiateClosingSequence() {
             log.info("Initiating closing sequence for client: "+this);
             BusinessObject shutdownNotification = new PlainTextObject("SERVER IS GOING TO SHUT DOWN IMMEDIATELY");            
@@ -539,7 +540,7 @@ public class ABBOEServer {
                         }                                                                                    
                         
                         if (subscriptions != null) {
-                            msg+=" Your subsciptions are set to: "+subscriptions+".";                            
+                            msg+=" Your subscriptions are set to: "+subscriptions+".";                            
                         }
                         else {
                             msg+=" You did not specify subscriptions; using the default: "+client.subscriptions;                            
@@ -588,12 +589,10 @@ public class ABBOEServer {
             }
             
         }
-
-        
-        
+               
         @Override
         public void noMoreObjects() {
-            log("noMoreObjects (client closed connection).");                                  
+            log("connectionClosed (client closed connection).");                                  
             client.doReceiverFinished();            
         }
 

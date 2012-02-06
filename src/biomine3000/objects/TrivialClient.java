@@ -12,7 +12,7 @@ import org.json.JSONException;
 import util.dbg.ILogger;
 import util.dbg.Logger;
 
-public class TrivialClient extends DefaultClient {
+public class TrivialClient extends ABBOEConnection {
         
     boolean stopYourStdinReading = false;
     
@@ -20,13 +20,14 @@ public class TrivialClient extends DefaultClient {
 
     private String user;
     
-    private State state;
+    /** Note that superclasses also have their own state related to the connection to the server */
+    private StdinReaderState stdinReaderState;
     
     /** Call {@link mainReadLoop()} to perform actual processing */
     public TrivialClient(String user, ILogger log) throws IOException, UnknownHostException, JSONException {
         super(new ClientParameters("TrivialClient", ClientReceiveMode.NO_ECHO, Subscriptions.make("text/plain"), false), log);
         this.user = user;
-        this.state = State.NOT_YET_READING;
+        this.stdinReaderState = StdinReaderState.NOT_YET_READING;
     }
 
     public void init(Socket socket) throws IOException {
@@ -58,7 +59,7 @@ public class TrivialClient extends DefaultClient {
      * it seems that it is not possible to terminate completely cleanly, then.
      */
     private void stdInReadLoop() throws IOException {
-        state = State.READING;
+        stdinReaderState = StdinReaderState.READING;
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));            
         String line = br.readLine();
         while (line != null && !stopYourStdinReading) {    
@@ -71,14 +72,14 @@ public class TrivialClient extends DefaultClient {
         
         log.info("Tranquilly finished reading stdin");
         log.info("Likewise harmoniously requesting closing output...");
-        state = State.FINISHED_READING;
+        stdinReaderState = StdinReaderState.FINISHED_READING;
         requestCloseOutputIfNeeded();        
     }
     
     /** To be called when connection to server has already been terminated */
     private void terminateStdinReadLoopIfNeeded() {
         
-        if (state == State.READING) {
+        if (stdinReaderState == StdinReaderState.READING) {
             stopYourStdinReading = true;
             
             // actually, setting the above flag is not enough, so let's just:
@@ -99,39 +100,12 @@ public class TrivialClient extends DefaultClient {
     }
     
     /** Client receive buzinezz logic contained herein */
-    private class ObjectHandler implements DefaultClient.BusinessObjectHandler {
+    private class ObjectHandler implements ABBOEConnection.BusinessObjectHandler {
 
         @Override
         public void handleObject(BusinessObject bo) {
             String formatted = Biomine3000Utils.formatBusinessObject(bo);
-//            String sender = bo.getMetaData().getSender();            
-//            String channel = bo.getMetaData().getChannel();
-//            if (channel != null) {
-//                channel = channel.replace("MESKW", "");
-//            }
-//            String prefix;
-//            
-//            if (sender == null && channel == null) {
-//                // no sender, no channel
-//                prefix = "<anonymous>";
-//            }
-//            else if (sender != null && channel == null) {
-//                // only sender
-//                prefix = "<"+sender+">";
-//            }
-//            else if (sender == null && channel != null) {
-//                // only channel
-//                prefix = "<"+channel+">";
-//            }
-//            
-//            else {
-//                // both channel and sender
-//                prefix = "<"+channel+"-"+sender+">";
-//            }
-//            
-//            System.out.println(prefix+" "+bo);
-            System.out.println(formatted);
-            
+            System.out.println(formatted);            
         }
 
         @Override
@@ -159,7 +133,7 @@ public class TrivialClient extends DefaultClient {
         client.startMainReadLoop();
     }
     
-    private enum State {
+    private enum StdinReaderState {
         NOT_YET_READING,
         READING,
         FINISHED_READING;

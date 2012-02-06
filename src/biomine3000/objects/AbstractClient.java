@@ -13,7 +13,7 @@ import util.net.NonBlockingSender;
  * only methods in BusinessObjectReader.Listener. Implementors should use method 
  * {@link #send(BusinessObject)} to send stuff. 
  */
-public class AbstractClient  {
+public class AbstractClient {
                    
     protected ILogger log;
     
@@ -118,9 +118,16 @@ public class AbstractClient  {
     * Closing occurs by requesting a sender to send a special stop packet that causes 
     * it to stop (done using method stop()), which after some intermediate processing 
     * should lead to our beloved SenderListener being notified, at which point actual
-    * closing will occur. 
+    * closing will occur.
     * 
-    * Only the first call to this method will have any effect.
+    * Closing of output will only be requested if ALL of the following conditions hold:
+    * <ul>
+    *   <li>socket has not been yet</li>
+    *   <li>sender has not finished yet</li>
+    *   <li>closing of output has not been requested yet</li> 
+    * </ul> 
+    * 
+    * If some of said conditions do not hold, calling this shall have no effect.
     */              
     protected synchronized void requestCloseOutputIfNeeded() {        
         if (!socketClosed && !senderFinished && !closeOutputRequested) {

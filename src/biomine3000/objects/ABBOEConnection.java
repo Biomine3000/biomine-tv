@@ -10,17 +10,27 @@ import util.dbg.ILogger;
 /**
  * Augments AbstractClient by providing a default BusinessObjectReader.Listener implementation,
  * requiring subclasses only to implement the simpler interface {@link BusinessObjectHandler}.
+ * 
+ * TODO: merge AbstractClient into this class. Make a separate AbstractClient using an
+ * ABBOEConnection to implement the connection, if needed.
  */
-public class DefaultClient extends AbstractClient {
+public class ABBOEConnection extends AbstractClient {
     
     private BusinessObjectReader.Listener readerListener;
     private BusinessObjectHandler objectHandler;
     
-    public DefaultClient(ClientParameters clientParameters,                                                   
-                         ILogger log) throws UnknownHostException, IOException {
+    /**
+     * Actual initialization done later by calling {@link #init(biomine3000.objects.BusinessObjectReader.Listener, Socket)}
+     */
+    public ABBOEConnection(ClientParameters clientParameters, ILogger log)
+            throws UnknownHostException, IOException {
         super(clientParameters, log);              
     }
     
+    /**
+     * Note that businessobject handler is not yet passed in constructor, as it might be implemented
+     * using an inner class which cannot be constructed within a call to a superclass constructor... 
+     */
     public void init(Socket socket,
                      BusinessObjectHandler businessObjectHandler) throws IOException {        
         this.objectHandler = businessObjectHandler;
@@ -42,7 +52,7 @@ public class DefaultClient extends AbstractClient {
          * Client should attempt no more sending after receiving this.
          * 
          * DefaultClient implementation is responsible for closing the connection;
-         * the implementor of this interface does not need bother with that.  
+         * the implementor of this interface does not need bother with such banalities.  
          */ 
         public void connectionTerminated();
         
@@ -56,9 +66,9 @@ public class DefaultClient extends AbstractClient {
          * DefaultClient implementation is responsible for closing the connection;
          * the implementor of this interface does not need bother with that.
          * 
-         * Note that a similar cleanup or resources (not related to server connection)
+         * Note that a similar cleanup or resources (not related to server connection), if any, 
          * should probably performed on receiving this as is done with the exceptionless
-         * version of this method.
+         * version of this method {@link #connectionTerminated()}.
          */
         public void connectionTerminated(Exception e);
     }
@@ -73,7 +83,7 @@ public class DefaultClient extends AbstractClient {
         @Override
         public void noMoreObjects() {                                   
             log.dbg("Server closed connection");
-            DefaultClient.super.handleNoMoreObjects();
+            ABBOEConnection.super.handleNoMoreObjects();
             
             objectHandler.connectionTerminated();
         }
@@ -81,7 +91,7 @@ public class DefaultClient extends AbstractClient {
         @Override
         public void handleException(Exception e) {
             log.error("Exception in DefaultClient.readerListener", e);
-            DefaultClient.super.handleNoMoreObjects();
+            ABBOEConnection.super.handleNoMoreObjects();
             
             objectHandler.connectionTerminated(e);
         }
@@ -90,7 +100,7 @@ public class DefaultClient extends AbstractClient {
         @Override
         public void connectionReset() {
             log.dbg("Connection reset by server");
-            DefaultClient.super.handleNoMoreObjects();
+            ABBOEConnection.super.handleNoMoreObjects();
             
             objectHandler.connectionTerminated();
         }

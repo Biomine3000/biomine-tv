@@ -37,8 +37,7 @@ public class BusinessObjectReader implements Runnable {
     public BusinessObjectReader(InputStream is, Listener listener, String name, boolean constructDedicatedImplementations) {
         this(is, listener, name, constructDedicatedImplementations, null);
     }
-        
-    
+            
     public BusinessObjectReader(InputStream is, Listener listener, String name, boolean constructDedicatedImplementations, ILogger log) {
         this.state = State.NOT_STARTED; 
         this.is = is;
@@ -210,7 +209,12 @@ public class BusinessObjectReader implements Runnable {
         /** Always receive a non-null object */
         public void objectReceived(BusinessObject bo);
         
-        /** Called when nothing more to read from stream (but there are no exceptions) */
+        /** 
+         * Called when nothing more to read from stream (but there are no Exceptions).
+         * Typically this is a result of the sender closing the output of the socket at the
+         * other end of the connection. Typically the receiver should close its end 
+         * of the connection also at this stage. 
+         */
         public void noMoreObjects();
         
         /**

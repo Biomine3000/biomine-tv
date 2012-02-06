@@ -12,6 +12,7 @@ import java.util.LinkedList;
 
 import javax.swing.*;
 
+import biomine3000.objects.Biomine3000Args;
 import biomine3000.objects.Biomine3000Utils;
 import biomine3000.objects.Biomine3000Mimetype;
 import biomine3000.objects.BusinessObject;
@@ -23,6 +24,8 @@ import biomine3000.objects.ImageObject;
 import biomine3000.objects.PlainTextObject;
 import biomine3000.objects.ServerAddress;
 import util.ExceptionUtils;
+import util.CmdLineArgs2.IllegalArgumentsException;
+import util.dbg.ILogger;
 import util.dbg.Logger;
 import util.net.NonBlockingSender;
 
@@ -40,11 +43,13 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
 	private BiomineTVImagePanel contentPanel;
 	private BMTVMp3Player mp3Player;
 
+	private ILogger log;
+	
 	//////////////////
 	// BUSINESS
         
 	// Kontenttia; either read directly from a vault using contentVaultAdapter, of from a server	 
-	private ContentVaultAdapter contentVaultAdapter;
+	// private ContentVaultAdapter contentVaultAdapter;
 	private Socket serverSocket;
 
 	private SenderListener senderListener;        
@@ -52,7 +57,8 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
 	// CONTROL
 	MonitorThread monitorThread;
 	
-    public BiomineTV() {
+    public BiomineTV(ILogger log) {
+        this.log = log;
 	    init();
     }
 
@@ -106,10 +112,10 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
         }
     }
     
-    public void startReceivingContentFromVault() {
-        contentVaultAdapter = new ContentVaultAdapter(this, 3000);
-        contentVaultAdapter.startLoading();
-    }
+//    public void startReceivingContentFromVault() {
+//        contentVaultAdapter = new ContentVaultAdapter(this, 3000);
+//        contentVaultAdapter.startLoading();
+//    }
     
     public boolean connected() {
         return serverSocket != null; 
@@ -169,14 +175,10 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
     
     /** Listener to receive objects read by BusinessObjectReader from the server */
     private class ServerReaderListener extends BusinessObjectReader.DefaultListener {        
-        
-//        ServerReaderListener(ILogger log) {
-//            super(log);
-//        }
+
         
         @Override
         public void objectReceived(BusinessObject bo) {
-//            log("Received business object: "+bo);
             BiomineTV.this.handle(bo);
         }
 
@@ -189,7 +191,6 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
         
         @Override
         public void handleException(Exception e) {            
-            // error("Exception while reading", e);
             contentPanel.setMessage(ExceptionUtils.format(e));
         }                           
     }
@@ -222,15 +223,16 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
     	}    	
     }    
     
-    public static void main(String[] args)  {
-        BiomineTV tv = new BiomineTV();
+    public static void main(String[] pArgs) throws Exception {
+        Biomine3000Args args = new Biomine3000Args(pArgs, true);
+        ILogger log = new Logger.ILoggerAdapter("BiomineTV: ");        
+        BiomineTV tv = new BiomineTV(log);
         tv.setSize(800,600);
         tv.setLocation(300,300);
         tv.setVisible(true);
                                 
         // will connect to the server, and keep trying every second until successful
-        tv.startConnectionMonitorThread();
-        
+        tv.startConnectionMonitorThread();     
     }
   
     private class MonitorThread extends Thread {
@@ -260,10 +262,6 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
     public synchronized void close() {
         Logger.info("Starting BiomineTV.close");
         stopMonitorThread();
-        
-        if (contentVaultAdapter != null) {
-            contentVaultAdapter.stop();
-        }
         
         if (serverSocket != null) {
             closeConnectionToServer();
@@ -330,18 +328,18 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
 		}					
 	}    
         
-    private static void log(String msg) {
-        Logger.info("BiomineTV: "+msg);
+    private void log(String msg) {
+        log.info("BiomineTV: "+msg);
     }    
     
     @SuppressWarnings("unused")
-    private static void warn(String msg) {
-        Logger.warning("BiomineTV: "+msg);
+    private void warn(String msg) {
+        log.warning("BiomineTV: "+msg);
     }        
     
     @SuppressWarnings("unused")
-    private static void error(String msg, Exception e) {
-        Logger.error("BiomineTV: "+msg, e);
+    private void error(String msg, Exception e) {
+        log.error("BiomineTV: "+msg, e);
     }
     
 
