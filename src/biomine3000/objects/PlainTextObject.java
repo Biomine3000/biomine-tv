@@ -15,6 +15,11 @@ public class PlainTextObject extends BusinessObject {
         getMetaData().setType(Biomine3000Mimetype.PLAINTEXT);
     }
     
+    public PlainTextObject(BusinessObjectMetadata meta, byte[] payload) {
+        super(meta);
+        setPayload(payload);
+    }
+    
     /** Create a plain text business object with mimetype text/plain */ 
     public PlainTextObject(String text) {
         super();

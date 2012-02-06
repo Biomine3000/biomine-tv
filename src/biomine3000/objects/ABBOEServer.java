@@ -7,6 +7,8 @@ import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
+
+
 import util.CmdLineArgs2;
 import util.DateUtils;
 import util.StringUtils;
@@ -35,8 +37,11 @@ public class ABBOEServer {
         
     private ServerSocket serverSocket;    
     private int serverPort;
+    
+    /** all access to this client list should be synchronized on the ABBOEServer instance */
     private List<Client> clients;
     
+    private State state;
     
     private synchronized List<String> clientReport(Client you) {
         List<String> result = new ArrayList<String>();
@@ -52,14 +57,18 @@ public class ABBOEServer {
     }
     
     /** Create server data structures and start listening */
-    public ABBOEServer(int port) throws IOException {                                                                   
+    public ABBOEServer(int port) throws IOException {
+        state = State.NOT_RUNNING;
         this.serverPort = port;
         serverSocket = new ServerSocket(serverPort);        
         clients = new ArrayList<Client>();
         log("Listening.");
     }                            
     
-    /** Send an object to all applicable clients */
+    /**
+     * Send an object to all applicable clients. Does not block, as sending is done
+     * using a dedicated thread for each client.
+     */
     private synchronized void sendToAllClients(Client src, BusinessObject bo) {
         // defer constructing send bytes to time when sending to first applicable client (there might be none) 
         byte[] bytes = null;
@@ -78,19 +87,34 @@ public class ABBOEServer {
      * {@link UnrecoverableServerException}, or stop signal.
      */
     private void mainLoop() {         
-                          
-        while (true) {
+                         
+        state = State.ACCEPTING_CLIENTS;
+        
+        while (state == State.ACCEPTING_CLIENTS) {
             log("Waiting for client...");
             
             try {
                 Socket clientSocket = serverSocket.accept();
-                log("Client connected from "+clientSocket.getRemoteSocketAddress());
-                processSingleClient(clientSocket);
+                if (state == State.ACCEPTING_CLIENTS) {
+                    log("Client connected from "+clientSocket.getRemoteSocketAddress());
+                    acceptSingleClient(clientSocket);                    
+                }
+                else {
+                    // while waiting, someone seems to have changed our policy to "not accepting clients any more"
+                    // TODO: more graceful way of rejecting this connection
+                    log("Not accepting client from: "+clientSocket.getRemoteSocketAddress());
+                    clientSocket.close();
+                }
             } 
             catch (IOException e) {
-                error("Accepting a client failed", e);
+                if (state == State.ACCEPTING_CLIENTS) {
+                    error("Accepting a client failed", e);
+                }
+                // else we are shutting down, and failure is to be expected to result from server socket having been closed 
             }                                                            
         }                                        
+        
+        log.info("Finished ABBOE main loop");
     }
             
     private class Client implements NonBlockingSender.Listener {        
@@ -249,6 +273,11 @@ public class ABBOEServer {
             synchronized(ABBOEServer.this) {
                 clients.remove(this);
                 closed = true;
+                if (state == State.SHUTTING_DOWN && clients.size() == 0) {
+                    // no more clients, finalize shutdown sequence...
+                    log.info("No more clients, finalizing shutdown sequence...");
+                    finalizeShutdownSequence();
+                }
             }
             
             PlainTextObject msg = new PlainTextObject("Client "+this+" disconnected");
@@ -262,7 +291,25 @@ public class ABBOEServer {
             doSenderFinished();
 //            log("finished SenderListener.finished()");                      
         }
-                
+            
+        /** Actually, just initiate closing of output channel */
+        public void initiateClosingSequence() {
+            log.info("Initiating closing sequence for client: "+this);
+            BusinessObject shutdownNotification = new PlainTextObject("SERVER IS GOING TO SHUT DOWN IMMEDIATELY");            
+            BusinessObjectMetadata meta = shutdownNotification.getMetaData();
+            meta.setSender("ABBOE");
+            meta.setEvent("server/shutdown");
+            try {
+                log.info("Sending shutdown event to client: "+this);
+                sender.send(shutdownNotification.bytes());
+            }
+            catch (IOException e) {
+                log.warning("Failed sending shutdown event to client "+this);
+            }
+            
+            sender.requestStop();
+        }
+        
         private synchronized void doSenderFinished() {
             log("doSenderFinished");
             if (senderFinished) {
@@ -271,6 +318,14 @@ public class ABBOEServer {
             }
             
             senderFinished = true;
+                        
+            try {
+                socket.shutdownOutput();
+            }
+            catch (IOException e) {
+                log.error("Failed closing socket output after finishing sender", e);
+            }
+            
             
             if (receiverFinished) {
                 doClose();
@@ -311,7 +366,7 @@ public class ABBOEServer {
 //        }
     }
                     
-    private void processSingleClient(Socket clientSocket) {
+    private void acceptSingleClient(Socket clientSocket) {
         
         Client client;
          
@@ -338,17 +393,91 @@ public class ABBOEServer {
         client.startReaderThread();
     }          
     
+    
+    private class SystemInReader extends Thread {
+        public void run() {
+            try {
+                stdInReadLoop();
+            }
+            catch (IOException e)  {
+                log.error("IOException in SystemInReader", e);
+                log.error("Terminating...");
+                shutdown();
+            }
+        }
+    }
+    
+    /**
+     * FOO: it does not seem to be possible to interrupt a thread waiting on system.in, even
+     * by closing System.in... Thread.interrupt does not work either...
+     * it seems that it is not possible to terminate completely cleanly, then.
+     */
+    private void stdInReadLoop() throws IOException {        
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));            
+        String line = br.readLine();
+        boolean gotStopRequest = false;
+        while (line != null && !gotStopRequest) {   
+            if (line.equals("stop") || line.equals("s")) {
+                // this is the end
+                gotStopRequest = true;                
+            }
+            else {
+                // just a message to be broadcast
+                BusinessObject message = new PlainTextObject(line);
+                String user = Biomine3000Utils.getUser();
+                String sender = user != null ? "ABBOE-"+user : "ABBOE";
+                message.getMetaData().setSender(sender);
+                // log.dbg("Sending object: "+sendObj );  
+                sendToAllClients(null, message);
+                line = br.readLine();
+            }
+        }
+        
+        if (gotStopRequest) {
+            log.info("Got stop request");
+        }
+        else {
+            log.info("Tranquilly finished reading stdin");
+        }
+        
+        log.info("Harmoniously closing down server by closing output of all client sockets");        		 
+        shutdown();
+        
+    }
+            
+    
     @SuppressWarnings("unused")
-    private void terminate(int pExitCode) {
+    private synchronized void shutdown() {
+        state = State.SHUTTING_DOWN;
+        
         // TODO: more delicate termination needed?
-        log("Shutting down the server at "+DateUtils.formatDate());
+        log("Initiating shutdown sequence");
+        
+        if (clients.size() > 0) {                   
+            for (Client client: clients) {
+                client.initiateClosingSequence();
+            }                            
+        }
+        else {
+            // no clients to close!
+            finalizeShutdownSequence();
+        }
+        
+        // System.exit(pExitCode);
+    }
+    
+    /** Finalize shutdown sequence after closing all clients (if any) */
+    private void finalizeShutdownSequence() {
         try {
+            log.info("Finalizing shutdown sequence by closing server socket");
             serverSocket.close();
         }
         catch (IOException e) {
-            Logger.warning("Error while closing server socket in cleanUp(): ", e);                            
+            // foo
         }
-        System.exit(pExitCode);
+        
+        log.info("Exiting");
+        System.exit(0);
     }
                      
     /** Listens to a single dedicated reader thread reading objects from the input stream of a single client */
@@ -446,8 +575,15 @@ public class ABBOEServer {
             }
             else {
                 // not an event, assume mythical "content"
-                log("Received content: "+bo);
-                log("Sending the very same content to all clients...");
+                
+                if (bo.hasPayload() && bo.getMetaData().getType().equals(Biomine3000Mimetype.PLAINTEXT.toString())) {
+                    PlainTextObject pto = new PlainTextObject(bo.getMetaData().clone(), bo.getPayload());
+                    log("Received content: "+Biomine3000Utils.formatBusinessObject(pto));
+                }
+                else {
+                    log("Received content: "+bo);
+                }
+                // log("Sending the very same content to all clients...");
                 ABBOEServer.this.sendToAllClients(client, bo);
             }
             
@@ -463,7 +599,7 @@ public class ABBOEServer {
 
         private void handleException(Exception e) {
             if (e.getMessage().equals("Connection reset")) {
-                log.info("Client "+this.client+" disconnected");
+                log.info("Connection reset by client: "+this.client);
             }
             else {          
                 error("Exception while reading objects from client "+client, e);                                            
@@ -478,16 +614,20 @@ public class ABBOEServer {
         }
 
         @Override
-        public void handle(InvalidPacketException e) {
+        public void handle(InvalidBusinessObjectException e) {
             handleException(e);
             
         }
 
         @Override
         public void handle(RuntimeException e) {
-            handleException(e);
-            
-        }        
+            handleException(e);            
+        }
+        
+        public void connectionReset() {
+            error("Connection reset by client: "+this.client);
+            client.doReceiverFinished();
+        }
     }
         
     private void sendErrorReply(Client client, String error) {
@@ -505,6 +645,11 @@ public class ABBOEServer {
         client.send(reply);        
     }
 
+    private void startSystemInReadLoop() {           
+        SystemInReader systemInReader = new SystemInReader();
+        systemInReader.start();
+    }
+    
     public static void main(String[] pArgs) throws Exception {
         
         CmdLineArgs2 args = new CmdLineArgs2(pArgs);
@@ -524,6 +669,9 @@ public class ABBOEServer {
                        
         try {
             ABBOEServer server = new ABBOEServer(port);
+            // start separate thread for reading system.in
+            server.startSystemInReadLoop();
+            // the current thread will start executing the main loop
             server.mainLoop();
         }
         catch (IOException e) {
@@ -545,6 +693,12 @@ public class ABBOEServer {
     
     private static void error(String msg, Exception e) {
         log.error(msg, e);
+    }
+    
+    private enum State {
+        NOT_RUNNING,
+        ACCEPTING_CLIENTS,
+        SHUTTING_DOWN;
     }
           
 }

@@ -30,6 +30,37 @@ public class Biomine3000Utils {
         }
     }
     
+    /** Format a business object in an IRC-like fashion */
+    public static String formatBusinessObject(BusinessObject bo) {
+        String sender = bo.getMetaData().getSender();            
+        String channel = bo.getMetaData().getChannel();
+        if (channel != null) {
+            channel = channel.replace("MESKW", "");
+        }
+        String prefix;
+        
+        if (sender == null && channel == null) {
+            // no sender, no channel
+            prefix = "<anonymous>";
+        }
+        else if (sender != null && channel == null) {
+            // only sender
+            prefix = "<"+sender+">";
+        }
+        else if (sender == null && channel != null) {
+            // only channel
+            prefix = "<"+channel+">";
+        }
+        
+        else {
+            // both channel and sender
+            prefix = "<"+channel+"-"+sender+">";
+        }
+        
+        return prefix+" "+bo;
+
+    }
+    
     public static boolean atLakka() {
         String host = getHostName();
         if (host != null && host.startsWith("lakka")) {
@@ -132,6 +163,7 @@ public class Biomine3000Utils {
         configureLogging(new CmdLineArgs2(pArgs));
     }
     
+    /** Set log level, log file and warning file based on args */
     public static void configureLogging(CmdLineArgs2 args) throws IOException, IllegalArgumentsException {                        
         Integer loglevel = args.getInt("loglevel");
         if (loglevel != null) {

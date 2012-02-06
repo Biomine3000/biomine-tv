@@ -67,7 +67,7 @@ public class BusinessObject {
         this(new BusinessObjectMetadata());
     }       
      
-    public static BusinessObject readObject(InputStream is) throws IOException, InvalidPacketException {        
+    public static BusinessObject readObject(InputStream is) throws IOException, InvalidBusinessObjectException {        
         Pair<BusinessObjectMetadata, byte[]> packet = readPacket(is);
         return makeObject(packet);
     }
@@ -78,12 +78,12 @@ public class BusinessObject {
     
     /**
      * @return null if no more business objects in stream. Note that payload may be null!
-     * @throws InvalidPacketException when packet is not correctly formatted
+     * @throws InvalidBusinessObjectException when packet is not correctly formatted
      * @throws InvalidJSONException JSON metadata is not correctly formatted json
      * @throws BusinessObjectException when some other errors occurs in constructing buziness object 
      * @throws IOException in case of general io error.
      */ 
-    public static Pair<BusinessObjectMetadata, byte[]> readPacket(InputStream is) throws IOException, InvalidPacketException {
+    public static Pair<BusinessObjectMetadata, byte[]> readPacket(InputStream is) throws IOException, InvalidBusinessObjectException {
         byte[] metabytes;
         try {
             metabytes = IOUtils.readBytesUntilNull(is);
@@ -93,7 +93,7 @@ public class BusinessObject {
             }
         }
         catch (UnexpectedEndOfStreamException e) {
-            throw new InvalidPacketException("End of stream reached before reading first null byte", e);
+            throw new InvalidBusinessObjectException("End of stream reached before reading first null byte", e);
         }
 //        System.err.println("Got metadata bytes: "+new String(metabytes));                                                          
         BusinessObjectMetadata metadata = new BusinessObjectMetadata(metabytes);
@@ -112,14 +112,14 @@ public class BusinessObject {
     }
     
     /** Parse businessobject represented as raw bytes into medatata and payload */ 
-    public static Pair<BusinessObjectMetadata, byte[]> parseBytes(byte[] data) throws InvalidPacketException {
+    public static Pair<BusinessObjectMetadata, byte[]> parseBytes(byte[] data) throws InvalidBusinessObjectException {
         int i = 0;
         while (data[i] != '\0' && i < data.length) {
             i++;
         }
         
         if (i >= data.length) {
-            throw new InvalidPacketException("No null byte in business object");
+            throw new InvalidBusinessObjectException("No null byte in business object");
         }
         
         byte[] metabytes = Arrays.copyOfRange(data, 0, i);
@@ -366,7 +366,7 @@ public class BusinessObject {
 	        }
 	        log.info("Received business object: "+receivedBO);
 	    }
-	    catch (InvalidPacketException e) {
+	    catch (InvalidBusinessObjectException e) {
 	        log.error("Received business object with invalid JSON: "+e);	        
 	    }
 	}

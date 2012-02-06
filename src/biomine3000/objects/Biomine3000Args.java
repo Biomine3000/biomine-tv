@@ -6,14 +6,17 @@ import util.CmdLineArgs2;
 
 public class Biomine3000Args extends CmdLineArgs2 {
     
-    /** Logging configured automatically by this constructor, based on args */
+    /** Logging configured automatically by this constructor, based on args! */
     public Biomine3000Args(String[] args) throws IllegalArgumentsException {
         super(args);
     }
     
+    /** @param configureLogging configure logging automatically? */     
     public Biomine3000Args(String[] args, boolean configureLogging) throws IllegalArgumentsException, IOException {
         super(args);
-        Biomine3000Utils.configureLogging(this);                    
+        if (configureLogging) {
+            Biomine3000Utils.configureLogging(this);
+        }
     }
     
     /** -channel */
@@ -21,15 +24,22 @@ public class Biomine3000Args extends CmdLineArgs2 {
         return get("channel");
     }
     
-    /** -user, or USER */  
+    /** opt -user, or env var "USER", or "anonymous"*/  
     public String getUser() {
+        // try opt
         String user = get("user");
         if (user != null) {            
             return user;
         }
-        else {
-            return System.getenv("USER");
-        }        
+        
+        // try env var
+        user = System.getenv("USER");
+        if (user != null) {            
+            return user;
+        }
+        
+        // fall back to "anonymous"
+        return "anonymous";      
     }
     
     public String getHost() {

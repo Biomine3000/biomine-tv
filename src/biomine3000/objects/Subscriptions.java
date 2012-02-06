@@ -1,5 +1,6 @@
 package biomine3000.objects;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -25,6 +26,12 @@ public abstract class Subscriptions {
     
     public static Subscriptions make(String... types) throws JSONException {
         return make(CollectionUtils.makeArrayList(types));
+    }
+    
+    public static Subscriptions make(Biomine3000Mimetype... types) throws JSONException {
+        IncludeList result = new IncludeList();
+        result.addAll(Arrays.asList(types));
+        return result;
     }
     
     public static Subscriptions make(Collection<String> types) throws JSONException {
@@ -85,6 +92,17 @@ public abstract class Subscriptions {
     
     private static class IncludeList extends Subscriptions {
         private Set<String> types;
+        
+        private IncludeList() {
+            this.types = new LinkedHashSet<String>();            
+        }
+        
+        private void addAll(Collection<Biomine3000Mimetype> types) {
+            for (Biomine3000Mimetype type: types) {        
+                this.types.add(type.toString());
+            }
+        }
+        
         private IncludeList(Collection<String> types) {
             this.types = new LinkedHashSet<String>(types);
         }

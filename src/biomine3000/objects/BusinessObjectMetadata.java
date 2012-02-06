@@ -85,6 +85,10 @@ public class BusinessObjectMetadata {
         json = new JSONObject();                              
     }   
     
+    private BusinessObjectMetadata(JSONObject json) {                          
+        this.json = json;                              
+    } 
+    
     /** 
      * Construct from a JSON string.
      */
@@ -381,6 +385,12 @@ public class BusinessObjectMetadata {
     public String getChannel() {
         return getString("channel");        
     }          
+    
+    public BusinessObjectMetadata clone() {
+        JSONObject jsonClone = JSONUtils.clone(this.json);
+        BusinessObjectMetadata clone = new BusinessObjectMetadata(jsonClone);
+        return clone;        
+    }
     
     /** Return JSONObject with field "size" derived from the business object */ 
     private JSONObject jsonObjectWithSize() {        

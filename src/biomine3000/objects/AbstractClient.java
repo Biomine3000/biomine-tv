@@ -16,10 +16,10 @@ import util.net.NonBlockingSender;
 public class AbstractClient  {
                    
     protected ILogger log;
+    
     private ClientReceiveMode receiveMode;
     private Subscriptions subscriptions;
-    private String name;    
-    String user;
+    private String name;        
     private BusinessObjectReader.Listener readerListener;
     
     private Socket socket = null;       
@@ -36,7 +36,7 @@ public class AbstractClient  {
     private boolean receiverFinished = false;
     
     private boolean socketClosed = false;
-    private boolean closeRequested = false;     
+    private boolean closeOutputRequested = false;     
     
     /**
      * @param socket the server socket 
@@ -49,25 +49,17 @@ public class AbstractClient  {
      * @throws UnknownHostException
      * @throws IOException
      */
-    public AbstractClient(String name, 
-                          ClientReceiveMode receiveMode,
-                          Subscriptions subscriptions,
-                          boolean constructDedicatedImplementations,                           
-                          ILogger log) throws UnknownHostException, IOException {                                
-        
+    public AbstractClient(ClientParameters clientParameters,
+                          ILogger log) throws UnknownHostException, IOException {                                        
                 
-        this.name = name;
-        this.receiveMode = receiveMode;
-        this.subscriptions = subscriptions;
+        this.name = clientParameters.name;
+        this.receiveMode = clientParameters.receiveMode;                
+        this.subscriptions = clientParameters.subscriptions;
         this.log = log;        
-        this.user = System.getenv("USER");
-        if (user == null) {
-            user = "anonymous";
-        }
-    
+            
+//        log.dbg("Initialized shutdown hook");
         MyShutdown sh = new MyShutdown();            
         Runtime.getRuntime().addShutdownHook(sh);
-//        log.dbg("Initialized shutdown hook");
     }
      
     protected void init(BusinessObjectReader.Listener readerListener,
@@ -85,19 +77,20 @@ public class AbstractClient  {
                 
         // start listening to objects from server
         log.info("Starting listening to server...");
-        startReaderThread();
+        startReaderThread();               
     }                     
     
+    /** Put object to queue of objects to be sent; additionally, attach user info */
     protected void send(BusinessObject object) throws IOException {
-        object.getMetaData().setSender(user);
+        // object.getMetaData().setSender(user);
         sender.send(object.bytes());        
     }       
         
-    public String getName() {
+    public synchronized String getName() {
         return name;
     }
     
-    /** Closing of socket may be needed after sender or receiver has finished */
+    /** Closing of socket is to be done only after both sender and receiver have finished. */
     private synchronized void closeSocketIfNeeded() {
         log.dbg("closeSocketIfNeeded");
         if (senderFinished && receiverFinished && !socketClosed) {
@@ -121,7 +114,7 @@ public class AbstractClient  {
         }
     }
             
-   /* 
+   /**
     * Closing occurs by requesting a sender to send a special stop packet that causes 
     * it to stop (done using method stop()), which after some intermediate processing 
     * should lead to our beloved SenderListener being notified, at which point actual
@@ -129,9 +122,9 @@ public class AbstractClient  {
     * 
     * Only the first call to this method will have any effect.
     */              
-    protected synchronized void requestCloseOutput() {        
-        if (!closeRequested) {
-            closeRequested = true;
+    protected synchronized void requestCloseOutputIfNeeded() {        
+        if (!socketClosed && !senderFinished && !closeOutputRequested) {
+            closeOutputRequested = true;
             log.dbg("Requesting sender to finish");
             sender.requestStop();
         }
@@ -156,7 +149,7 @@ public class AbstractClient  {
         public void senderFinished() {
             synchronized(AbstractClient.this) {
                 log.dbg("Sender finished");
-                log.info("Closing output to server");
+                log.dbg("Closing socket output");
                 senderFinished = true;
                 try {
                     socket.shutdownOutput();
@@ -192,16 +185,23 @@ public class AbstractClient  {
             log.error("Failed shutting down socket input", e);
         }
 
-        requestCloseOutput();
+        requestCloseOutputIfNeeded();
         
         closeSocketIfNeeded();        
     }
     
     class MyShutdown extends Thread {
         public void run() {
-            // this should be sufficient to commence a complete clean up of the connection,
-            // if that has not occured yet
-            requestCloseOutput();
+            // requesting closing of socket output stream should be sufficient to commence a complete 
+            // clean up of the connection, should that not have occurred yet
+            log.dbg("Running AbstractClient shutdown hook...");
+            
+            if (!socketClosed && !senderFinished && !closeOutputRequested) {
+                requestCloseOutputIfNeeded();
+            }
+            else {
+                log.dbg("No cleanup actions necessary");
+            }
         }
     }        
              
