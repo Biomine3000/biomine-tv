@@ -2,14 +2,19 @@ package biomine3000.objects;
 
 import static biomine3000.objects.Biomine3000Constants.*;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.Arrays;
+
+import org.json.JSONException;
 
 import util.CmdLineArgs2;
 import util.CmdLineArgs2.IllegalArgumentsException;
+import util.RandUtils;
 import util.dbg.ILogger;
 import util.dbg.Logger;
 
@@ -25,9 +30,40 @@ public class Biomine3000Utils {
         }
     }
     
+    /** Format a business object in an IRC-like fashion */
+    public static String formatBusinessObject(BusinessObject bo) {
+        String sender = bo.getMetaData().getSender();            
+        String channel = bo.getMetaData().getChannel();
+        if (channel != null) {
+            channel = channel.replace("MESKW", "");
+        }
+        String prefix;
+        
+        if (sender == null && channel == null) {
+            // no sender, no channel
+            prefix = "<anonymous>";
+        }
+        else if (sender != null && channel == null) {
+            // only sender
+            prefix = "<"+sender+">";
+        }
+        else if (sender == null && channel != null) {
+            // only channel
+            prefix = "<"+channel+">";
+        }
+        
+        else {
+            // both channel and sender
+            prefix = "<"+channel+"-"+sender+">";
+        }
+        
+        return prefix+" "+bo;
+
+    }
+    
     public static boolean atLakka() {
         String host = getHostName();
-        if (host != null && host.equals("lakka.kapsi.fi")) {
+        if (host != null && host.startsWith("lakka")) {
             return true;
         }
         else {
@@ -111,10 +147,41 @@ public class Biomine3000Utils {
      * Always return a non-null connection when no exception is thrown.
      */
     public static Socket connectToServer(String[] pArgs) throws IOException, IllegalArgumentsException {
-        CmdLineArgs2 args = new CmdLineArgs2(pArgs); 
-        String host = args.getOpt("host");
-        Integer port = args.getIntOpt("port");
+        Biomine3000Args args = new Biomine3000Args(pArgs, false); 
+        String host = args.getHost();
+        Integer port = args.getPort();
         return connectToServer(host, port);
+    }
+    
+    public static Socket connectToServer(Biomine3000Args args) throws IOException, IllegalArgumentsException {        
+        String host = args.get("host");
+        Integer port = args.getInt("port");
+        return connectToServer(host, port);
+    }
+    
+    public static void configureLogging(String[] pArgs) throws IOException, IllegalArgumentsException {
+        configureLogging(new CmdLineArgs2(pArgs));
+    }
+    
+    /** Set log level, log file and warning file based on args */
+    public static void configureLogging(CmdLineArgs2 args) throws IOException, IllegalArgumentsException {                        
+        Integer loglevel = args.getInt("loglevel");
+        if (loglevel != null) {
+            // Logger.info("Setting log level to: "+loglevel);
+            Logger.setLogLevel(loglevel);
+        }        
+        
+        String logfile = args.get("logfile");
+        if (logfile != null) {
+            Logger.info("Writing log to file: "+logfile);
+            Logger.addStream(logfile, Logger.LOGLEVEL_INFO);
+        }
+        
+        String warningfile = args.get("warningfile");
+        if (warningfile != null) {
+            Logger.info("Writing warnings to file: "+warningfile);
+            Logger.addStream(warningfile, Logger.LOGLEVEL_WARNING);
+        }
     }
     
     /**
@@ -171,15 +238,59 @@ public class Biomine3000Utils {
         System.out.println("at host: "+getHostName());
     }
     
-    public static BusinessObject makeRegisterPacket(String clientName) {
-        BusinessObjectMetadata meta = new BusinessObjectMetadata();
-        meta.setEvent(BusinessObjectEventType.REGISTER_CLIENT);
+    public static BusinessObject makeRegisterPacket(String clientName,
+                                                    ClientReceiveMode receiveMode) {
+        return makeRegisterPacket(clientName, receiveMode, null);
+        
+    }
+    
+    
+    
+    /**
+     * Make a register packet to be sent to the server,
+     * e.g.: <pre>
+     *   "event": "client/register",
+     *   "receive: "only_events"
+     * </pre>
+     * @param clientName
+     * @param receiveMode 
+     */
+    public static BusinessObject makeRegisterPacket(String clientName,
+                                                    ClientReceiveMode receiveMode,
+                                                    Subscriptions subscriptions) {
+        BusinessObjectMetadata meta = new BusinessObjectMetadata();        
+        meta.setEvent(BusinessObjectEventType.CLIENT_REGISTER);        
         meta.put("name", clientName);
+        meta.put(ClientReceiveMode.KEY, receiveMode.toString());
+        if (subscriptions != null) {
+            try {
+                meta.setSubsciptions(subscriptions);
+            }
+            catch (JSONException e) {
+                throw new RuntimeException("Should not be possible");
+            }
+        }
         String user = getUser();
         if (user != null) {
             meta.setUser(user);
         }
         
         return new BusinessObject(meta);
+    }
+
+    public static File randomFile(String dirName) throws IOException {
+        File dir = new File(dirName);
+        if (dir.exists() && dir.isDirectory()) {
+            File[] files = dir.listFiles();
+            if (files.length > 0) {
+                return RandUtils.sample(Arrays.asList(files));
+            }
+            else {
+                throw new IOException("No files in dir: "+dir);
+            }            
+        }
+        else {
+            throw new IOException("No such dir: "+dir);
+        }
     }
 }

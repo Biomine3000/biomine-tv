@@ -8,7 +8,7 @@ public class ByteTest {
         System.out.write(foo.getBytes());
         System.out.println("");
         
-        BusinessObjectMetadata meta = new BusinessObjectMetadata(BiomineTVMimeType.PLAINTEXT);
+        BusinessObjectMetadata meta = new BusinessObjectMetadata(Biomine3000Mimetype.PLAINTEXT);
         System.out.println("meta:");
         System.out.write(meta.toString().getBytes("UTF-8"));
         System.out.println("");

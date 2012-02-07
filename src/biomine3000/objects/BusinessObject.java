@@ -5,8 +5,6 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 
-import biomine3000.objects.BusinessObjectException.ExType;
-
 import util.IOUtils;
 import util.IOUtils.UnexpectedEndOfStreamException;
 import util.collections.Pair;
@@ -60,36 +58,32 @@ public class BusinessObject {
     private byte[] payload;
     
     /**
-     * No-op constructor targeted to enable creating subclasses by reflection.
-     * Do NOT use this to create business objects with empty payload;
-     * use {@link createEmptyObject()} instead. 
+     * Metadata shall be empty, and there will be no payload.
      * 
      * Metadata and payload (if not empty) must naturally be set ASAP by {@link #setPayload()} and 
      * {@link #setMetadata()}.      
      */
     protected BusinessObject() {
-        // no action
-    }
-    
-    /** Create an object with no payload */
-    public static BusinessObject createEmptyInstance() {        
-        BusinessObjectMetadata meta = new BusinessObjectMetadata();
-        return new BusinessObject(meta);
-    }
+        this(new BusinessObjectMetadata());
+    }       
      
-    public static BusinessObject readObject(InputStream is) throws IOException, InvalidPacketException, BusinessObjectException {        
+    public static BusinessObject readObject(InputStream is) throws IOException, InvalidBusinessObjectException {        
         Pair<BusinessObjectMetadata, byte[]> packet = readPacket(is);
         return makeObject(packet);
     }
     
+    public boolean hasPayload() {
+        return metadata.hasPayload();
+    }
+    
     /**
      * @return null if no more business objects in stream. Note that payload may be null!
-     * @throws InvalidPacketException when packet is not correctly formatted
+     * @throws InvalidBusinessObjectException when packet is not correctly formatted
      * @throws InvalidJSONException JSON metadata is not correctly formatted json
      * @throws BusinessObjectException when some other errors occurs in constructing buziness object 
      * @throws IOException in case of general io error.
      */ 
-    public static Pair<BusinessObjectMetadata, byte[]> readPacket(InputStream is) throws IOException, InvalidPacketException, BusinessObjectException {
+    public static Pair<BusinessObjectMetadata, byte[]> readPacket(InputStream is) throws IOException, InvalidBusinessObjectException {
         byte[] metabytes;
         try {
             metabytes = IOUtils.readBytesUntilNull(is);
@@ -99,14 +93,14 @@ public class BusinessObject {
             }
         }
         catch (UnexpectedEndOfStreamException e) {
-            throw new InvalidPacketException("End of stream reached before reading first null byte", e);
+            throw new InvalidBusinessObjectException("End of stream reached before reading first null byte", e);
         }
 //        System.err.println("Got metadata bytes: "+new String(metabytes));                                                          
         BusinessObjectMetadata metadata = new BusinessObjectMetadata(metabytes);
 //        System.err.println("Got metadata: "+metadata);
         byte[] payload;
         if (metadata.hasPayload()) {
-            log.info("Metadata has payload");
+            // log.info("Metadata has payload");
             int payloadSz = metadata.getSize();
             payload = IOUtils.readBytes(is, payloadSz);           
         }
@@ -118,14 +112,14 @@ public class BusinessObject {
     }
     
     /** Parse businessobject represented as raw bytes into medatata and payload */ 
-    public static Pair<BusinessObjectMetadata, byte[]> parseBytes(byte[] data) throws InvalidJSONException, BusinessObjectException {
+    public static Pair<BusinessObjectMetadata, byte[]> parseBytes(byte[] data) throws InvalidBusinessObjectException {
         int i = 0;
         while (data[i] != '\0' && i < data.length) {
             i++;
         }
         
         if (i >= data.length) {
-            throw new BusinessObjectException(ExType.ILLEGAL_FORMAT);
+            throw new InvalidBusinessObjectException("No null byte in business object");
         }
         
         byte[] metabytes = Arrays.copyOfRange(data, 0, i);
@@ -153,7 +147,7 @@ public class BusinessObject {
     
     /**
      * Construct a BusinessObject using a dedicated implementation class, if one exists
-     * (managed by class {@link BiomineTVMimeType} 
+     * (managed by class {@link Biomine3000Mimetype} 
      * 
      * To construct a raw business object using the default implementation (this very class),
      * use the constructor with similar params, instead of this factory method.
@@ -161,7 +155,7 @@ public class BusinessObject {
      * Payload must be null IFF metadata does not contain field "type"
      */ 
     public static BusinessObject makeObject(BusinessObjectMetadata metadata, byte[] payload) {
-        BiomineTVMimeType officialType = metadata.getOfficialType();
+        Biomine3000Mimetype officialType = metadata.getOfficialType();
         BusinessObject bo = null;
         if (officialType != null) {
             // an official type
@@ -204,11 +198,8 @@ public class BusinessObject {
         
         // sanity checks
         if (metadata.hasPayload() != (payload != null)) {
-            throw new BusinessObjectException(BusinessObjectException.ExType.ILLEGAL_PARAMS);
-        }
-        else if (metadata.hasPayload() && metadata.getSize() != payload.length) {
-            throw new BusinessObjectException(BusinessObjectException.ExType.ILLEGAL_SIZE);
-        }
+            throw new RuntimeException("Cannot construct a BusinessObject with a type and no payload");
+        }        
     }
     
     /** Create metadata and set type as the only field. */
@@ -232,7 +223,7 @@ public class BusinessObject {
      * Create a new business object to be sent; payload length will be set to metadata automatically.
      * Naturally, both type and payload are required to be non-null.
      */
-    protected BusinessObject(BiomineTVMimeType type, byte[] payload) {
+    protected BusinessObject(Biomine3000Mimetype type, byte[] payload) {
         initMetadata(type.toString());
         this.payload = payload; 
     }
@@ -289,8 +280,10 @@ public class BusinessObject {
 	
 	/**
 	 * Represent business object as transmittable bytes. Returns a byte array containing both the header and payload, 
-	 * separated by a null character, as emphasized elsewhere. Note that in order to avoid memory waste,
-	 * some byte iterator or other more abstract representation should be used to avoid copying the payload bytes... 
+	 * separated by a null character, as emphasized elsewhere. Note that in order to avoid laying memory to waste,
+	 * some byte iterator or other more abstract representation should be used to avoid copying the payload bytes...
+	 *
+	 * Also, the content is not cached, so calling this multiple times will result in multiple memory initializations.
 	 * 
 	 * Alas, somewhere, in some time, there might exist a garbage collector, which should make copying the bytes 
 	 * acceptable for now.
@@ -340,7 +333,7 @@ public class BusinessObject {
 	
 	public static void main(String[] args) {
 	    String msgStr = "It has been implemented";
-	    PlainTextObject sentBO = new PlainTextObject(msgStr, BiomineTVMimeType.BIOMINE_ANNOUNCEMENT);
+	    PlainTextObject sentBO = new PlainTextObject(msgStr, Biomine3000Mimetype.BIOMINE_ANNOUNCEMENT);
 	    ILogger log = new StdErrLogger();
 	    System.out.println("Sent bo: "+sentBO);
 	    byte[] msgBytes = sentBO.bytes();
@@ -348,7 +341,7 @@ public class BusinessObject {
 	        Pair<BusinessObjectMetadata, byte[]> tmp = parseBytes(msgBytes);
 	        BusinessObjectMetadata receivedMetadata = tmp.getObj1();
 	        byte[] receivedPayload = tmp.getObj2();	        
-	        BiomineTVMimeType officialType = receivedMetadata.getOfficialType();
+	        Biomine3000Mimetype officialType = receivedMetadata.getOfficialType();
 	        BusinessObject receivedBO = null;
 	        if (officialType != null) {
 	            // an official type
@@ -356,7 +349,7 @@ public class BusinessObject {
 	                receivedBO = officialType.makeBusinessObject();
 	                receivedBO.setMetadata(receivedMetadata);
 	                receivedBO.setPayload(receivedPayload);
-	            }
+	            }	            
 	            catch (IllegalAccessException e) {
 	                log.error("Failed constructing an instance of an official business object type", e);	                 
 	            }
@@ -373,7 +366,7 @@ public class BusinessObject {
 	        }
 	        log.info("Received business object: "+receivedBO);
 	    }
-	    catch (InvalidJSONException e) {
+	    catch (InvalidBusinessObjectException e) {
 	        log.error("Received business object with invalid JSON: "+e);	        
 	    }
 	}
@@ -381,7 +374,7 @@ public class BusinessObject {
 	public String toString() {
 	    String payloadStr = metadata.hasPayload() 
 	                      ? "<payload of "+payload.length+" bytes>" 
-	                      : "<no payload>";
+	                      : (isEvent() ? "" : "<no payload>");
 	    return "BusinessObject <metadata: "+metadata.toString()+"> "+payloadStr;
 	}
 	

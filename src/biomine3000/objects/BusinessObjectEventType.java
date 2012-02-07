@@ -5,18 +5,17 @@ import java.util.Map;
 
 public enum BusinessObjectEventType {
     ERROR("error"),
-    SERVICE_STATE_CHANGED("service/state-changed"),
-    /** 
-     * <pre>
-     * Mandatory fields: 
-     *   "name" - name of the client.
-     * <pre> 
-     */
-    REGISTER_CLIENT("service/register-client");
+    /** foo? */
+    SERVICE_STATE_CHANGED("services/state-changed"),    
+    SERVICE_REGISTER("services/register"),
+    SERVICE_UNREGISTER("services/unregister"),
+    SERVICES_LIST("services/list"),
+    /** set a (client-specific) property at the server*/
+    SET_PROPERTY("set-property"),    
+    CLIENT_REGISTER("client/register");
     
     private static Map<String, BusinessObjectEventType> typeByName;
     private String typeString;  
-//    private Class<? extends BusinessObject> implementationClass;
     
     static {
         typeByName = new HashMap<String, BusinessObjectEventType>();

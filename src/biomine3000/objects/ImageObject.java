@@ -6,7 +6,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import javax.imageio.ImageIO;
 
-import biomine3000.objects.BusinessObjectException.ExType;
 
 import util.StringUtils;
 
@@ -34,21 +33,21 @@ public class ImageObject extends BusinessObject {
     }
                        
     /** Create a new business object to be sent; payload length will be set to metadata automatically */
-    public ImageObject(BiomineTVMimeType type, byte[] payload) {
+    public ImageObject(Biomine3000Mimetype type, byte[] payload) {
         super(type, payload);
     }
     
     /** Create a new business object to be sent; payload length will be set to metadata automatically */
-    public ImageObject(byte[] payload, String fileName) {
+    public ImageObject(byte[] payload, String fileName) throws UnknownImageTypeException {
         super();
         String extension = StringUtils.getExtension(fileName);
         if (extension == null) {
-            throw new BusinessObjectException(fileName,  ExType.UNRECOGNIZED_IMAGE_TYPE);
+            throw new UnknownImageTypeException(fileName);
         }
         
-        BiomineTVMimeType type = BiomineTVMimeType.getByExtension(extension);
+        Biomine3000Mimetype type = Biomine3000Mimetype.getByExtension(extension);
         if (type == null) {
-            throw new BusinessObjectException(fileName, ExType.UNRECOGNIZED_IMAGE_TYPE);
+            throw new UnknownImageTypeException(fileName);
         }
             
         BusinessObjectMetadata meta = new BusinessObjectMetadata(type);

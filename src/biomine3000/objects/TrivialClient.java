@@ -4,192 +4,164 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
-import java.net.UnknownHostException;
+import java.rmi.UnknownHostException;
 
-import util.collections.Pair;
+import org.json.JSONException;
+
+
+import util.dbg.ILogger;
 import util.dbg.Logger;
-import util.net.NonBlockingSender;
 
+public class TrivialClient extends DefaultClient {
+        
+    boolean stopYourStdinReading = false;
+    
+    private SystemInReader systemInReader;
 
-/**
- * Reads lines from stdin and writes them to the server as PlainTextObjects synchronously.
- * After writing each line reads one object from the server, again synchronously (the assumption is
- * that the read object will be the line we just wrote, although that is not guaranteed in any way). 
- */
-public class TrivialClient {
-                      
-    private Socket socket = null;
+    private String user;
+    
+    private State state;
+    
+    /** Call {@link mainReadLoop()} to perform actual processing */
+    public TrivialClient(String user, ILogger log) throws IOException, UnknownHostException, JSONException {
+        super(new ClientParameters("TrivialClient", ClientReceiveMode.NO_ECHO, Subscriptions.make("text/plain"), false), log);
+        this.user = user;
+        this.state = State.NOT_YET_READING;
+    }
+
+    public void init(Socket socket) throws IOException {
+        super.init(socket, new ObjectHandler());       
+    }
+    
+    /** Start a SystemInReader thread */
+    private void startMainReadLoop() {
+        systemInReader = new SystemInReader();
+        systemInReader.start();
+    }
+    
+    private class SystemInReader extends Thread {
+        public void run() {
+            try {
+                stdInReadLoop();
+            }
+            catch (IOException e)  {
+                log.error("IOException in SystemInReader", e);
+                log.info("Requesting closing output if needed...");
+                requestCloseOutputIfNeeded();
+            }
+        }
+    }
     
     /**
-     * A dedicated sender used to send stuff (that is: buziness objects)
-     * in a non-blocking manner. 
+     * FOO: it does not seem to be possible to interrupt a thread waiting on system.in, even
+     * by closing System.in... Thread.interrupt does not work either...
+     * it seems that it is not possible to terminate completely cleanly, then.
      */
-    private NonBlockingSender sender = null;
-    
-    private boolean senderFinished = false;
-    private boolean receiverFinished = false;
-    
-    private boolean socketClosed = false;
-    private boolean closeRequested = false;
-
-//    public TestSender(String host, int port) throws UnknownHostException, IOException {                              
-//        init(host, port);                                             
-//    }         
-    
-    public TrivialClient(Socket socket) throws UnknownHostException, IOException {               
-                                               
-        // init communications with the server
-//        try {       
-            this.socket = socket;
-            sender = new NonBlockingSender(socket, new SenderListener());
-      
-            info("TestTCPClient Connected to server");
-            
-            MyShutdown sh = new MyShutdown();            
-            Runtime.getRuntime().addShutdownHook(sh);
-            info("Initialized shutdown hook");
-//        }
-//        catch (UnknownHostException e) {
-//            error("Cannot connect to cache server", e);
-//            throw e;
-//        } 
-//        catch (IOException e) {
-//            error("Error while establishing connection: "+
-//                  ExceptionUtils.format(e, " ")+". "+                    
-//                  "A probable reason is that a server is not running at "+
-//                  host+":"+port+", as supposed.");
-//            // e.printStackTrace();            
-//            throw e;
-//        }        
-    }                
-       
-    public void send(BusinessObject object) throws IOException {        
-        sender.send(object.bytes());
-    }
-    
-    /** Return null when no more business objects available */
-    public BusinessObject receive() throws IOException, InvalidPacketException {
-        Pair<BusinessObjectMetadata, byte[]> packet = BusinessObject.readPacket(socket.getInputStream());               
-//        Logger.info("Received packet: "+packet);
-//        Logger.info("Making business object...");
-        BusinessObject bo = BusinessObject.makeObject(packet);
-        return bo;
-    }
-        
-    private synchronized void closeSocketIfNeeded() {
-        if (senderFinished && receiverFinished && !socketClosed) {
-            info("Closing socket");
-            try {
-                socket.close();
-                info("Closed socket");
-            }
-            catch (IOException e) {
-                error("Failed closing socket", e);
-            }
-        }
-        else {
-            info("Socket already closed");
-        }
-    }
-            
-   /* 
-    * Closing occurs by sending a packet that causes NonBlockingSender to stop, which after
-    * some intermediate processing should lead to our SenderListener being notified,
-    * at which point actual closing will occur. 
-    */              
-    public synchronized void requestClose() {
-        
-        if (!closeRequested) {
-            closeRequested = true;
-            info("Requesting sender to close");
-            sender.stop();
-        }
-    }       
-    
-    /** Just for trivial testing */
-    public static void main(String[] pArgs) throws Exception {
-        Socket socket = Biomine3000Utils.connectToServer(pArgs);        
-        TrivialClient sender = new TrivialClient(socket);
-                       
-        BusinessObject sendObj, rcvObj;
-
-        // register to server
-        sendObj = Biomine3000Utils.makeRegisterPacket("TrivialClient");
-        sender.send(sendObj);
-        rcvObj = sender.receive();
-        System.out.println("Received object: "+rcvObj);                        
-        
-        
-        // start reading user input
-        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+    private void stdInReadLoop() throws IOException {
+        state = State.READING;
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));            
         String line = br.readLine();
-        while (line != null) {
-            sendObj = new PlainTextObject(line);
-            System.out.println("Sending object: "+sendObj );
-//            System.out.write(sendObj.bytes());
-//            System.out.println("");
-            sender.send(sendObj);
-            rcvObj = sender.receive();
-            System.out.println("Received object: "+rcvObj);
-//            System.out.write(rcvObj.bytes());
-//            System.out.println("");
-            info(" "+rcvObj);
+        while (line != null && !stopYourStdinReading) {    
+            BusinessObject sendObj = new PlainTextObject(line);
+            sendObj.getMetaData().setSender(user);
+            // log.dbg("Sending object: "+sendObj );  
+            send(sendObj);
             line = br.readLine();
         }
         
-//        sendObj = new PlainTextObject("This is a ZOMBI notification");
-//        info("Sending object 1: "+sendObj);
-//        sender.send(sendObj);
-//        rcvObj = sender.receive();
-//        info("Received object 1: "+rcvObj);
-//         
-//        sendObj = new PlainTextObject("This is a COMPETITION declaration");
-//        info("Sending object 2: "+sendObj);
-//        sender.send(sendObj);
-//        rcvObj = sender.receive();
-//        info("Received object 2: "+rcvObj);
-        
-        sender.requestClose();        
-         
-        sender.receiverFinished = true;
-        info("Ending main thread");
+        log.info("Tranquilly finished reading stdin");
+        log.info("Likewise harmoniously requesting closing output...");
+        state = State.FINISHED_READING;
+        requestCloseOutputIfNeeded();        
     }
-
-    private class SenderListener implements NonBlockingSender.Listener {
-        public void senderFinished() {
-            synchronized(TrivialClient.this) {
-                info("SenderListener.finished()");
-                senderFinished = true;
-                closeSocketIfNeeded();
-                info("finished SenderListener.finished()");
-            }
+    
+    /** To be called when connection to server has already been terminated */
+    private void terminateStdinReadLoopIfNeeded() {
+        
+        if (state == State.READING) {
+            stopYourStdinReading = true;
+            
+            // actually, setting the above flag is not enough, so let's just:
+            log.dbg("Forcibly exiting");
+            System.exit(0);
         }
+        
+        // NOTE: there seems to be NO SAFE WAY to terminate a thread that is waiting on reading System.in
+        // the only thing we can do here is to wait for a line to be read, after which actual 
+        // closing can occur.
+        
+        // - Thread.interrupt does not work (nothing happens)
+        // - System.in.notify does not work (error if not a owner of the monitor; trying to become owner by 
+        //                                   synchronizing on System.in waits for the current read to complete)
+        // - closing system.in does not work (it only leads to a null being read AFTER finishing the current read...)
+        
+        // TODO: actually, maybe we should just exit, after ensuring that all other activities have finished...         
+    }
+    
+    /** Client receive buzinezz logic contained herein */
+    private class ObjectHandler implements DefaultClient.BusinessObjectHandler {
+
+        @Override
+        public void handleObject(BusinessObject bo) {
+            String formatted = Biomine3000Utils.formatBusinessObject(bo);
+//            String sender = bo.getMetaData().getSender();            
+//            String channel = bo.getMetaData().getChannel();
+//            if (channel != null) {
+//                channel = channel.replace("MESKW", "");
+//            }
+//            String prefix;
+//            
+//            if (sender == null && channel == null) {
+//                // no sender, no channel
+//                prefix = "<anonymous>";
+//            }
+//            else if (sender != null && channel == null) {
+//                // only sender
+//                prefix = "<"+sender+">";
+//            }
+//            else if (sender == null && channel != null) {
+//                // only channel
+//                prefix = "<"+channel+">";
+//            }
+//            
+//            else {
+//                // both channel and sender
+//                prefix = "<"+channel+"-"+sender+">";
+//            }
+//            
+//            System.out.println(prefix+" "+bo);
+            System.out.println(formatted);
+            
+        }
+
+        @Override
+        public void connectionTerminated() {
+            terminateStdinReadLoopIfNeeded();
+        }
+
+        @Override
+        public void connectionTerminated(Exception e) {
+            log.error(e);
+            terminateStdinReadLoopIfNeeded();
+        }
+        
     }       
-    
-    class MyShutdown extends Thread {
-        public void run() {
-            System.err.println("Requesting close at shutdown thread...");
-            requestClose();
+        
+    public static void main(String pArgs[]) throws Exception {
+        Biomine3000Args args = new Biomine3000Args(pArgs, true);
+        Socket socket = Biomine3000Utils.connectToServer(args);        
+        String user = args.getUser();
+        if (user == null) {
+            user = "anonymous";
         }
+        TrivialClient client = new TrivialClient(user, new Logger.ILoggerAdapter("TrivialClient: "));
+        client.init(socket);
+        client.startMainReadLoop();
     }
     
-    @SuppressWarnings("unused")
-    private static void error(String msg) {
-        Logger.error("TestTCPClient: "+msg);
+    private enum State {
+        NOT_YET_READING,
+        READING,
+        FINISHED_READING;
     }
-        
-    private static void error(String msg, Exception e) {
-        Logger.error("TestTCPClient: "+msg, e);
-    }
-        
-    @SuppressWarnings("unused")
-    private static void warning(String msg) {
-        Logger.warning("TestTCPClient: "+msg);
-    }
-    
-    private static void info(String msg) {
-        Logger.info("TestTCPClient: "+msg);
-    }
-    
 }
-

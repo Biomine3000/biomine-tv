@@ -149,7 +149,10 @@ public class ContentVaultProxy {
                 }
                 catch (IOException e) {
                     Logger.warning("Failed loading image: "+url, e);                
-                }                
+                }
+                catch (UnknownImageTypeException e) {
+                    Logger.warning("Failed loading image: "+url, e);                
+                }   
             }
                                                   
             if (loadedImagesByURL.size() == 0) {

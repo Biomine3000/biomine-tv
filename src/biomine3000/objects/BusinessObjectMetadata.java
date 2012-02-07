@@ -11,12 +11,11 @@ import util.JSONUtils;
 import util.dbg.DevNullLogger;
 import util.dbg.ILogger;
 
-import biomine3000.objects.BusinessObjectException.ExType;
 
 /**
  * In the initial implementation, mandatory fields are as follows:
  *   -"size" to specify length of payload in bytes.
- *   -"type" one of {@link BiomineTVMimeType}.
+ *   -"type" one of {@link Biomine3000Mimetype}.
  *   
  * TBD:
  *   -Should we enforce the type of known fields, such as sender?
@@ -86,6 +85,10 @@ public class BusinessObjectMetadata {
         json = new JSONObject();                              
     }   
     
+    private BusinessObjectMetadata(JSONObject json) {                          
+        this.json = json;                              
+    } 
+    
     /** 
      * Construct from a JSON string.
      */
@@ -95,6 +98,30 @@ public class BusinessObjectMetadata {
     
     public void setType(String type) {
         put("type", type);
+    }
+    
+    /** null if no subscriptions defined. */
+    public Subscriptions getSubscriptions() throws InvalidJSONException {
+        try {
+            Object json = this.json.opt("subscriptions");
+            if (json == null) {
+                return null;
+            }
+            else {
+                return Subscriptions.make(json);
+            }
+        }
+        catch (JSONException e) {
+            throw new InvalidJSONException(e);
+        }
+    }
+    
+    public void setSubsciptions(Subscriptions subscriptions) throws JSONException {             
+        json.put("subscriptions", subscriptions.toJSON());
+    }
+    
+    public void setType(Biomine3000Mimetype type) {
+        put("type", type.toString());
     }
     
     /**
@@ -116,7 +143,7 @@ public class BusinessObjectMetadata {
      * Minimal metadata with only (mime)type and size of payload. Actually, even size might be null, if it is
      * not known at the time of creating the metadata...
      */
-    public BusinessObjectMetadata(BiomineTVMimeType type) {
+    public BusinessObjectMetadata(Biomine3000Mimetype type) {
         json = new JSONObject();
         setType(type.toString());        
     }
@@ -206,7 +233,7 @@ public class BusinessObjectMetadata {
             return o;
         }
         else {
-            throw new BusinessObjectException(ExType.CEASE_CONJURING);
+            throw new RuntimeException("THEN HE'S GONE (read the javadoc, pal!)");
         }
        
     }
@@ -249,8 +276,36 @@ public class BusinessObjectMetadata {
         return getString("name");                
     }
     
+//    public String getValue() {
+//        return getString("value");                
+//    }
+    
     public void setName(String name) {
         put("name", name);                
+    }
+    
+//    public void setValue(String name) {
+//        put("value", name);                
+//    }
+    
+    public void setBoolean(String key, boolean value) {
+        try {
+            json.put(key, value);
+        }
+        catch (Exception e) {
+            throw new RuntimeException("Inconveivable");
+        }
+    }
+        
+    
+    /** @throws InvalidJSONException if the value is not booleanizable */
+    public Boolean getBoolean(String key) throws InvalidJSONException {
+        try {
+            return json.getBoolean(key);
+        }
+        catch (JSONException e) {
+            throw new InvalidJSONException(e);
+        }
     }
   
     public String getUser() {
@@ -262,12 +317,12 @@ public class BusinessObjectMetadata {
     }
     
     /** 
-      See {@link BiomineTVMimeType} for known types. Note that payload is not
+      See {@link Biomine3000Mimetype} for known types. Note that payload is not
       mandatory, in which case this method returns null!
      * 
      * @see #getOfficialType()
      */
-    public String getType() throws BusinessObjectException {
+    public String getType() {
         return getString("type");                
     }
     
@@ -278,12 +333,12 @@ public class BusinessObjectMetadata {
      * of when there is no payload.
      * @see #getType()
      */
-    public BiomineTVMimeType getOfficialType() throws BusinessObjectException {
+    public Biomine3000Mimetype getOfficialType() {
         String typeName = getType();
         if (typeName == null) {
             return null;
         }
-        return BiomineTVMimeType.getType(typeName);
+        return Biomine3000Mimetype.getByName(typeName);
     }
     
 //    /**
@@ -297,19 +352,14 @@ public class BusinessObjectMetadata {
     /**
      * Get size of payload. In the current implementation, this max size is limited to 
      * Integer.MAX_VALUE. If there is an business object, return the size from the object.
-     * Otherwise, return field "size".
+     * Otherwise, return field "size", if it exists; if it does not exist, return null.
      */
-    public int getSize() {
-        
+    public Integer getSize() {
         if (obj != null) {
             return obj.getPayload().length;
         }
         else {             
-            Integer size = getInteger("size");
-            if (size == null) {
-                throw new BusinessObjectException(ExType.MISSING_SIZE);
-            }
-            return size;
+            return getInteger("size");                       
         }
     }
     
@@ -322,11 +372,25 @@ public class BusinessObjectMetadata {
     }
     
     /** 
+     * The sender field is as of 2+11-12-12 estimated to be optional.
+     * @return null if no sender
+     */
+    public void setSender(String sender) {
+        put("sender", sender);        
+    }
+    
+    /** 
      * @return null if no channel.
      */
     public String getChannel() {
         return getString("channel");        
     }          
+    
+    public BusinessObjectMetadata clone() {
+        JSONObject jsonClone = JSONUtils.clone(this.json);
+        BusinessObjectMetadata clone = new BusinessObjectMetadata(jsonClone);
+        return clone;        
+    }
     
     /** Return JSONObject with field "size" derived from the business object */ 
     private JSONObject jsonObjectWithSize() {        
@@ -337,7 +401,7 @@ public class BusinessObjectMetadata {
             }
             catch (JSONException e) {
                 // should not be possible
-                throw new BusinessObjectException(ExType.JSON_IMPLEMENTATION_MELTDOWN);
+                throw new RuntimeException("JSON Implementation meltdown", e);
             }               
             return json;
         }
@@ -368,7 +432,7 @@ public class BusinessObjectMetadata {
         }
         catch (JSONException e) {
             // should not be possible
-            throw new BusinessObjectException(ExType.JSON_IMPLEMENTATION_MELTDOWN);
+            throw new RuntimeException("JSON implementation meltdown");
         }  
                 
     }

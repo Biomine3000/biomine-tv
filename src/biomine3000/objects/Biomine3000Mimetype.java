@@ -2,6 +2,8 @@ package biomine3000.objects;
 
 import java.util.*;
 
+import util.StringUtils;
+
 /**
  * A list of leronen-appreciable Biomine TV (mime) types.
  * <p>
@@ -13,7 +15,7 @@ import java.util.*;
  * For (semi)official truth on universally boring mime types, see {@link http://en.wikipedia.org/wiki/Internet_media_type} and 
  *  {@link http://en.wikipedia.org/wiki/MIME}. As for biominoes mime types, the official truth remains to be defined.
  */
-public enum BiomineTVMimeType {
+public enum Biomine3000Mimetype {
 	
     /** Arbitrary text not be announced (todo: elaborate on the difference between plaintext and announcement */
 	PLAINTEXT("text/plain", PlainTextObject.class),
@@ -41,13 +43,13 @@ public enum BiomineTVMimeType {
 	BIOMINE3000_SOFTWARE_AVAILABILITY_ANNOUNCEMENT("message/biomine3000_software_availability_announcement"),
 	
 	/** Png image data. Header should preferably contain some image name, perhaps, rather unexpectedly, in field "name"? */
-	PNGIMAGE("image/png", ImageObject.class),
+	PNGIMAGE("image/png", ImageObject.class, "png"),
 	
 	/** Jpg image data. Header should preferably contain some image name, perhaps, rather unexpectedly, in field "name"? */
-	JPGIMAGE("image/jpg", ImageObject.class),
+	JPGIMAGE("image/jpg", ImageObject.class, "jpg"),
 
 	/** Gif image data. Header should preferably contain some image name, perhaps, rather unexpectedly, in field "name"? */
-    GIFIMAGE("image/gif", ImageObject.class),
+    GIFIMAGE("image/gif", ImageObject.class, "gif"),
 	
 	/** URL to an already existing image in the familiar INTERNET */
 	IMAGEURL("text/url", PlainTextObject.class),
@@ -66,19 +68,40 @@ public enum BiomineTVMimeType {
 	/** An entry participating in an COMPETITION described above. */
 	COMPETITION_ENTRY("application/biomine_competition_entry");
 	
-	static private Map<String, BiomineTVMimeType> typeByName;
-	private String typeString; 	
+	static private Map<String, Biomine3000Mimetype> typeByName;
+	static private Map<String, Biomine3000Mimetype> typeByExtension;
+	private String typeString;
+	private String fileExtension;
 	private Class<? extends BusinessObject> implementationClass;
 	
 	static {
-	    typeByName = new HashMap<String, BiomineTVMimeType>();
-	    for (BiomineTVMimeType type: values()) {
+	    typeByName = new HashMap<String, Biomine3000Mimetype>();
+	    typeByExtension = new HashMap<String, Biomine3000Mimetype>();
+	    for (Biomine3000Mimetype type: values()) {
 	        typeByName.put(type.typeString, type);
+	        typeByExtension.put(type.fileExtension, type);
 	    }
 	}
 	
-	public static BiomineTVMimeType getType(String name) {
+	public static Biomine3000Mimetype getByName(String name) {
 	    return typeByName.get(name);
+	}		
+	
+	/** Return null, if no suitable type found */
+	public static Biomine3000Mimetype getImageTypeByFileName(String fileName) {
+	    String extension = StringUtils.getExtension(fileName);
+	    if (extension == null) {
+	        return null;
+	    }
+	    extension = extension.toLowerCase();
+	    Biomine3000Mimetype candidate = typeByExtension.get(extension);
+	    if (candidate != null && candidate.implementationClass == ImageObject.class) {
+	        return candidate;
+	    }
+	    else {
+	        return null;
+	    }
+	    
 	}
 	
 	/**
@@ -86,7 +109,7 @@ public enum BiomineTVMimeType {
 	 * @param extension must not include the '.'.
 	 * @return null for unmappable extensions.
 	 */ 
-	public static BiomineTVMimeType getByExtension(String extension) {
+	public static Biomine3000Mimetype getByExtension(String extension) {
 	    if (extension.equals("gif")) {
 	        return GIFIMAGE; 
 	    }
@@ -102,15 +125,25 @@ public enum BiomineTVMimeType {
 	}
 	
 	/** Construct a type implemented with the default {@link BusinessObjectMetadata} */
-	private BiomineTVMimeType(String typeString) {
+	private Biomine3000Mimetype(String typeString) {
 		this.typeString = typeString;
 		this.implementationClass = BusinessObject.class;		
 	}
 	
-    private BiomineTVMimeType(String typeString, Class<? extends BusinessObject> implementationClass) {
+    private Biomine3000Mimetype(String typeString, 
+                                Class<? extends BusinessObject> implementationClass) {
         this.typeString = typeString;
         this.implementationClass = implementationClass;
     }
+    
+    private Biomine3000Mimetype(String typeString, 
+                                Class<? extends BusinessObject> implementationClass,
+                                String fileExtension) {
+        this.typeString = typeString;
+        this.implementationClass = implementationClass;
+        this.fileExtension = fileExtension;
+    }
+        
     
     public BusinessObject makeBusinessObject() throws InstantiationException, IllegalAccessException {
         return implementationClass.newInstance();

@@ -43,7 +43,7 @@ public class ContentVaultSender implements BusinessObjectHandler {
         this.socket = socket;
         
         // register to server
-        BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket("ContentVaultSender");
+        BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket("ContentVaultSender", ClientReceiveMode.NONE);
         socket.getOutputStream().write(registerObj.bytes());
         
         this.nToSend = nToSend;        
@@ -73,6 +73,7 @@ public class ContentVaultSender implements BusinessObjectHandler {
         stopped = true;
         vaultAdapter.stop();
         try {
+            // no more packets shall be sent
             socket.shutdownOutput();
         }
         catch (IOException e) {
@@ -142,7 +143,7 @@ public class ContentVaultSender implements BusinessObjectHandler {
         Logger.addStream("ContentVaultSender.log", 1);
         ILogger log = new Logger.ILoggerAdapter();
                 
-        Integer nToSend = args.getIntOpt("n");
+        Integer nToSend = args.getInt("n");
         if (nToSend != null) {
             log("Only sending "+nToSend+" objects");
         }
@@ -152,8 +153,8 @@ public class ContentVaultSender implements BusinessObjectHandler {
             log("Only sending "+nToSend+" objects");
         }
                         
-        String host = args.getOpt("host");
-        Integer port = args.getIntOpt("port");
+        String host = args.get("host");
+        Integer port = args.getInt("port");
                     
         ContentVaultSender sender = null;
         try {

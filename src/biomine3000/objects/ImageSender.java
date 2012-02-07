@@ -6,31 +6,36 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.Socket;
 
-
 import util.IOUtils;
 import util.StringUtils;
 import util.dbg.ILogger;
 import util.dbg.Logger;
 
-public class MP3Sender {
+public class ImageSender {
 
     private ILogger log;
     private Socket socket = null;    
     
-    public MP3Sender(Socket socket, ILogger log) {
+    public ImageSender(Socket socket, ILogger log) {
         this.socket = socket;
         this.log = log;
     }
           
     /** Channel and user may be null, file may not. */
-    public void send(java.io.File file, String channel, String user) throws IOException {
+    public void send(File file, String channel, String user) throws IOException, UnsuitableFiletypeException {
         
         // read file.
         log.info("Reading file: "+file);
         BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
         byte[] payload = IOUtils.readBytes(bis);
         bis.close();
-        BusinessObject bo = new BusinessObject(Biomine3000Mimetype.MP3, payload);
+        
+        Biomine3000Mimetype type = Biomine3000Mimetype.getImageTypeByFileName(file.getName());
+        if (type == null) {
+            throw new UnsuitableFiletypeException(StringUtils.getExtension(file));
+        }        
+        
+        BusinessObject bo = new BusinessObject(type, payload);
         bo.getMetaData().put("name", file.getName());       
         if (channel != null) {
             bo.getMetaData().put("channel", channel);
@@ -41,13 +46,13 @@ public class MP3Sender {
         
         // write register object
         BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket(
-                "MP3Sender",
+                "ImageSender",
                 ClientReceiveMode.NONE,
                 Subscriptions.NONE);
         log.info("Writing register object:" +registerObj);        
         IOUtils.writeBytes(socket.getOutputStream(), registerObj.bytes());
         
-        // write actual mp3
+        // write actual image
         byte[] bytes = bo.bytes();        
         log.info("Writing "+StringUtils.formatSize(bytes.length)+" bytes");
         IOUtils.writeBytes(socket.getOutputStream(), bo.bytes());
@@ -66,8 +71,7 @@ public class MP3Sender {
         else {
             file = Biomine3000Utils.randomFile(".");
         }
-            
-        MP3Sender sender = new MP3Sender(socket, new Logger.ILoggerAdapter());
+        ImageSender sender = new ImageSender(socket, new Logger.ILoggerAdapter());
         sender.send(file, channel, user);
         
         socket.close();

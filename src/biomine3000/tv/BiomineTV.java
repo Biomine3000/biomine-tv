@@ -13,10 +13,11 @@ import java.util.LinkedList;
 import javax.swing.*;
 
 import biomine3000.objects.Biomine3000Utils;
-import biomine3000.objects.BiomineTVMimeType;
+import biomine3000.objects.Biomine3000Mimetype;
 import biomine3000.objects.BusinessObject;
 import biomine3000.objects.BusinessObjectHandler;
 import biomine3000.objects.BusinessObjectReader;
+import biomine3000.objects.ClientReceiveMode;
 import biomine3000.objects.ContentVaultAdapter;
 import biomine3000.objects.ImageObject;
 import biomine3000.objects.PlainTextObject;
@@ -153,7 +154,7 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
                 
         senderListener = new SenderListener(); 
         NonBlockingSender sender = new NonBlockingSender(serverSocket, senderListener);
-        BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket("BiomineTV-java");
+        BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket("BiomineTV-java", ClientReceiveMode.NO_ECHO);
         sender.send(registerObj.bytes());
                         
         BusinessObjectReader readerRunnable = new BusinessObjectReader(serverSocket.getInputStream(), new ServerReaderListener(), "server reader", true);
@@ -285,7 +286,7 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
         else if (bo instanceof PlainTextObject) {
             contentPanel.setMessage(((PlainTextObject)bo).getText());
         }
-        else if (bo.getMetaData().getOfficialType() == BiomineTVMimeType.MP3) {
+        else if (bo.getMetaData().getOfficialType() == Biomine3000Mimetype.MP3) {
             playMP3(bo);
         }        
         else {
