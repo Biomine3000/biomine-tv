@@ -22,7 +22,9 @@ public class AbstractClient {
     private String name;        
     private BusinessObjectReader.Listener readerListener;
     
-    private Socket socket = null;       
+    private Socket socket = null;    
+    
+    private State state;
     
     /**
      * A dedicated sender used to send stuff (that is: buziness objects)
@@ -52,6 +54,7 @@ public class AbstractClient {
     public AbstractClient(ClientParameters clientParameters,
                           ILogger log) throws UnknownHostException, IOException {                                        
                 
+        this.state = State.NOT_INITIALIZED;
         this.name = clientParameters.name;
         this.receiveMode = clientParameters.receiveMode;                
         this.subscriptions = clientParameters.subscriptions;
@@ -64,6 +67,10 @@ public class AbstractClient {
      
     protected void init(BusinessObjectReader.Listener readerListener,
                         Socket socket) throws IOException {
+        if (this.state != State.NOT_INITIALIZED) {
+            throw new IllegalStateException();
+        }
+        this.state = State.INITIALIZING;
         this.readerListener = readerListener;
         this.socket = socket;
         
@@ -74,7 +81,9 @@ public class AbstractClient {
         BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket(name, receiveMode, subscriptions);
         log.info("Sending register packet:" +new String(registerObj.bytes()));
         sender.send(registerObj.bytes());
-                
+        
+        state = State.ACTIVE;
+        
         // start listening to objects from server
         log.info("Starting listening to server...");
         startReaderThread();               
@@ -102,6 +111,7 @@ public class AbstractClient {
             catch (IOException e) {
                 log.error("Failed closing socket", e);
             }
+            state = State.SHUT_DOWN;
         }
         else if (!senderFinished) {            
             log.dbg("Sender not yet finished, not closing socket");
@@ -113,7 +123,28 @@ public class AbstractClient {
             log.dbg("Socket already closed");
         }
     }
-            
+    
+    /**
+     * Initiate shutting down of connection. This will not be immediate:
+     * closing occurs by requesting a sender to send a special stop packet that causes 
+     * it to stop (done using method stop()), which after some intermediate processing 
+     * should lead to our beloved SenderListener being notified, at which point actual
+     * closing of socket output half will occur. After this, server is expected
+     * (having read everything that was send before the close, if any, and also having 
+     * sent everything it wants to send, if any) to close output half of its connection.
+     * Finally, this will be noticed as noMoreObjects in the reader listener, at which 
+     * point we will also close the input half of the socket and also the whole socket,
+     * the connection will be considered to be genuinely closed.   
+     */
+    public synchronized void initiateShutdown() {
+        if (!socketClosed && !closeOutputRequested) {
+            state = State.SHUTTING_DOWN;
+            closeOutputRequested = true;
+            log.dbg("Requesting sender to finish");
+            sender.requestStop();
+        }
+    }
+    
    /**
     * Closing occurs by requesting a sender to send a special stop packet that causes 
     * it to stop (done using method stop()), which after some intermediate processing 
@@ -131,6 +162,7 @@ public class AbstractClient {
     */              
     protected synchronized void requestCloseOutputIfNeeded() {        
         if (!socketClosed && !senderFinished && !closeOutputRequested) {
+            state = State.SHUTTING_DOWN;
             closeOutputRequested = true;
             log.dbg("Requesting sender to finish");
             sender.requestStop();
@@ -183,6 +215,7 @@ public class AbstractClient {
      * leading to an inconsistent state of the client.
      */
     protected synchronized void handleNoMoreObjects() {
+        state = State.SHUTTING_DOWN;
         log.dbg("handleNoMoreObjects");
         receiverFinished = true;
         try {           
@@ -199,6 +232,7 @@ public class AbstractClient {
     
     class MyShutdown extends Thread {
         public void run() {
+            state = AbstractClient.State.SHUTTING_DOWN;            
             // requesting closing of socket output stream should be sufficient to commence a complete 
             // clean up of the connection, should that not have occurred yet
             log.dbg("Running AbstractClient shutdown hook...");
@@ -212,6 +246,18 @@ public class AbstractClient {
         }
     }        
              
-
+    @Override
+    public String toString() {
+        return socket.getRemoteSocketAddress().toString();
+    }
+    
+    protected enum State {
+        NOT_INITIALIZED,
+        INITIALIZING,
+        ACTIVE,
+        SHUTTING_DOWN,
+        SHUT_DOWN;
+    }
+    
 }
 

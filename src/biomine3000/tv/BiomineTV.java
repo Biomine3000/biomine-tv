@@ -9,30 +9,24 @@ import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.LinkedList;
+import java.util.List;
 
 import javax.swing.*;
 
-import biomine3000.objects.Biomine3000Args;
-import biomine3000.objects.Biomine3000Utils;
-import biomine3000.objects.Biomine3000Mimetype;
-import biomine3000.objects.BusinessObject;
-import biomine3000.objects.BusinessObjectHandler;
-import biomine3000.objects.BusinessObjectReader;
-import biomine3000.objects.ClientReceiveMode;
-import biomine3000.objects.ContentVaultAdapter;
-import biomine3000.objects.ImageObject;
-import biomine3000.objects.PlainTextObject;
-import biomine3000.objects.ServerAddress;
-import util.ExceptionUtils;
-import util.CmdLineArgs2.IllegalArgumentsException;
+
+import biomine3000.objects.*;
+
+import util.collections.OneToOneBidirectionalMap;
 import util.dbg.ILogger;
 import util.dbg.Logger;
-import util.net.NonBlockingSender;
+//import util.net.NonBlockingSender;
 
-public class BiomineTV extends JFrame implements BusinessObjectHandler {
+public class BiomineTV extends JFrame {
 
     // CONSTANTS
     private static final double RETRY_INTERVAL_SEC = 1.0;
+    private static final ClientParameters CLIENT_PARAMS = 
+            new ClientParameters("BiomineTV", ClientReceiveMode.NO_ECHO, Subscriptions.ALL, true);
     
     /////////////////
     // GUI
@@ -50,12 +44,17 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
         
 	// Kontenttia; either read directly from a vault using contentVaultAdapter, of from a server	 
 	// private ContentVaultAdapter contentVaultAdapter;
-	private Socket serverSocket;
+//	private Socket serverSocket;
 
-	private SenderListener senderListener;        
+//	private SenderListener senderListener;
+	
+	// TODO: remontti kesken, kele
+	
+	/** Active connections. Access to this should naturally be synchronized */
+	OneToOneBidirectionalMap<IServerAddress, ABBOEConnection> connectionsByAddress = new OneToOneBidirectionalMap<IServerAddress, ABBOEConnection>();
 
 	// CONTROL
-	MonitorThread monitorThread;
+	ConnectionThread monitorThread;
 	
     public BiomineTV(ILogger log) {
         this.log = log;
@@ -66,14 +65,12 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
           
     /** TODO: support playing in a streaming fashion */     
     private void playMP3(BusinessObject bo) {
-//        FileInputStream mp3fis = new FileInputStream(DEFAULT_SONG);
-//        byte[] data = IOUtils.readBytes(mp3fis);
         contentPanel.setMessage("Playing: "+bo.getMetaData().get("name"));
         mp3Player.play(bo.getPayload());
     }
     
-    private void init()  {               
-    
+    private void init()  {
+
         contentPanel = new BiomineTVImagePanel(this, "Initializing content...");
         mp3Player = new BMTVMp3Player();
                                
@@ -101,7 +98,7 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
     } 
 
     private void startConnectionMonitorThread() {
-        monitorThread = new MonitorThread();
+        monitorThread = new ConnectionThread(ServerAddress.LIST);
         monitorThread.start();
     }
     
@@ -117,98 +114,106 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
 //        contentVaultAdapter.startLoading();
 //    }
     
-    public boolean connected() {
-        return serverSocket != null; 
+    public synchronized boolean connected() {
+        return connectionsByAddress.size() > 0; 
     }
     
-    /** Try all known servers... */
-    public synchronized void startReceivingContentFromServer() throws IOException {
-        IOException e = null;
-        try {            
-            startReceivingContentFromServer(ServerAddress.LERONEN_HIMA);            
-        }
-        catch (IOException ex) {
-            e = ex;
-        }
+//    /** Try all known servers... */
+//    public synchronized void startReceivingContentFromServer() throws IOException {
+//        IOException e = null;
+//        try {            
+//            startReceivingContentFromServer(ServerAddress.LERONEN_HIMA);            
+//        }
+//        catch (IOException ex) {
+//            e = ex;
+//        }
+//        
+//        if (e != null) {
+//            try {
+//                log("Failed connecting to local server, trying the one at leronen-kapsi");
+//                startReceivingContentFromServer(ServerAddress.LERONEN_KAPSI);
+//            }
+//            catch (IOException ex) {
+//                throw (ex);
+//            }
+//        }
+//        
+//    }   
+//    
+//    /** Currently, only one server can be received from at a time. */
+//    public synchronized void startReceivingContentFromServer(ServerAddress server) throws IOException {
+//        startReceivingContentFromServer(server.getHost(), server.getPort());
+//    }
+//    
+   /**
+    * Start receiving content from an already established TCP connection. 
+    * Note that multiple connections can be received from simultaneously!
+    */
+    public synchronized void startReceivingContentFromServer(IServerAddress address, Socket socket) throws IOException {
+        log.info("startReceivingContentFromServer: "+address);
+        contentPanel.setMessage("Receiving content from server: "+address);
         
-        if (e != null) {
-            try {
-                log("Failed connecting to local server, trying the one at leronen-kapsi");
-                startReceivingContentFromServer(ServerAddress.LERONEN_KAPSI);
-            }
-            catch (IOException ex) {
-                throw (ex);
-            }
+        if (connectionsByAddress.containsSrcKey(address)) {
+            throw new RuntimeException("Already receiving content from: "+address);
         }
+                                
+        ABBOEConnection connection = new ABBOEConnection(CLIENT_PARAMS, log);
+        connectionsByAddress.put(address, connection);
+        connection.init(socket, new ConnectionListener(connection));
         
-    }   
-    
-    /** Currently, only one server can be received from at a time. */
-    public synchronized void startReceivingContentFromServer(ServerAddress server) throws IOException {
-        startReceivingContentFromServer(server.getHost(), server.getPort());
-    }
-    
-    /** Currently, only one server can be received from at a time. */
-    public synchronized void startReceivingContentFromServer(String host, int port) throws IOException {
-        if (connected()) {
-            closeConnectionToServer();
-        }
-        
-        contentPanel.setMessage("Connecting to server: "+host+":"+port);
-        
-        serverSocket = new Socket(host, port);
+//        serverSocket = new Socket(host, port);
                 
-        senderListener = new SenderListener(); 
-        NonBlockingSender sender = new NonBlockingSender(serverSocket, senderListener);
-        BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket("BiomineTV-java", ClientReceiveMode.NO_ECHO);
-        sender.send(registerObj.bytes());
+//        senderListener = new SenderListener(); 
+//        NonBlockingSender sender = new NonBlockingSender(serverSocket, senderListener);
+//        BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket("BiomineTV-java", ClientReceiveMode.NO_ECHO);
+//        sender.send(registerObj.bytes());
                         
-        BusinessObjectReader readerRunnable = new BusinessObjectReader(serverSocket.getInputStream(), new ServerReaderListener(), "server reader", true);
-        contentPanel.setMessage("Awaiting content from server...");
-        Thread readerThread = new Thread(readerRunnable);
-        readerThread.start();        
+//        BusinessObjectReader readerRunnable = new BusinessObjectReader(serverSocket.getInputStream(), new ServerReaderListener(), "server reader", true);
+//        contentPanel.setMessage("Awaiting content from server...");
+//        Thread readerThread = new Thread(readerRunnable);
+//        readerThread.start();        
     }
     
-    public void stopReceivingContentFromServer() {
-        closeConnectionToServer();
-    }
+//    public void stopReceivingContentFromServer() {
+//        closeConnectionToServer();
+//    }
     
-    /** Listener to receive objects read by BusinessObjectReader from the server */
-    private class ServerReaderListener extends BusinessObjectReader.DefaultListener {        
-
-        
-        @Override
-        public void objectReceived(BusinessObject bo) {
-            BiomineTV.this.handle(bo);
-        }
-
-        @Override
-        public void noMoreObjects() {
-            log("noMoreObjects (client closed connection).");
-            contentPanel.setMessage("No more objects available at server");
-            closeConnectionToServer();
-        }
-        
-        @Override
-        public void handleException(Exception e) {            
-            contentPanel.setMessage(ExceptionUtils.format(e));
-        }                           
-    }
+//    /** Listener to receive objects read by BusinessObjectReader from the server */
+//    private class ServerReaderListener extends BusinessObjectReader.DefaultListener {        
+//
+//        
+//        @Override
+//        public void objectReceived(BusinessObject bo) {
+//            BiomineTV.this.handle(bo);
+//        }
+//
+//        @Override
+//        public void noMoreObjects() {
+//            log("noMoreObjects (client closed connection).");
+//            contentPanel.setMessage("No more objects available at server");
+//            closeConnectionToServer();
+//        }
+//        
+//        @Override
+//        public void handleException(Exception e) {            
+//            contentPanel.setMessage(ExceptionUtils.format(e));
+//        }                           
+//    }
     
-    private synchronized void closeConnectionToServer() {
-        if (serverSocket != null) {
-            try {
-                serverSocket.close();
-            }
-            catch (IOException e) {
-                error("Failed closing connection to server", e);
-            }
-            serverSocket = null;
-        }
-        else {
-            warn("Cannot close connection to server, as one does not exist");
-        }
-    }
+//    private synchronized void closeConnectionToServer() {
+//        if (serverSocket != null) {
+//            try {
+//                serverSocket.close();
+//            }
+//            catch (IOException e) {
+//                error("Failed closing connection to server", e);
+//            }
+//            serverSocket = null;
+//        }
+//        else {
+//            warn("Cannot close connection to server, as one does not exist");
+//        }
+//    }
         
     
     @SuppressWarnings("unused")
@@ -224,6 +229,7 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
     }    
     
     public static void main(String[] pArgs) throws Exception {
+        @SuppressWarnings("unused")
         Biomine3000Args args = new Biomine3000Args(pArgs, true);
         ILogger log = new Logger.ILoggerAdapter("BiomineTV: ");        
         BiomineTV tv = new BiomineTV(log);
@@ -235,43 +241,69 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
         tv.startConnectionMonitorThread();     
     }
   
-    private class MonitorThread extends Thread {
-        private boolean stop = false;        
-        public void run() {                        
-            try {
-                while(!stop) {                    
-                    synchronized(BiomineTV.this) {
-                        if  (!connected()) {
-                            try {                                
-                                startReceivingContentFromServer();                                
+    /** Tries to maintain connections to all servers at given addresses at all times. Retries connections persistently */
+    private class ConnectionThread extends Thread {
+        private boolean stop = false;
+        List<? extends IServerAddress> addresses;
+        ConnectionThread(List<? extends IServerAddress> addresses) {
+            this.addresses = addresses;
+        }
+        
+        public void run() {
+            int i = 0;
+            // cyclicly loop through addresses until requested to stop 
+            while (!stop) {
+                if (i==addresses.size()) {
+                    i = 0;
+                }
+                IServerAddress address = addresses.get(i++);                
+                try {                                        
+                    synchronized(BiomineTV.this) {                        
+                        if  (!(connectionsByAddress.containsSrcKey(address))) {
+                            // not connected to server at this particular address
+                            try {
+                                Socket socket = Biomine3000Utils.connectToServer(address.getHost(), address.getPort());
+                                // successfully connected, start receiving content...
+                                startReceivingContentFromServer(address, socket);
                             }
                             catch (IOException e) {
-                                error("Failed connecting to server", e);
+                                error("Failed connecting to server "+address, e);
                             }
                         }
                     }
+                    
+                    if (connectionsByAddress.size() == addresses.size()) {
+                        // nothing to connect to
+                    }
                     Thread.sleep((long)(RETRY_INTERVAL_SEC*1000));                    
                 }
+                catch (InterruptedException e) {
+                    // no action 
+                }
             }
-            catch (InterruptedException e) {
-                // no action 
-            }
+            
         }
     }
-    
+        
     public synchronized void close() {
-        Logger.info("Starting BiomineTV.close");
+        log.info("Starting BiomineTV.close");
         stopMonitorThread();
         
-        if (serverSocket != null) {
-            closeConnectionToServer();
+        if (connectionsByAddress.size() > 0) {
+            // exiting will be postponed to the closing down of the last connection!
+            for (ABBOEConnection con: connectionsByAddress.getTgtValues()) {
+                log.info("Initiating shutdown of connection: "+con);            
+                con.initiateShutdown();
+            }
         }
-        
-    	System.exit(0);
+        else {
+            // no connections, can exit right away
+            System.exit(0);
+        }
     }
   
     /** Handle arbitrary business object */
-    public void handle(BusinessObject bo) {          
+    public synchronized void handle(BusinessObject bo) {          
         log("Received content from channel "+bo.getMetaData().getChannel()+": "+bo.toString());
         
         if (bo instanceof ImageObject) {
@@ -293,12 +325,53 @@ public class BiomineTV extends JFrame implements BusinessObjectHandler {
         }
     }
     
-    private class SenderListener implements NonBlockingSender.Listener {
-        public void senderFinished() {
-            log("Sender finished");
-        }
-    
+    private boolean shuttingDown() {
+        return monitorThread == null; 
     }
+    
+    private synchronized void connectionTerminated(ABBOEConnection con) {
+        log("Connection terminated: "+con);
+        this.connectionsByAddress.removeTgt(con);
+        if (shuttingDown()) {
+            if (connectionsByAddress.size() == 0) {
+                // no more connections, we can finally die
+                log("Last connection terminated, exiting");
+                System.exit(0);
+            }
+        }
+    }
+    
+    private class ConnectionListener implements ABBOEConnection.BusinessObjectHandler {
+
+        ABBOEConnection connection;
+        ConnectionListener(ABBOEConnection connection) {
+            this.connection = connection;
+        }
+        
+        @Override
+        public void handleObject(BusinessObject obj) {
+            handle(obj);
+        }
+
+        @Override
+        public void connectionTerminated() {
+           BiomineTV.this.connectionTerminated(connection);
+        }
+
+        @Override
+        public void connectionTerminated(Exception e) {
+            log.error("Connection to "+connection+" terminated");
+            BiomineTV.this.connectionTerminated(connection);
+        }
+        
+    }
+    
+//    private class SenderListener implements NonBlockingSender.Listener {
+//        public void senderFinished() {
+//            log("Sender finished");
+//        }
+//    
+//    }
     
     /**
      * For now, the sole purpose of this listener is to enable closing the 

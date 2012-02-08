@@ -1,10 +1,14 @@
 package biomine3000.objects;
 
+import java.util.Arrays;
+import java.util.List;
+
 public enum ServerAddress implements IServerAddress {
     
     LERONEN_HIMA("localhost", Biomine3000Constants.LERONEN_HIMA_PORT),
-    LERONEN_KAPSI("lakka.kapsi.fi", Biomine3000Constants.LERONEN_KAPSI_PORT_1);
-        
+    LERONEN_KAPSI("lakka.kapsi.fi", Biomine3000Constants.LERONEN_KAPSI_PORT_1);        
+    
+    public static List<? extends IServerAddress> LIST = Arrays.asList(values());
     
     private final String host;
     private final int port;
@@ -27,10 +31,12 @@ public enum ServerAddress implements IServerAddress {
     public String toString() {
         return name()+" ("+getHost()+":"+getPort()+")";
     }
+        
     
     private ServerAddress(String host,int port) {
         this.host = host;
         this.port = port;
     }
+        
     
 }

@@ -3,11 +3,8 @@ package biomine3000.tv;
 import biomine3000.objects.*;
 
 import util.dbg.ILogger;
-import util.dbg.Logger;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.Socket;
 import java.rmi.UnknownHostException;
 
