@@ -75,7 +75,7 @@ public class ContentVaultProxy {
                 throw new InvalidStateException("No images to sample from");
             }
             
-            String url = RandUtils.sample(loadedImagesByURL.keySet());
+            String url = RandUtils.sampleOne(loadedImagesByURL.keySet());
             ImageObject image = loadedImagesByURL.get(url);
             return image;
         }            
