@@ -12,28 +12,30 @@ import org.json.JSONException;
 import util.dbg.ILogger;
 import util.dbg.Logger;
 
-public class TrivialClient extends ABBOEConnection {
-        
-    boolean stopYourStdinReading = false;
+public class TrivialClient {
+              
+    private static final ClientParameters CLIENT_PARAMS = 
+            new ClientParameters("TrivialClient", ClientReceiveMode.NO_ECHO, 
+                                 Subscriptions.make("text/plain"), false);
     
+    private ILogger log;
+    private ABBOEConnection connection;            
+    private boolean stopYourStdinReading = false;    
     private SystemInReader systemInReader;
-
     private String user;
     
     /** Note that superclasses also have their own state related to the connection to the server */
     private StdinReaderState stdinReaderState;
     
     /** Call {@link mainReadLoop()} to perform actual processing */
-    public TrivialClient(String user, ILogger log) throws IOException, UnknownHostException, JSONException {
-        super(new ClientParameters("TrivialClient", ClientReceiveMode.NO_ECHO, Subscriptions.make("text/plain"), false), log);
+    public TrivialClient(Socket socket, String user, ILogger log) throws IOException, UnknownHostException, JSONException {
+        this.log = log;
         this.user = user;
         this.stdinReaderState = StdinReaderState.NOT_YET_READING;
+        this.connection = new ABBOEConnection(CLIENT_PARAMS, socket, log);
+        this.connection.init(new ObjectHandler());        
     }
-
-    public void init(Socket socket) throws IOException {
-        super.init(socket, new ObjectHandler());       
-    }
-    
+       
     /** Start a SystemInReader thread */
     private void startMainReadLoop() {
         systemInReader = new SystemInReader();
@@ -48,7 +50,7 @@ public class TrivialClient extends ABBOEConnection {
             catch (IOException e)  {
                 log.error("IOException in SystemInReader", e);
                 log.info("Requesting closing output if needed...");
-                requestCloseOutputIfNeeded();
+                connection.requestCloseOutputIfNeeded();
             }
         }
     }
@@ -62,18 +64,23 @@ public class TrivialClient extends ABBOEConnection {
         stdinReaderState = StdinReaderState.READING;
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));            
         String line = br.readLine();
-        while (line != null && !stopYourStdinReading) {    
-            BusinessObject sendObj = new PlainTextObject(line);
-            sendObj.getMetaData().setSender(user);
-            // log.dbg("Sending object: "+sendObj );  
-            send(sendObj);
-            line = br.readLine();
+        while (line != null && !stopYourStdinReading) {
+            if (line.equals("stop")) {
+                stopYourStdinReading = true;
+            }
+            else {
+                BusinessObject sendObj = new PlainTextObject(line);
+                sendObj.getMetaData().setSender(user);
+                // log.dbg("Sending object: "+sendObj );  
+                connection.send(sendObj);
+                line = br.readLine();
+            }
         }
         
         log.info("Tranquilly finished reading stdin");
         log.info("Likewise harmoniously requesting closing output...");
         stdinReaderState = StdinReaderState.FINISHED_READING;
-        requestCloseOutputIfNeeded();        
+        connection.requestCloseOutputIfNeeded();        
     }
     
     /** To be called when connection to server has already been terminated */
@@ -128,8 +135,7 @@ public class TrivialClient extends ABBOEConnection {
         if (user == null) {
             user = "anonymous";
         }
-        TrivialClient client = new TrivialClient(user, new Logger.ILoggerAdapter("TrivialClient: "));
-        client.init(socket);
+        TrivialClient client = new TrivialClient(socket, user, new Logger.ILoggerAdapter("TrivialClient: "));        
         client.startMainReadLoop();
     }
     

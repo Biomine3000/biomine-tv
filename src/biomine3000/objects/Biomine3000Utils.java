@@ -244,6 +244,9 @@ public class Biomine3000Utils {
         
     }
     
+    public static BusinessObject makeRegisterPacket(ClientParameters clientParams) {
+        return makeRegisterPacket(clientParams.name, clientParams.receiveMode, clientParams.subscriptions);
+    }
     
     
     /**

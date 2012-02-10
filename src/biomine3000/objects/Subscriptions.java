@@ -38,25 +38,28 @@ public abstract class Subscriptions {
         return new IncludeList(types);
     }
     
-    public static Subscriptions make(Object jsonObj) throws JSONException {
-        if (jsonObj instanceof String) {
-            String s = (String)jsonObj;
-            if (s.equals("all")) {
-                return new All();
-            }
-            else if (s.equals("none")) {
-                return new None();
-            }
-            else {
-                // single types
-                return new IncludeList(Collections.singleton(s));
-            }
+    public static Subscriptions make(String s)  {        
+        if (s.equals("all")) {
+            return new All();
         }
-        else if (jsonObj instanceof JSONArray) {
-            return new IncludeList((JSONArray)jsonObj);
+        else if (s.equals("none")) {
+            return new None();
         }
         else {
-            throw new JSONException("Unrecognized object type: "+jsonObj.getClass());
+            // single types
+            return new IncludeList(Collections.singleton(s));
+        }
+    }
+    
+    public static Subscriptions make(Object o) throws JSONException {
+        if (o instanceof String) {
+            return make((String)o);
+        }
+        else if (o instanceof JSONArray) {
+            return new IncludeList((JSONArray)o);
+        }
+        else {
+            throw new JSONException("Unrecognized object type: "+o.getClass());
         }
         
     }

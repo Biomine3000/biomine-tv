@@ -4,41 +4,266 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
+
+
 import util.dbg.ILogger;
+import util.net.NonBlockingSender;
 
 
 /**
- * Augments AbstractClient by providing a default BusinessObjectReader.Listener implementation,
- * requiring subclasses only to implement the simpler interface {@link BusinessObjectHandler}.
- * 
- * TODO: merge AbstractClient into this class. Make a separate AbstractClient using an
- * ABBOEConnection to implement the connection, if needed.
+ * Connection to an ABBOE server. Implementors should use method 
+ * {@link #send(BusinessObject)} to send stuff. 
  */
-public class ABBOEConnection extends AbstractClient {
+public class ABBOEConnection {
+                   
+    private ILogger log;
     
-    private BusinessObjectReader.Listener readerListener;
+    private ClientParameters clientParameters;
+
+    /**
+     * Client callback interface for receiving objects and connection state change
+     * notifications (currently only termination of connection; might be that there is no need
+     * for any additions, though)
+     */
     private BusinessObjectHandler objectHandler;
     
+    /** Internal listener for businessobjectreader */
+    private BusinessObjectReader.Listener readerListener;    
+    private Socket socket = null;
+    
+    /** Internal state */
+    private State state;
+    
+    /** Simplified state, as seen by the client */
+    private ClientState clientState;
+    
+    private NonBlockingSender sender = null;
+    private BusinessObjectReader reader = null;
+    
+    /** State of send and receive threads and socket */
+    private boolean senderFinished = false;
+    private boolean receiverFinished = false;    
+    private boolean socketClosed = false;
+    private boolean closeOutputRequested = false;         
+    
+    
     /**
-     * Actual initialization done later by calling {@link #init(biomine3000.objects.BusinessObjectReader.Listener, Socket)}
+     * Actual initialization of communications done later by calling {@link #init()}
+     * to allow for peaceful registration into data structures e.g., before beginning
+     * the actual business of performing any communications
+     * (nothing will be sent or received before {@link #init()} is called).
      */
-    public ABBOEConnection(ClientParameters clientParameters, ILogger log)
-            throws UnknownHostException, IOException {
-        super(clientParameters, log);              
+    public ABBOEConnection(ClientParameters clientParameters,
+                           Socket socket,                           
+                           ILogger log) throws UnknownHostException, IOException {                                        
+        this.socket = socket;
+        this.clientParameters = clientParameters;        
+        this.log = log;
+                
+        this.state = State.NOT_INITIALIZED;
+        this.clientState = ClientState.NOT_INITIALIZED;
+                           
+        MyShutdown sh = new MyShutdown();            
+        Runtime.getRuntime().addShutdownHook(sh);               
+    }
+    
+   /**
+    * Note that businessobject handler is not yet passed in constructor, as constructing the handler
+    * might require a reference to the connection.
+    */
+    public void init(BusinessObjectHandler businessObjectHandler) throws IOException {
+                
+        if (this.state != State.NOT_INITIALIZED) {
+            throw new IllegalStateException();
+        }
+        
+        this.objectHandler = businessObjectHandler;
+        
+        this.state = State.INITIALIZING;
+        this.clientState = ClientState.ACTIVE;        
+                
+        this.readerListener = new ReaderListener();                                       
+        this.sender = new NonBlockingSender(socket, new SenderListener());
+                      
+        // send registration to server
+        BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket(clientParameters);
+        log.info("Sending register packet:" +new String(registerObj.bytes()));
+        sender.send(registerObj.bytes());
+        this.state = State.ACTIVE;        
+        
+        // start listening to objects from server
+        log.info("Starting reader thread...");
+        startReaderThread();               
+    }                     
+                   
+    /** Put object to queue of objects to be sent; additionally, attach user info */
+    protected void send(BusinessObject object) throws IOException {
+        // object.getMetaData().setSender(user);
+        sender.send(object.bytes());        
+    }       
+        
+    public synchronized String getName() {
+        return clientParameters.name;
+    }
+    
+    /** Closing of socket is to be done only after both sender and receiver have finished. */
+    private synchronized void closeSocketIfNeeded() {
+        log.dbg("closeSocketIfNeeded");
+        if (senderFinished && receiverFinished && !socketClosed) {
+            log.dbg("Closing socket");
+            try {
+                socket.close();
+                log.dbg("Closed socket");
+            }
+            catch (IOException e) {
+                log.error("Failed closing socket", e);
+            }
+            state = State.SHUT_DOWN;
+        }
+        else if (!senderFinished) {            
+            log.dbg("Sender not yet finished, not closing socket");
+        }
+        else if (!receiverFinished) {
+            log.dbg("Receiver not yet finished, not closing socket");
+        }
+        else {
+            log.dbg("Socket already closed");
+        }
     }
     
     /**
-     * Note that businessobject handler is not yet passed in constructor, as it might be implemented
-     * using an inner class which cannot be constructed within a call to a superclass constructor... 
+     * Initiate shutting down of connection. This will not be immediate:
+     * closing occurs by requesting a sender to send a special stop packet that causes 
+     * it to stop (done using method stop()), which after some intermediate processing 
+     * should lead to our beloved SenderListener being notified, at which point actual
+     * closing of socket output half will occur. After this, server is expected
+     * (having read everything that was send before the close, if any, and also having 
+     * sent everything it wants to send, if any) to close output half of its connection.
+     * Finally, this will be noticed as noMoreObjects in the reader listener, at which 
+     * point we will also close the input half of the socket and also the whole socket,
+     * the connection will be considered to be genuinely closed.   
      */
-    public void init(Socket socket,
-                     BusinessObjectHandler businessObjectHandler) throws IOException {        
-        this.objectHandler = businessObjectHandler;
-        readerListener = new ReaderListener();
-        
-        super.init(readerListener, socket);
+    public synchronized void initiateShutdown() {
+        if (!socketClosed && !closeOutputRequested) {
+            state = State.SHUTTING_DOWN;
+            closeOutputRequested = true;
+            log.dbg("Requesting sender to finish");
+            sender.requestStop();
+        }
     }
+    
+   /**
+    * Closing occurs by requesting a sender to send a special stop packet that causes 
+    * it to stop (done using method stop()), which after some intermediate processing 
+    * should lead to our beloved SenderListener being notified, at which point actual
+    * closing will occur.
+    * 
+    * Closing of output will only be requested if ALL of the following conditions hold:
+    * <ul>
+    *   <li>socket has not been yet</li>
+    *   <li>sender has not finished yet</li>
+    *   <li>closing of output has not been requested yet</li> 
+    * </ul> 
+    * 
+    * If some of said conditions do not hold, calling this shall have no effect.
+    */              
+    protected synchronized void requestCloseOutputIfNeeded() {        
+        if (!socketClosed && !senderFinished && !closeOutputRequested) {
+            state = State.SHUTTING_DOWN;
+            closeOutputRequested = true;
+            log.dbg("Requesting sender to finish");
+            sender.requestStop();
+        }
+    }       
+    
+    private void startReaderThread() throws IOException {
+        if (readerListener == null) {
+            throw new RuntimeException("No readederListener");
+        }
+        reader = new BusinessObjectReader(socket.getInputStream(), readerListener, "reader-"+socket.getRemoteSocketAddress().toString(), true, log);
         
+        Thread readerThread = new Thread(reader);
+        readerThread.start();
+    }
+    
+    /**
+     * Need to listen to sender sending it's last packet (or having received
+     * an error). At this point it is necessary to close the output channel 
+     * of the socket and possibly the whole socket (if also input has been closed) 
+     */
+    private class SenderListener implements NonBlockingSender.Listener {
+        public void senderFinished() {
+            synchronized(ABBOEConnection.this) {
+                log.dbg("Sender finished");
+                log.dbg("Closing socket output");
+                senderFinished = true;
+                try {
+                    socket.shutdownOutput();
+                }
+                catch (IOException e) {
+                    log.error("Failed shutting down send channel", e);
+                }
+                
+                closeSocketIfNeeded();                
+            }
+        }
+    }       
+    
+    /**
+     * To be called from subclass reader listener when receiving a noMoreObjects notification from
+     * the reader (probably resulting from the fact that server has closed connection). 
+     * 
+     * This method:<pre> 
+     *  • sets {@link #receiverFinished} to true to indicate that receiving has been finished
+     *  • closes input of socket 
+     *  • calls {@link #closeSocketIfNeeded} to shutdown socket, is also sending has been finished earlier.</pre> 
+     * Requiring this call to be performed just by convention is not an very satisfactory solution, 
+     * as there is no way of enforcing the subclass implementation to do so, possibly
+     * leading to an inconsistent state of the client.
+     */
+    protected synchronized void handleNoMoreObjects() {
+        state = State.SHUTTING_DOWN;
+        log.dbg("handleNoMoreObjects");
+        receiverFinished = true;
+        try {           
+            socket.shutdownInput();
+        }
+        catch (IOException e) {
+            log.error("Failed shutting down socket input", e);
+        }
+
+        requestCloseOutputIfNeeded();
+        
+        closeSocketIfNeeded();        
+    }
+    
+    class MyShutdown extends Thread {
+        public void run() {
+            log.dbg("Executing ABBOEConnection shutdown thread");
+            if (state == ABBOEConnection.State.ACTIVE) {
+                state = ABBOEConnection.State.SHUTTING_DOWN;            
+                // requesting closing of socket output stream should be sufficient to commence a complete 
+                // clean up of the connection, should that not have occurred yet                
+                
+                if (!socketClosed && !senderFinished && !closeOutputRequested) {
+                    requestCloseOutputIfNeeded();
+                }
+                else {
+                    log.dbg("No cleanup actions necessary");
+                }
+            }
+            else {
+                log.dbg("No cleanup actions performed in state: "+state);
+            }
+        }
+    }        
+             
+    @Override
+    public String toString() {
+        return socket.getRemoteSocketAddress().toString();
+    }
+    
+    
     public interface BusinessObjectHandler {
         
         /** Self-explanatory */
@@ -72,7 +297,11 @@ public class ABBOEConnection extends AbstractClient {
          */
         public void connectionTerminated(Exception e);
     }
-    
+
+    /**
+     * Internal listener for businessobjectreader; translates notifications received from there
+     * to client notifications notified through interface BusinessObjectHandler.     
+     */
     private class ReaderListener extends BusinessObjectReader.AbstractListener {
         
         @Override
@@ -83,30 +312,53 @@ public class ABBOEConnection extends AbstractClient {
         @Override
         public void noMoreObjects() {                                   
             log.dbg("Server closed connection");
-            ABBOEConnection.super.handleNoMoreObjects();
-            
-            objectHandler.connectionTerminated();
+            handleNoMoreObjects();
+                        
+            if (clientState != ClientState.FINISHED) {
+                objectHandler.connectionTerminated();
+                clientState = ClientState.FINISHED;
+            }
         }
     
         @Override
         public void handleException(Exception e) {
             log.error("Exception in DefaultClient.readerListener", e);
-            ABBOEConnection.super.handleNoMoreObjects();
+            handleNoMoreObjects();
             
-            objectHandler.connectionTerminated(e);
+            if (clientState != ClientState.FINISHED) {
+                objectHandler.connectionTerminated(e);
+                clientState = ClientState.FINISHED;
+            }
         }
 
         /** Do not consider this as an error; just notify handler that connection has been terminated */
         @Override
         public void connectionReset() {
             log.dbg("Connection reset by server");
-            ABBOEConnection.super.handleNoMoreObjects();
+            handleNoMoreObjects();
             
             objectHandler.connectionTerminated();
         }
     }
+
     
+    protected enum State {
+        NOT_INITIALIZED,
+        INITIALIZING,
+        ACTIVE,
+        SHUTTING_DOWN,
+        SHUT_DOWN;
+    }
     
-    
+    /**
+     * Used to keep track of the state as seen by the client.
+     * This is a simplified version of the actual internal state managed within AbstractClient.
+     */
+    protected enum ClientState {
+        NOT_INITIALIZED,
+        ACTIVE,
+        FINISHED;
+    }
     
 }
+
