@@ -5,6 +5,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 
@@ -117,15 +119,14 @@ public class ABBOEServer {
         log.info("Finished ABBOE main loop");
     }
             
+    /** Actually, a connection to a client */
     private class Client implements NonBlockingSender.Listener {        
         Socket socket;
         BufferedInputStream is;
         OutputStream os;        
         NonBlockingSender sender;
         BusinessObjectReader reader;
-        ReaderListener readerListener;
-        
-        // send everything to clients by default:
+        ReaderListener readerListener;               
         ClientReceiveMode receiveMode = ClientReceiveMode.ALL;
         Subscriptions subscriptions = Subscriptions.ALL;
         boolean closed;
@@ -136,6 +137,8 @@ public class ABBOEServer {
         String name;
         boolean senderFinished;
         boolean receiverFinished;
+        /** services implemented by client */
+        LinkedHashSet<String> services = new LinkedHashSet<String>();         
                 
         Client(Socket socket) throws IOException {
             senderFinished = false;
@@ -236,6 +239,10 @@ public class ABBOEServer {
                 doSenderFinished();
             }
         }       
+        
+        private synchronized void registerServices(List<String> names) {
+            services.addAll(names);
+        }
         
         private void startReaderThread() {
             reader = new BusinessObjectReader(is, readerListener, name, false, log);            
@@ -376,8 +383,8 @@ public class ABBOEServer {
             String abboeUser = Biomine3000Utils.getUser();
             String welcome = "Welcome to this fully operational java-A.B.B.O.E., run by "+abboeUser+".\n"+
                              "Please register by sending a \"client/register\" event.\n"+
-                             "List of connected clients:\n"+
-                         StringUtils.collectionToString(clientReport(client));                        
+                             "List of connected clients:\n\t"+
+                             StringUtils.collectionToString(clientReport(client), "\n\t");                        
             sendTextReply(client, welcome);
         }
         catch (IOException e) {
@@ -480,7 +487,113 @@ public class ABBOEServer {
         log.info("Exiting");
         System.exit(0);
     }
+            
+    
+    private void handleServicesRegisterEvent(Client client, BusinessObject bo) {
+        BusinessObjectMetadata meta = bo.getMetaData();        
+        List<String> names = meta.getList("names");
+        String name = meta.getString("name");
+        if (name != null && names != null) {
+            // client has decided to generously provide both name and names; 
+            // let's as generously handle this admittably deranged request
+            names = new ArrayList<String>(names);
+            names.add(name);            
+        }
+        else if (name != null && names == null) { 
+            names = Collections.singletonList(name);
+        }
+        else if (name == null && names != null) { 
+            // no action
+        }
+        else {
+            // both null
+            sendErrorReply(client, "No name nor names in services/register event");
+            return;
+        }
+        
+        // names now contains the services to register
+        client.registerServices(names);        
+    }
+    
+    private void handleClientsListEvent(Client requestingClient) {
+        
+        BusinessObject clientReport;
+        
+        synchronized(ABBOEServer.this) {
+            clientReport = new PlainTextObject(StringUtils.colToStr(clientReport(requestingClient), "\n"));
+            List<String> clientNames = new ArrayList<String>();
+            for (Client client: clients) {
+                clientNames.add(client.name);
+            }
+            clientReport.getMetaData().setEvent(BusinessObjectEventType.CLIENTS_LIST_REPLY);
+            clientReport.getMetaData().putStringList("names", clientNames);
+        }
+        
+        requestingClient.send(clientReport);
+    }
+    
+    private void handleClientRegisterEvent(Client client, BusinessObject bo) {
+        BusinessObjectMetadata meta = bo.getMetaData(); 
+        String name = meta.getName();
+        String user = meta.getUser();
+        String receiveModeName = meta.getString(ClientReceiveMode.KEY); 
+        if (name != null) {
+            client.setName(name);
+        }
+        else {
+            warn("No name in register packet from "+client);
+        }
+        if (user != null) {
+            client.setUser(user);
+        }     
+        else {
+            warn("No user in register packet from "+client);
+        }
+        
+        String msg = "Registered you as \""+name+"-"+user+"\".";
+        
+        if (receiveModeName != null) {
+            ClientReceiveMode recvMode = ClientReceiveMode.getMode(receiveModeName);
+            if (recvMode == null) {
+                sendErrorReply(client, "Unrecognized rcv mode in packet: "+recvMode+", using the default: "+client.receiveMode);
+            }
+            else {
+                client.receiveMode = recvMode;
+                msg+=" Your receive mode is set to: \""+recvMode+"\".";
+            }
+        }
+        else {
+            msg+=" No receive mode specified, using the default: "+client.receiveMode;
+        }                                                                       
+        
+        Subscriptions subscriptions = null;
+        try {
+            subscriptions = meta.getSubscriptions();
+        }
+        catch (InvalidJSONException e) {
+            sendErrorReply(client, "Unrecognized subscriptions in packet: "+e.getMessage());
+        }                                                                                    
+        
+        if (subscriptions != null) {
+            msg+=" Your subscriptions are set to: "+subscriptions+".";                            
+        }
+        else {
+            msg+=" You did not specify subscriptions; using the default: "+client.subscriptions;                            
+        }                        
                      
+        BusinessObject replyObj = new PlainTextObject(msg);                                                
+        client.send(replyObj);
+
+        // only set after sending the plain text reply                        
+        if (subscriptions != null) {
+            client.subscriptions = subscriptions;                            
+        }               
+        
+        PlainTextObject registeredMsg = new PlainTextObject("Client "+client+" registered");
+        registeredMsg.getMetaData().setSender("ABBOE");
+        sendToAllClients(client, registeredMsg);
+    }
+    
     /** Listens to a single dedicated reader thread reading objects from the input stream of a single client */
     private class ReaderListener implements BusinessObjectReader.Listener {
         Client client;
@@ -494,72 +607,29 @@ public class ABBOEServer {
             if (bo.isEvent()) {
                 BusinessObjectEventType et = bo.getMetaData().getKnownEvent();
                 // does this event need to be sent to other clients?
-                boolean sendEvent = true;
+                boolean forwardEvent = true;
                 if (et != null) {                    
                     log("Received "+et+" event: "+bo);
                     if (et == BusinessObjectEventType.CLIENT_REGISTER) {
-                        BusinessObjectMetadata meta = bo.getMetaData(); 
-                        String name = meta.getName();
-                        String user = meta.getUser();
-                        String receiveModeName = meta.getString(ClientReceiveMode.KEY); 
-                        if (name != null) {
-                            client.setName(name);
-                        }
-                        else {
-                            warn("No name in register packet from "+client);
-                        }
-                        if (user != null) {
-                            client.setUser(user);
-                        }     
-                        else {
-                            warn("No user in register packet from "+client);
-                        }
-                        
-                        String msg = "Registered you as \""+name+"-"+user+"\".";
-                        
-                        if (receiveModeName != null) {
-                            ClientReceiveMode recvMode = ClientReceiveMode.getMode(receiveModeName);
-                            if (recvMode == null) {
-                                sendErrorReply(client, "Unrecognized rcv mode in packet: "+recvMode+", using the default: "+client.receiveMode);
-                            }
-                            else {
-                                client.receiveMode = recvMode;
-                                msg+=" Your receive mode is set to: \""+recvMode+"\".";
-                            }
-                        }
-                        else {
-                            msg+=" No receive mode specified, using the default: "+client.receiveMode;
-                        }                                                                       
-                        
-                        Subscriptions subscriptions = null;
-                        try {
-                            subscriptions = meta.getSubscriptions();
-                        }
-                        catch (InvalidJSONException e) {
-                            sendErrorReply(client, "Unrecognized subscriptions in packet: "+e.getMessage());
-                        }                                                                                    
-                        
-                        if (subscriptions != null) {
-                            msg+=" Your subscriptions are set to: "+subscriptions+".";                            
-                        }
-                        else {
-                            msg+=" You did not specify subscriptions; using the default: "+client.subscriptions;                            
-                        }                        
-                                     
-                        BusinessObject replyObj = new PlainTextObject(msg);                                                
-                        client.send(replyObj);
-
-                        // only set after sending the plain text reply                        
-                        if (subscriptions != null) {
-                            client.subscriptions = subscriptions;                            
-                        }
-                        
-                        sendEvent = false;
-                        
-                        PlainTextObject registeredMsg = new PlainTextObject("Client "+client+" registered");
-                        registeredMsg.getMetaData().setSender("ABBOE");
-                        sendToAllClients(client, registeredMsg);
-                    }                    
+                        sendErrorReply(client, "Using deprecated name for client registration; the " +
+                                       "present-day jargon defines that event type be \""+
+                                BusinessObjectEventType.CLIENTS_REGISTER.toString()+"\"");
+                        handleClientRegisterEvent(client, bo);                        
+                        forwardEvent = false;
+                    }
+                    if (et == BusinessObjectEventType.CLIENTS_REGISTER) {
+                        // deprecated version
+                        handleClientRegisterEvent(client, bo);
+                        forwardEvent = false;
+                    }
+                    else if (et == BusinessObjectEventType.CLIENTS_LIST_REQUEST) {
+                        handleClientsListEvent(client);
+                        forwardEvent = false;
+                    }
+                    else if (et == BusinessObjectEventType.SERVICES_REGISTER) {
+                        handleServicesRegisterEvent(client, bo);
+                        forwardEvent = false;
+                    }
                     else {
                         log("Reveiced known event which this ABBOE implementation does not handle: "+bo);
                     }
@@ -569,7 +639,7 @@ public class ABBOEServer {
                 }
                 
                 // send the event if needed 
-                if (sendEvent) {
+                if (forwardEvent) {
                     log("Sending the very same event to all clients...");
                     ABBOEServer.this.sendToAllClients(client, bo);
                 }
@@ -590,6 +660,8 @@ public class ABBOEServer {
             
         }
                
+        
+
         @Override
         public void noMoreObjects() {
             log("connectionClosed (client closed connection).");                                  

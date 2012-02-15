@@ -7,12 +7,16 @@ public enum BusinessObjectEventType {
     ERROR("error"),
     /** foo? */
     SERVICE_STATE_CHANGED("services/state-changed"),    
-    SERVICE_REGISTER("services/register"),
-    SERVICE_UNREGISTER("services/unregister"),
+    SERVICES_REGISTER("services/register"),
+    SERVICES_UNREGISTER("services/unregister"),
     SERVICES_LIST("services/list"),
     /** set a (client-specific) property at the server*/
-    SET_PROPERTY("set-property"),    
-    CLIENT_REGISTER("client/register");
+    SET_PROPERTY("set-property"),
+    /** "deprecated" */
+    CLIENT_REGISTER("clients/register"),
+    CLIENTS_REGISTER("clients/register"),
+    CLIENTS_LIST_REQUEST("clients/list/request"),
+    CLIENTS_LIST_REPLY("clients/list/reply");
     
     private static Map<String, BusinessObjectEventType> typeByName;
     private String typeString;  

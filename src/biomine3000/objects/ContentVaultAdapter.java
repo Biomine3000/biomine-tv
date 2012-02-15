@@ -10,14 +10,14 @@ import biomine3000.objects.ContentVaultProxy.InvalidStateException;
 
 
 /**
- * Adapts an arbitraty {@link BusinessObjectHandler} to receive periodic
+ * Adapts an arbitraty {@link IBusinessObjectHandler} to receive periodic
  * updates from an content vault.  
  */
 public class ContentVaultAdapter {
 
     private static boolean log = false;    
     
-    private BusinessObjectHandler handler;
+    private IBusinessObjectHandler handler;
     private boolean firstImageLoaded;
     private ContentVaultProxy contentVaultProxy;
     private ContentListener contentListener;
@@ -33,7 +33,7 @@ public class ContentVaultAdapter {
      * 
      * @param sendInterval interval between sent objects (in milliseconds).
      */
-    public ContentVaultAdapter(BusinessObjectHandler handler, int sendInterval) {
+    public ContentVaultAdapter(IBusinessObjectHandler handler, int sendInterval) {
         this.handler = handler;
         this.sendInterval = sendInterval;
         // init communications with the server
@@ -58,7 +58,7 @@ public class ContentVaultAdapter {
         log("Sending message: "+msg);
         PlainTextObject obj = new PlainTextObject(msg);
         obj.getMetaData().setEvent(BusinessObjectEventType.SERVICE_STATE_CHANGED);
-        handler.handle(obj);               
+        handler.handleObject(obj);               
     }       
     
     private class ContentListener implements ContentVaultListener {       
@@ -97,11 +97,11 @@ public class ContentVaultAdapter {
             while (!stop) {
                 try {                    
                     ImageObject randomContent = contentVaultProxy.sampleImage();
-                    handler.handle(randomContent);
+                    handler.handleObject(randomContent);
                     Thread.sleep(sendInterval);
                 }
                 catch (InvalidStateException e) {
-                    handler.handle(new ErrorObject(ExceptionUtils.format(e,"; ")));
+                    handler.handleObject(new ErrorObject(ExceptionUtils.format(e,"; ")));
                     try {
                         Thread.sleep(sendInterval);
                     }
@@ -125,9 +125,9 @@ public class ContentVaultAdapter {
     /** Unit testing */
     public static void main(String[] args) {
         ContentVaultAdapter adapter = new ContentVaultAdapter(
-                new BusinessObjectHandler() {                                        
+                new IBusinessObjectHandler() {                                        
                     @Override
-                    public void handle(BusinessObject bo) {                        
+                    public void handleObject(BusinessObject bo) {                        
                         log("DUMMY HANDLER received object: "+bo);
                     }
                 }, 3000);

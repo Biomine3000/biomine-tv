@@ -5,12 +5,8 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
-import util.CmdLineArgs2;
-import util.DateUtils;
-import util.IOUtils;
 import util.dbg.ILogger;
 import util.dbg.Logger;
-import util.io.SkippingStreamReader;
 import biomine3000.objects.ContentVaultProxy;
 
 /**
@@ -22,44 +18,43 @@ import biomine3000.objects.ContentVaultProxy;
  * 
  * Use a {@link ContentVaultProxy} for loading the stuff over the web.
  */
-public class ContentVaultSender implements BusinessObjectHandler {
+public class ContentVaultSender implements IBusinessObjectHandler {
 
+    private static final ClientParameters CLIENT_PARAMS = 
+            new ClientParameters("ContentVaultSender", ClientReceiveMode.NONE, 
+                                 Subscriptions.NONE, false);
+    
     private boolean stopped;
     private ContentVaultAdapter vaultAdapter;
     private int nSent;
     private Integer nToSend;
         
-    private Socket socket;
-    /** Listens to (skipping) reader that reads input stream of server socket */
-    private ServerReaderListener serverReaderListener;
+    private ILogger log;
+    private ABBOEConnection connection;            
     
+//    private Socket socket;
+//    
+//    /** Listens to (skipping) reader that reads input stream of server socket */
+//    private ServerReaderListener serverReaderListener;
     
     /**
      * {@link #startLoadingContent} has to be called separately.
      * @param nToSend number of objects to send, null for no limit. 
      * @param sendInterval send interval in milliseconds.
      */
-    private ContentVaultSender(Socket socket, Integer nToSend, Integer sendInterval) throws UnknownHostException, IOException {
-        this.socket = socket;
-        
-        // register to server
-        BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket("ContentVaultSender", ClientReceiveMode.NONE);
-        socket.getOutputStream().write(registerObj.bytes());
-        
-        this.nToSend = nToSend;        
+    private ContentVaultSender(Socket socket, Integer nToSend, Integer sendInterval, ILogger log) throws UnknownHostException, IOException {
+        this.log = log;
         
         // init state information
-        this.stopped = false;
+        this.nToSend = nToSend;                        
         this.nSent = 0;
+        this.stopped = false;
         
+        this.connection = new ABBOEConnection(CLIENT_PARAMS, socket, log);
+        this.connection.init(new ObjectHandler());
+                       
         // init adapter which we will use to periodically receive business objects from the content vault proxy
-        this.vaultAdapter = new ContentVaultAdapter(this, sendInterval);
-               
-        // init communications with the server
-        this.serverReaderListener = new ServerReaderListener();
-        SkippingStreamReader serverReader = new SkippingStreamReader(socket.getInputStream(), serverReaderListener);
-        Thread readerThread = new Thread(serverReader);                       
-        readerThread.start();              
+        this.vaultAdapter = new ContentVaultAdapter(this, sendInterval);                            
     }
     
     /** Start your business */
@@ -69,134 +64,98 @@ public class ContentVaultSender implements BusinessObjectHandler {
     
     /** Stop your business */
     public void stopSending() {
-        log("stopSending requested");
+        log.info("stopSending requested");
         stopped = true;
         vaultAdapter.stop();
-        try {
-            // no more packets shall be sent
-            socket.shutdownOutput();
-        }
-        catch (IOException e) {
-            error("Failed shutting down socket output", e);
-        }        
+        connection.initiateShutdown();        
     }
-                
+    
+    /** Stop your business */
+    public void serverClosedConnection() {
+        log.info("server closed connection");
+        stopped = true;
+        vaultAdapter.stop();            
+    }
+               
+    /** Handle object from the vault adapter */
     @Override
-    public void handle(BusinessObject obj) {
+    public void handleObject(BusinessObject obj) {
         if (stopped) {
             // no more buizness
-            log("No more buizness");
+            log.info("No more buizness");
             return;
         }
         
         if (obj.isEvent()) {
-            log("Not sending event: "+obj);
+            log.info("Not sending event: "+obj);
             return;
         }
         
         obj.getMetaData().put("channel", "virityskuva");        
-        log("Writing an object with following metadata: "+obj.getMetaData());
+        log.info("Writing an object with following metadata: "+obj.getMetaData());
         
         try {
-            byte[] bytes = obj.bytes();                    
-            IOUtils.writeBytes(socket.getOutputStream(), bytes);
-            socket.getOutputStream().flush();
+            connection.send(obj);
             nSent++;
             if (nToSend != null && nSent >= nToSend) {
                 stopSending();
             }
         } catch (IOException e) {
-            error("Failed writing business object, stopping", e);
+            log.error("Failed sending business object, stopping", e);
             vaultAdapter.stop();
         }         
     }    
-        
-    private class ServerReaderListener implements SkippingStreamReader.Listener {
-
-        @Override
-        public void noMoreBytesInStream() {
-            log("Received noMoreBytesInStream from SkippingStreamReader");  
-            // TODO: should probably stop sending as well?
-        }
-
-        private void handleException(Exception e) {
-            error("Exception in SkippingStreamReader", e);
-            // TODO: should probably stop sending as well?
-        }
-        
-        @Override
-        public void handle(IOException e) {
-            handleException(e);
-        }
-        
-        @Override
-        public void handle(RuntimeException e) {
-            handleException(e);
             
-        }        
-    }
-    
-    public static void main(String[] pArgs) throws Exception {
-                
-        CmdLineArgs2 args = new CmdLineArgs2(pArgs);
-        log("Starting at "+DateUtils.formatOrderableDate());
-        Logger.addStream("ContentVaultSender.log", 1);
+    public static void main(String[] pArgs) throws Exception {                
+        Biomine3000Args args = new Biomine3000Args(pArgs, true);               
         ILogger log = new Logger.ILoggerAdapter();
                 
         Integer nToSend = args.getInt("n");
         if (nToSend != null) {
-            log("Only sending "+nToSend+" objects");
+            log.info("Only sending "+nToSend+" objects");
         }
         
         Integer sendInterval = args.getIntOpt("send_interval", 3000);
         if (nToSend != null) {
-            log("Only sending "+nToSend+" objects");
-        }
-                        
-        String host = args.get("host");
-        Integer port = args.getInt("port");
+            log.info("Only sending "+nToSend+" objects");
+        }          
                     
         ContentVaultSender sender = null;
+        
         try {
-            Socket socket = Biomine3000Utils.connectToServer(host, port, log);
-            sender = new ContentVaultSender(socket, nToSend, sendInterval);
+            Socket socket = Biomine3000Utils.connectToServer(args);            
+            sender = new ContentVaultSender(socket, nToSend, sendInterval, log);
         }
         catch (IOException e) {
-            error("Could not find a server");
+            log.error("Could not find a server");
             System.exit(1);
-        }
-            
-//            try {
-//                sender = new ContentVaultSender(ServerAddress.LERONEN_HIMA, nToSend);
-//            }
-//            catch (IOException e) {
-//                log("No server at LERONEN_HIMA");
-//            }
-//            if (sender == null) {
-//                sender = new ContentVaultSender(ServerAddress.LERONEN_KAPSI, nToSend);
-//                log("Connected to LERONEN_KAPSI");
-//            }
+        }                       
                         
-        log("Request startLoadingContent");
+        log.info("Request startLoadingContent");
         sender.startLoadingContent();
-        log("Exiting main thread");        
+        log.info("Exiting main thread");        
     }
     
-    private static void log(String msg) {
-        Logger.info("ContentVaultSender: "+msg);
-    }    
-    
-    @SuppressWarnings("unused")
-    private static void warn(String msg) {
-        Logger.warning("ContentVaultSender: "+msg);
-    }        
-    
-    private static void error(String msg) {
-        Logger.error("ContentVaultSender: "+msg);
-    }
-    
-    private static void error(String msg, Exception e) {
-        Logger.error("ContentVaultSender: "+msg, e);
-    }    
+    /** Client receive buzinezz logic contained herein */
+    private class ObjectHandler implements ABBOEConnection.BusinessObjectHandler {
+
+        @Override
+        public void handleObject(BusinessObject bo) {
+            // no action           
+        }
+
+        @Override
+        public void connectionTerminated() {
+            log.info("Connection to server terminated");
+            serverClosedConnection();
+        }
+
+        @Override
+        public void connectionTerminated(Exception e) {
+            log.error("Connection to server terminated", e);
+            serverClosedConnection();
+        }
+        
+    }            
     
 }

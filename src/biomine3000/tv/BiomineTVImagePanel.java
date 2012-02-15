@@ -26,9 +26,8 @@ public class BiomineTVImagePanel extends JPanel implements
     int xoff = 0;
     int yoff = 0;
 
-    public BiomineTVImagePanel(BiomineTV tv, String initialMessage) {
-        this.tv = tv;
-        setMessage(initialMessage);
+    public BiomineTVImagePanel(BiomineTV tv) {
+        this.tv = tv;        
         img = null;
         Font font = new Font("Dialog", Font.PLAIN, 20);
         this.setFont(font);

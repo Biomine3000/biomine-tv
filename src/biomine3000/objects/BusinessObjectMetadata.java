@@ -3,6 +3,7 @@ package biomine3000.objects;
 import java.io.UnsupportedEncodingException;
 import java.util.*;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -51,15 +52,6 @@ public class BusinessObjectMetadata {
      */
     public BusinessObjectMetadata (byte[] bytes) throws InvalidJSONException {
 
-//        try {
-////            System.err.println("Creating BusinessObjectMetadata from bytes:");
-////            System.err.write(bytes);
-////            System.err.println();
-//        }
-//        catch (Exception e) {
-//            // foo
-//        }        
-        
         try {            
             json = new JSONObject(new String(bytes, "UTF-8"));
         }
@@ -87,14 +79,7 @@ public class BusinessObjectMetadata {
     
     private BusinessObjectMetadata(JSONObject json) {                          
         this.json = json;                              
-    } 
-    
-    /** 
-     * Construct from a JSON string.
-     */
-//    public BusinessObjectMetadata(String p) throws JSONException {                          
-//        json = new JSONObject(p);                              
-//    }   
+    }          
     
     public void setType(String type) {
         put("type", type);
@@ -123,21 +108,7 @@ public class BusinessObjectMetadata {
     public void setType(Biomine3000Mimetype type) {
         put("type", type.toString());
     }
-    
-    /**
-     * Minimal metadata with only (mime)type and size of payload. Actually, even size might be null, if it is
-     * not known at the time of creating the metadata...
-     */
-//    public BusinessObjectMetadata(String type) {
-//        try {
-//            // oh, the nuisance: putting throws a CHECKED exception...
-//            json = new JSONObject();
-//            json.put("type", type);           
-//        }
-//        catch (JSONException e) {
-//            throw new BusinessObjectException(ExType.JSON_IMPLEMENTATION_MELTDOWN);
-//        }
-//    }
+        
     
     /**
      * Minimal metadata with only (mime)type and size of payload. Actually, even size might be null, if it is
@@ -216,11 +187,54 @@ public class BusinessObjectMetadata {
         
     }
     
+    public void putStringList(String key, List<String> values) {
+        JSONArray arr = new JSONArray();
+        for (String s: values) {
+            arr.put(s);
+        }
+        try {
+            json.put(key, arr);
+        }
+        catch (JSONException e) {
+            // should not be possible
+            throw new RuntimeException(e);
+        }
+    }
+    
+    /** Return single strings as a singleton list */ 
+    public List<String> getList(String key) {
+        Object o = json.opt(key);
+        if (o == null) {
+            return null;
+        }
+        else if (o instanceof String) {
+            return Collections.singletonList((String)o);
+        }
+        else if (o instanceof JSONArray) {
+            JSONArray arr = (JSONArray)o;            
+            ArrayList<String> list = new ArrayList<String>(arr.length());
+            for (int i=0; i<arr.length(); i++) {
+                Object obj = arr.opt(i);
+                if (!(obj instanceof String)) {
+                    throw new ClassCastException("Not a string: "+obj.getClass() +"(while retrieving key "+key+")");                
+                }
+                else {
+                    list.add((String)obj);
+                }
+            }
+            return Collections.unmodifiableList(list);
+        }
+        else {
+            throw new ClassCastException("Not a string or jsonarray: "+o.getClass() +"(while retrieving key "+key+")");
+        }
+        
+    }
+    
     /** 
-     * @return one of following: Boolean, Double, Integer, List, Map, Long, String, of null 
+     * @return one of following: Boolean, Double, Integer, List<String>, Map, Long, String, or null 
      * in case of no such object.
      * 
-     * List and Map currently unsupported, BusinessObjectException shall await 
+     * Map currently unsupported, BusinessObjectException shall await 
      * anyone foolish enough to try such conjurings.
      */
     public Object get(String key) {        
@@ -228,9 +242,12 @@ public class BusinessObjectMetadata {
         if (o == null) {
             return null;            
         }
-        if (o instanceof Boolean || o instanceof Double || o instanceof Integer 
+        else if (o instanceof Boolean || o instanceof Double || o instanceof Integer 
                 || o instanceof Long|| o instanceof String) {
             return o;
+        }
+        else if (o instanceof JSONArray) {
+            return getList(key);
         }
         else {
             throw new RuntimeException("THEN HE'S GONE (read the javadoc, pal!)");
@@ -274,19 +291,11 @@ public class BusinessObjectMetadata {
             
     public String getName() {
         return getString("name");                
-    }
-    
-//    public String getValue() {
-//        return getString("value");                
-//    }
+    }      
     
     public void setName(String name) {
         put("name", name);                
     }
-    
-//    public void setValue(String name) {
-//        put("value", name);                
-//    }
     
     public void setBoolean(String key, boolean value) {
         try {
@@ -340,14 +349,7 @@ public class BusinessObjectMetadata {
         }
         return Biomine3000Mimetype.getByName(typeName);
     }
-    
-//    /**
-//     * Set size of payload. Note that is is possible to create metadata without yet knowing the payload size,
-//     * hence the need for this method. 
-//     */
-//    public void setPayloadSize(int size) {
-//        put("size", size);        
-//    }
+       
         
     /**
      * Get size of payload. In the current implementation, this max size is limited to 

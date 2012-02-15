@@ -264,7 +264,7 @@ public class ABBOEConnection {
     }
     
     
-    public interface BusinessObjectHandler {
+    public interface BusinessObjectHandler extends biomine3000.objects.IBusinessObjectHandler {
         
         /** Self-explanatory */
         public void handleObject(BusinessObject obj);

@@ -1,26 +1,29 @@
 package biomine3000.tv;
 
 import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
 
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.io.IOException;
-import java.net.ConnectException;
-import java.net.Socket;
-import java.util.LinkedList;
-import java.util.List;
 
 import javax.swing.*;
 
+import java.io.IOException;
+import java.net.ConnectException;
+import java.net.Socket;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 import biomine3000.objects.*;
 
 import util.collections.OneToOneBidirectionalMap;
 import util.dbg.ILogger;
 import util.dbg.Logger;
-//import util.net.NonBlockingSender;
 
 public class BiomineTV extends JFrame {
 
@@ -35,16 +38,21 @@ public class BiomineTV extends JFrame {
     ////////////////////////////////
     // GUI
 	private JLabel zombiLabel;
+	private LogPanel logPanel;
 	private JTextArea logArea;
-	private JLabel statusLabel;
+	private JPanel contentPanels;
+	
 	private LinkedList<String> logLines;
-	private BiomineTVImagePanel contentPanel;
+	// private BiomineTVImagePanel contentPanel;
 	private BMTVMp3Player mp3Player;
-
+	
+	
 	////////////////////////////////
 	// Damagement of server connections
 	/** Active connections. Access to this should naturally be synchronized */
 	private OneToOneBidirectionalMap<IServerAddress, ABBOEConnection> connectionsByAddress = new OneToOneBidirectionalMap<IServerAddress, ABBOEConnection>();
+	
+	private Map<ABBOEConnection, BiomineTVImagePanel> imagePanelByConnection = new LinkedHashMap<ABBOEConnection, BiomineTVImagePanel>();
 
 	/** Thread for initiating and retrying connections */
 	private ConnectionThread monitorThread;
@@ -58,26 +66,30 @@ public class BiomineTV extends JFrame {
           
     /** TODO: support playing in a streaming fashion */     
     private void playMP3(BusinessObject bo) {
-        contentPanel.setMessage("Playing: "+bo.getMetaData().get("name"));
+        log("Playing: "+bo.getMetaData().get("name"));
         mp3Player.play(bo.getPayload());
     }
     
     private void init()  {
 
-        contentPanel = new BiomineTVImagePanel(this, "Initializing content...");
+        // contentPanel = new BiomineTVImagePanel(this, "Initializing content...");
         mp3Player = new BMTVMp3Player();
                                
 	    setTitle("Biomine TV®");
 	    zombiLabel = new JLabel("For relaxing times, make it zombie time");
+	    contentPanels = new JPanel();
+	    contentPanels.setLayout(new FlowLayout());
 	    logArea = new JTextArea();
 	    logArea.setSize(400, 400);
-	    logLines = new LinkedList<String>();
-	    statusLabel = new JLabel();
+	    logPanel = new LogPanel(log);
+	    logPanel.setPreferredSize(new Dimension(400, 400));
+	    logLines = new LinkedList<String>();	    
 	    setLayout(new BorderLayout());
 	    add(zombiLabel, BorderLayout.NORTH);
 	    add(logArea, BorderLayout.EAST);
-	    add(contentPanel, BorderLayout.CENTER);
-	    add(statusLabel, BorderLayout.SOUTH);	   
+	    add(contentPanels, BorderLayout.CENTER);
+	    add(logPanel, BorderLayout.SOUTH);
+	    
 	    logArea.setFocusable(false);
 	    addKeyListener(new BMTVKeyListener());
 	    
@@ -109,19 +121,24 @@ public class BiomineTV extends JFrame {
     * Note that multiple connections can be received from simultaneously!
     */
     public synchronized void startReceivingContentFromServer(IServerAddress address, Socket socket) throws IOException {
-        log.info("startReceivingContentFromServer: "+address);
-        contentPanel.setMessage("Receiving content from server: "+address);
-        
+                                            
         if (connectionsByAddress.containsSrcKey(address)) {
             throw new RuntimeException("Already receiving content from: "+address);
         }
-                                
+               
         ABBOEConnection connection = new ABBOEConnection(CLIENT_PARAMS, socket, log);
+        BiomineTVImagePanel imagePanel = new BiomineTVImagePanel(this);
+        imagePanelByConnection.put(connection, imagePanel);
+        contentPanels.add(imagePanel);        
+        contentPanels.revalidate();
+        log("Connected to server: "+address);
+        imagePanel.setMessage("Receiving content from server: "+address);
         connectionsByAddress.put(address, connection);
-        connection.init(new ConnectionListener(connection));
+        connection.init(new ConnectionListener(connection, imagePanel));
     }
                
-    
+
+    /** some attempt at more manual cyclic log buffer utilization */
     @SuppressWarnings("unused")
     private void logToGUI(String s) {
     	logLines.addLast(s);
@@ -211,28 +228,30 @@ public class BiomineTV extends JFrame {
         }
     }
   
-    /** Handle arbitrary business object */
-    public synchronized void handle(BusinessObject bo) {          
-        log("Received content from channel "+bo.getMetaData().getChannel()+": "+bo.toString());
-        
-        if (bo instanceof ImageObject) {
-            contentPanel.setImage((ImageObject)bo);
-            String oldMsg = contentPanel.getMessage();
-            if (oldMsg != null && oldMsg.equals("Awaiting content from server...")) {
-                contentPanel.setMessage(null);
-            }
-        }
-        else if (bo instanceof PlainTextObject) {
-            contentPanel.setMessage(((PlainTextObject)bo).getText());
-        }
-        else if (bo.getMetaData().getOfficialType() == Biomine3000Mimetype.MP3) {
-            playMP3(bo);
-        }        
-        else {
-            // plain object with no or unsupported official type 
-            log("Unable to display content:" +bo);            
-        }
-    }
+//    /** Handle arbitrary business object */
+//    public synchronized void handle(BusinessObject bo) {          
+//        log("Received content from channel "+bo.getMetaData().getChannel()+": "+bo.toString());
+//        
+//        if (bo instanceof ImageObject) {
+//            contentPanel.setImage((ImageObject)bo);
+//            String oldMsg = contentPanel.getMessage();
+//            if (oldMsg != null && oldMsg.equals("Awaiting content from server...")) {
+//                contentPanel.setMessage(null);
+//            }
+//        }
+//        else if (bo instanceof PlainTextObject) {
+//            PlainTextObject to = (PlainTextObject)bo;
+////            contentPanel.setMessage(((PlainTextObject)bo).getText());
+//            logPanel.appendText(to.getText()+"\n");
+//        }
+//        else if (bo.getMetaData().getOfficialType() == Biomine3000Mimetype.MP3) {
+//            playMP3(bo);
+//        }        
+//        else {
+//            // plain object with no or unsupported official type 
+//            log("Unable to display content:" +bo);            
+//        }
+//    }
     
     private boolean shuttingDown() {
         return monitorThread == null; 
@@ -241,6 +260,11 @@ public class BiomineTV extends JFrame {
     private synchronized void connectionTerminated(ABBOEConnection con) {
         log("Connection terminated: "+con);
         this.connectionsByAddress.removeTgt(con);
+        
+        BiomineTVImagePanel imagePanel = imagePanelByConnection.get(con);
+        contentPanels.remove(imagePanel);
+        contentPanels.revalidate();
+        
         if (shuttingDown()) {
             if (connectionsByAddress.size() == 0) {
                 // no more connections, we can finally die
@@ -253,13 +277,36 @@ public class BiomineTV extends JFrame {
     private class ConnectionListener implements ABBOEConnection.BusinessObjectHandler {
 
         ABBOEConnection connection;
-        ConnectionListener(ABBOEConnection connection) {
+        BiomineTVImagePanel imagePanel;
+        
+        ConnectionListener(ABBOEConnection connection, BiomineTVImagePanel imagePanel) {
             this.connection = connection;
+            this.imagePanel = imagePanel;
         }
         
         @Override
-        public void handleObject(BusinessObject obj) {
-            handle(obj);
+        public void handleObject(BusinessObject bo) {
+            log("Received content from channel "+bo.getMetaData().getChannel()+": "+bo.toString());
+            
+            if (bo instanceof ImageObject) {
+                imagePanel.setImage((ImageObject)bo);
+                String oldMsg = imagePanel.getMessage();
+                if (oldMsg != null && oldMsg.equals("Awaiting content from server...")) {
+                    imagePanel.setMessage(null);
+                }
+            }
+            else if (bo instanceof PlainTextObject) {
+                PlainTextObject to = (PlainTextObject)bo;
+//                contentPanel.setMessage(((PlainTextObject)bo).getText());
+                logPanel.appendText(to.getText()+"\n");
+            }
+            else if (bo.getMetaData().getOfficialType() == Biomine3000Mimetype.MP3) {
+                playMP3(bo);
+            }        
+            else {
+                // plain object with no or unsupported official type 
+                log("Unable to display content:" +bo);            
+            }
         }
 
         @Override
@@ -304,6 +351,7 @@ public class BiomineTV extends JFrame {
 	}    
         
     private void log(String msg) {
+        logPanel.appendText(msg+"\n");
         log.info("BiomineTV: "+msg);
     }    
     
