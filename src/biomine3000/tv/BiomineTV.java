@@ -2,7 +2,8 @@ package biomine3000.tv;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
+import java.awt.GridLayout;
+
 
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
@@ -42,6 +43,8 @@ public class BiomineTV extends JFrame {
 	private LogPanel logPanel;
 	private JTextArea logArea;
 	private JPanel contentPanels;
+	/** Only non-null when no connections */
+	private JLabel notConnectedLabel;
 	
 	private LinkedList<String> logLines;
 	// private BiomineTVImagePanel contentPanel;
@@ -73,13 +76,14 @@ public class BiomineTV extends JFrame {
     
     private void init()  {
 
-        // contentPanel = new BiomineTVImagePanel(this, "Initializing content...");
         mp3Player = new BMTVMp3Player();
                                
 	    setTitle("Biomine TV®");
 	    zombiLabel = new JLabel("For relaxing times, make it zombie time");
 	    contentPanels = new JPanel();
-	    contentPanels.setLayout(new FlowLayout());
+	    contentPanels.setLayout(new GridLayout(1,1));
+	    notConnectedLabel = new JLabel("Not connected to any server");
+	    contentPanels.add(notConnectedLabel);
 	    logArea = new JTextArea();
 	    logArea.setSize(400, 400);
 	    logPanel = new LogPanel(log);
@@ -117,6 +121,10 @@ public class BiomineTV extends JFrame {
         return connectionsByAddress.size() > 0; 
     }
     
+    private int numConnections() {
+        return imagePanelByConnection.size();
+    }
+    
    /**
     * Start receiving content from an already established TCP connection. 
     * Note that multiple connections can be received from simultaneously!
@@ -132,7 +140,11 @@ public class BiomineTV extends JFrame {
         ABBOEConnection connection = new ABBOEConnection(CLIENT_PARAMS, socket, log);
         BiomineTVImagePanel imagePanel = new BiomineTVImagePanel(this);
         imagePanelByConnection.put(connection, imagePanel);
-        contentPanels.add(imagePanel);        
+        if (notConnectedLabel != null) {
+            contentPanels.remove(notConnectedLabel);
+        }
+        contentPanels.add(imagePanel);
+        contentPanels.setLayout(new GridLayout(1, numConnections()));
         contentPanels.revalidate();
         log("Connected to server: "+address);
         imagePanel.setMessage("Receiving content from server: "+address);
@@ -231,32 +243,7 @@ public class BiomineTV extends JFrame {
             System.exit(0);
         }
     }
-  
-//    /** Handle arbitrary business object */
-//    public synchronized void handle(BusinessObject bo) {          
-//        log("Received content from channel "+bo.getMetaData().getChannel()+": "+bo.toString());
-//        
-//        if (bo instanceof ImageObject) {
-//            contentPanel.setImage((ImageObject)bo);
-//            String oldMsg = contentPanel.getMessage();
-//            if (oldMsg != null && oldMsg.equals("Awaiting content from server...")) {
-//                contentPanel.setMessage(null);
-//            }
-//        }
-//        else if (bo instanceof PlainTextObject) {
-//            PlainTextObject to = (PlainTextObject)bo;
-////            contentPanel.setMessage(((PlainTextObject)bo).getText());
-//            logPanel.appendText(to.getText()+"\n");
-//        }
-//        else if (bo.getMetaData().getOfficialType() == Biomine3000Mimetype.MP3) {
-//            playMP3(bo);
-//        }        
-//        else {
-//            // plain object with no or unsupported official type 
-//            log("Unable to display content:" +bo);            
-//        }
-//    }
-    
+     
     private boolean shuttingDown() {
         return monitorThread == null; 
     }
@@ -267,6 +254,13 @@ public class BiomineTV extends JFrame {
         
         BiomineTVImagePanel imagePanel = imagePanelByConnection.get(con);
         contentPanels.remove(imagePanel);
+        if (numConnections() == 0) {
+            contentPanels.setLayout(new GridLayout(1, 1));
+            contentPanels.add(new JLabel("Not connected to any server"));
+        }
+        else {
+            contentPanels.setLayout(new GridLayout(1, numConnections()));
+        }
         contentPanels.revalidate();
         
         if (shuttingDown()) {
@@ -290,7 +284,6 @@ public class BiomineTV extends JFrame {
         
         @Override
         public void handleObject(BusinessObject bo) {
-//            log("Received content from channel "+bo.getMetaData().getChannel()+": "+bo.toString());
             
             if (bo.isEvent()) {                
                 BusinessObjectEventType et = bo.getMetaData().getKnownEvent();
@@ -331,9 +324,8 @@ public class BiomineTV extends JFrame {
                 }
             }
             else if (bo instanceof PlainTextObject) {
-                PlainTextObject to = (PlainTextObject)bo;
-//                contentPanel.setMessage(((PlainTextObject)bo).getText());
-                logPanel.appendText(to.getText()+"\n");
+//                PlainTextObject to = (PlainTextObject)bo;
+                logPanel.appendText(Biomine3000Utils.formatBusinessObject(bo)+"\n");
             }
             else if (bo.getMetaData().getOfficialType() == Biomine3000Mimetype.MP3) {
                 playMP3(bo);

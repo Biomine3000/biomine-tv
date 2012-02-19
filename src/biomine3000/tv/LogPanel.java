@@ -22,15 +22,17 @@ public class LogPanel extends JPanel {
     public void appendText(String text) {
         if (!SwingUtilities.isEventDispatchThread()) {
             // log.warning("appendText called from outside event dispatch thread");
-            SwingUtilities.invokeLater(new Appender(text));
+            SwingUtilities.invokeLater(new Appender(text));            
         }
-
-        textArea.append(text);        
-        Dimension d = textArea.getSize();
-        log.info("Text area dimensions: "+d);
-        Rectangle r = new Rectangle(0, d.height-10, d.width, 10);
-        log.info("Rectangle to make visible: "+r);
-        textArea.scrollRectToVisible(r);                
+        else {
+            // in event dispatch thread
+            textArea.append(text);        
+            Dimension d = textArea.getSize();
+            log.info("Text area dimensions: "+d);
+            Rectangle r = new Rectangle(0, d.height-10, d.width, 10);
+            log.info("Rectangle to make visible: "+r);
+            textArea.scrollRectToVisible(r);
+        }                              
     }
     
     private class Appender implements Runnable {
