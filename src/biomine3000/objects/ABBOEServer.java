@@ -11,6 +11,8 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 
+import biomine3000.objects.ContentVaultProxy.InvalidStateException;
+
 
 
 import util.CmdLineArgs2;
@@ -41,6 +43,9 @@ public class ABBOEServer {
         
     private ServerSocket serverSocket;    
     private int serverPort;
+   
+    /** For sending welcome images */
+    private ContentVaultProxy contentVaultProxy;
     
     /** all access to this client list should be synchronized on the ABBOEServer instance */
     private List<Client> clients;
@@ -67,6 +72,8 @@ public class ABBOEServer {
         serverSocket = new ServerSocket(serverPort);        
         clients = new ArrayList<Client>();
         log("Listening.");
+        contentVaultProxy = new ContentVaultProxy();
+        contentVaultProxy.startLoading();
     }                            
     
     /**
@@ -122,7 +129,8 @@ public class ABBOEServer {
     }
             
     /** Actually, a connection to a client */
-    private class Client implements NonBlockingSender.Listener {        
+    private class Client implements NonBlockingSender.Listener {
+        boolean registered = false;
         Socket socket;
         BufferedInputStream is;
         OutputStream os;        
@@ -391,8 +399,17 @@ public class ABBOEServer {
             client.send("Welcome to this fully operational java-A.B.B.O.E., run by "+abboeUser);
             if (Biomine3000Utils.isBMZTime()) {
                 client.send("For relaxing times, make it Zombie time");
+            }            
+            // suggest registration, if client has not done so within a second of its registration...
+            new RegisterSuggesterThread(client).start();
+            if (contentVaultProxy.getState() == ContentVaultProxy.State.INITIALIZED_SUCCESSFULLY) {
+                try {
+                    client.send(contentVaultProxy.sampleImage());
+                }
+                catch (InvalidStateException e) {
+                    error("Invalid state while getting content from vault", e); 
+                }
             }
-            client.send("Please register by sending a \""+CLIENTS_REGISTER+"\" event");           
         }
         catch (IOException e) {
             error("Failed creating streams on socket", e);
@@ -407,8 +424,7 @@ public class ABBOEServer {
 
         client.startReaderThread();
     }          
-    
-    
+        
     private class SystemInReader extends Thread {
         public void run() {
             try {
@@ -509,13 +525,33 @@ public class ABBOEServer {
         public void run() {
             try {
                 Thread.sleep(5000);
-                log.error("Following clients have failed to close their connection properly:" +
+                log.error("Following clients have failed to close their connection properly: " +
                            StringUtils.collectionToString(clients,", ")+
                 		  "; forcing shutdown...");
                 finalizeShutdownSequence();
             }
             catch (InterruptedException e) {
                 log.error("Shutdownthread interrupted");
+            }           
+        }
+    }
+    
+    private class RegisterSuggesterThread extends Thread {
+        Client client;
+        RegisterSuggesterThread(Client client) {
+            this.client = client;
+        }
+        
+        public void run() {
+            try {
+                Thread.sleep(1000);
+                if (state == ABBOEServer.State.SHUTTING_DOWN) return;
+                if (!client.registered) {
+                    client.send("Please register by sending a \""+CLIENTS_REGISTER+"\" event");
+                }                
+            }
+            catch (InterruptedException e) {
+                log.error("RegisterSuggesterThread interrupted");
             }
             
         }
@@ -630,6 +666,7 @@ public class ABBOEServer {
         PlainTextObject registeredMsg = new PlainTextObject("Client "+client+" registered", CLIENTS_REGISTER_NOTIFY);
         registeredMsg.getMetaData().setName(client.name);
         registeredMsg.getMetaData().setSender("ABBOE");
+        client.registered = true; 
         sendToAllClients(client, registeredMsg);
     }
     
