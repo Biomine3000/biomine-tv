@@ -656,7 +656,7 @@ public class ABBOEServer {
                         handleClientRegisterEvent(client, bo);                        
                         forwardEvent = false;
                     }
-                    if (et == CLIENTS_REGISTER) {
+                    else if (et == CLIENTS_REGISTER) {
                         // deprecated version
                         handleClientRegisterEvent(client, bo);
                         forwardEvent = false;
@@ -670,7 +670,7 @@ public class ABBOEServer {
                         forwardEvent = false;
                     }
                     else {
-                        log("Reveiced known event which this ABBOE implementation does not handle: "+bo);
+                        log("Received known event which this ABBOE implementation does not handle: "+bo);
                     }
                 }
                 else {
