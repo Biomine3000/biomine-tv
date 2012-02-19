@@ -191,6 +191,10 @@ public class ContentVaultProxy {
         content.startLoading();
     }    
     
+    public State getState() {
+        return state;
+    }
+    
     /** State of vault */
     public enum State {
         UNINITIALIZED,

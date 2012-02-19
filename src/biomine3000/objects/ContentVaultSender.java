@@ -31,12 +31,7 @@ public class ContentVaultSender implements IBusinessObjectHandler {
         
     private ILogger log;
     private ABBOEConnection connection;            
-    
-//    private Socket socket;
-//    
-//    /** Listens to (skipping) reader that reads input stream of server socket */
-//    private ServerReaderListener serverReaderListener;
-    
+           
     /**
      * {@link #startLoadingContent} has to be called separately.
      * @param nToSend number of objects to send, null for no limit. 
@@ -49,6 +44,8 @@ public class ContentVaultSender implements IBusinessObjectHandler {
         this.nToSend = nToSend;                        
         this.nSent = 0;
         this.stopped = false;
+        ClientParameters clientParams = new ClientParameters(CLIENT_PARAMS);
+        clientParams.sender = "ContentVaultSender-"+Biomine3000Utils.getUser();
         
         this.connection = new ABBOEConnection(CLIENT_PARAMS, socket, log);
         this.connection.init(new ObjectHandler());
