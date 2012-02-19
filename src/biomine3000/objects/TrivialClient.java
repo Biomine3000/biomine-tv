@@ -5,10 +5,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
 import java.rmi.UnknownHostException;
+import java.util.List;
 
 import org.json.JSONException;
 
 
+import util.StringUtils;
 import util.dbg.ILogger;
 import util.dbg.Logger;
 
@@ -32,8 +34,11 @@ public class TrivialClient {
         this.log = log;
         this.user = user;
         this.stdinReaderState = StdinReaderState.NOT_YET_READING;
-        this.connection = new ABBOEConnection(CLIENT_PARAMS, socket, log);
-        this.connection.init(new ObjectHandler());        
+        ClientParameters clientParams = new ClientParameters(CLIENT_PARAMS);
+        clientParams.sender = Biomine3000Utils.getUser();
+        this.connection = new ABBOEConnection(clientParams, socket, log);
+        this.connection.init(new ObjectHandler());
+        this.connection.sendClientListRequest();
     }
        
     /** Start a SystemInReader thread */
@@ -67,14 +72,22 @@ public class TrivialClient {
         while (line != null && !stopYourStdinReading) {
             if (line.equals("stop")) {
                 stopYourStdinReading = true;
+                break;
+            }
+            else if (line.equals("s")) {
+                stopYourStdinReading = true;
+                break;
+            }
+            else if (line.equals("clients")) {
+                connection.sendClientListRequest();
             }
             else {
                 BusinessObject sendObj = new PlainTextObject(line);
                 sendObj.getMetaData().setSender(user);
                 // log.dbg("Sending object: "+sendObj );  
-                connection.send(sendObj);
-                line = br.readLine();
+                connection.send(sendObj);                
             }
+            line = br.readLine();
         }
         
         log.info("Tranquilly finished reading stdin");
@@ -111,8 +124,42 @@ public class TrivialClient {
 
         @Override
         public void handleObject(BusinessObject bo) {
-            String formatted = Biomine3000Utils.formatBusinessObject(bo);
-            System.out.println(formatted);            
+            if (bo.isEvent()) {                
+                BusinessObjectEventType et = bo.getMetaData().getKnownEvent();
+                if (et == BusinessObjectEventType.CLIENTS_LIST_REPLY) {
+                    String registeredAs = bo.getMetaData().getString("you");
+                    System.out.println("This client registered on the server as: "+registeredAs);
+                    List<String> clients = bo.getMetaData().getList("others");
+                    if (clients.size() == 0) {
+                        System.out.println("No other clients");
+                    }
+                    else {
+                        System.out.println("Other clients:");
+                        System.out.println("\t"+StringUtils.collectionToString(clients, "\n\t"));
+                    }
+                    
+                }
+                else if (et == BusinessObjectEventType.CLIENTS_REGISTER_REPLY) {
+                    System.out.println("Registered successfully to the server");
+                }
+                else if (et == BusinessObjectEventType.CLIENTS_REGISTER_NOTIFY) {
+                    String name = bo.getMetaData().getName();
+                    System.out.println("Client "+name+" registered to ABBOE");
+                }
+                else if (et == BusinessObjectEventType.CLIENTS_PART_NOTIFY) {
+                    String name = bo.getMetaData().getName();
+                    System.out.println("Client "+name+" parted from ABBOE");
+                }
+                else {
+                    String formatted = Biomine3000Utils.formatBusinessObject(bo);
+                    System.out.println(formatted);
+                }
+                
+            }
+            else {
+                String formatted = Biomine3000Utils.formatBusinessObject(bo);
+                System.out.println(formatted);
+            }
         }
 
         @Override

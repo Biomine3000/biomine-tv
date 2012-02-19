@@ -59,13 +59,19 @@ public class BusinessObject {
     
     /**
      * Metadata shall be empty, and there will be no payload.
-     * 
-     * Metadata and payload (if not empty) must naturally be set ASAP by {@link #setPayload()} and 
-     * {@link #setMetadata()}.      
      */
-    protected BusinessObject() {
+    public BusinessObject() {
         this(new BusinessObjectMetadata());
     }       
+
+    /**
+     * Create an event object with no payload.
+     */
+    public BusinessObject(BusinessObjectEventType eventType) {
+        this(new BusinessObjectMetadata());
+        metadata.setEvent(eventType);
+    }
+    
      
     public static BusinessObject readObject(InputStream is) throws IOException, InvalidBusinessObjectException {        
         Pair<BusinessObjectMetadata, byte[]> packet = readPacket(is);
@@ -109,6 +115,18 @@ public class BusinessObject {
             payload = null;
         }
         return new Pair<BusinessObjectMetadata, byte[]>(metadata, payload);
+    }
+    
+    /**
+     * TODO: actually, the metadada should be a more integral part of the buziness object, and 
+     * not implemented as a separate class; instead, the payload should be implemented as a separate class... 
+     */
+    public void setEvent(String type) {
+        metadata.setEvent(type);
+    }
+    
+    public void setEvent(BusinessObjectEventType type) {
+        metadata.setEvent(type);
     }
     
     /** Parse businessobject represented as raw bytes into medatata and payload */ 
@@ -194,7 +212,7 @@ public class BusinessObject {
     /** Create a business object supposedly being received and parsed earlier from the biomine business objects bus */
     public BusinessObject(BusinessObjectMetadata metadata, byte[] payload) {
         setMetadata(metadata);
-        this.payload = payload;
+        setPayload(payload);
         
         // sanity checks
         if (metadata.hasPayload() != (payload != null)) {
@@ -216,7 +234,7 @@ public class BusinessObject {
      */
     protected BusinessObject(String type, byte[] payload) {
         initMetadata(type);
-        this.payload = payload; 
+        setPayload(payload); 
     }               
     
     /**
@@ -225,7 +243,7 @@ public class BusinessObject {
      */
     protected BusinessObject(Biomine3000Mimetype type, byte[] payload) {
         initMetadata(type.toString());
-        this.payload = payload; 
+        setPayload(payload); 
     }
     
     /**
@@ -239,7 +257,7 @@ public class BusinessObject {
         meta.setType(type);
         setMetadata(meta);
         
-        this.payload = null;
+        setPayload(null);
     }    
     
     /** 
@@ -371,9 +389,9 @@ public class BusinessObject {
 	    }
 	}
 	
-	public String toString() {
+	public String toString() {	    
 	    String payloadStr = metadata.hasPayload() 
-	                      ? "<payload of "+payload.length+" bytes>" 
+	                      ? "<payload of "+getPayload().length+" bytes>" 
 	                      : (isEvent() ? "" : "<no payload>");
 	    return "BusinessObject <metadata: "+metadata.toString()+"> "+payloadStr;
 	}

@@ -96,12 +96,18 @@ public class ABBOEConnection {
         startReaderThread();               
     }                     
                    
-    /** Put object to queue of objects to be sent; additionally, attach user info */
-    protected void send(BusinessObject object) throws IOException {
-        // object.getMetaData().setSender(user);
-        sender.send(object.bytes());        
+    /** Put object to queue of objects to be sent*/
+    public void send(BusinessObject object) throws IOException {        
+        if (clientParameters.sender != null) {
+            object.getMetaData().setSender(clientParameters.sender);
+        }
+        this.sender.send(object.bytes());        
     }       
         
+    public void sendClientListRequest() throws IOException {            
+        send(new BusinessObject(BusinessObjectEventType.CLIENTS_LIST));
+    }
+    
     public synchronized String getName() {
         return clientParameters.name;
     }

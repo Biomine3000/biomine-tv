@@ -374,7 +374,7 @@ public class BusinessObjectMetadata {
     }
     
     /** 
-     * The sender field is as of 2+11-12-12 estimated to be optional.
+     * The sender field is as of 2011-12-12 estimated to be optional.
      * @return null if no sender
      */
     public void setSender(String sender) {
@@ -439,6 +439,15 @@ public class BusinessObjectMetadata {
                 
     }
 
+    public String formatWithoutPayload() {
+        JSONObject jsonClone = JSONUtils.clone(this.json);
+        jsonClone.remove("size");
+        jsonClone.remove("type");
+        BusinessObjectMetadata clone = new BusinessObjectMetadata(jsonClone);
+        return clone.toString();
+        
+    }
+    
     public boolean isEvent() {
         return json.has("event");
     }
