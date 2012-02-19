@@ -16,6 +16,8 @@ public abstract class Subscriptions {
     
     public static final Subscriptions ALL = new All();
     public static final Subscriptions NONE = new None();
+    public static final Subscriptions PLAINTEXT = make(Biomine3000Mimetype.PLAINTEXT);
+        
     
     public abstract boolean shouldSend(BusinessObject bo);
     public abstract Object toJSON();
@@ -28,7 +30,7 @@ public abstract class Subscriptions {
         return make(CollectionUtils.makeArrayList(types));
     }
     
-    public static Subscriptions make(Biomine3000Mimetype... types) throws JSONException {
+    public static Subscriptions make(Biomine3000Mimetype... types) {
         IncludeList result = new IncludeList();
         result.addAll(Arrays.asList(types));
         return result;
@@ -48,7 +50,11 @@ public abstract class Subscriptions {
         else {
             // single types
             return new IncludeList(Collections.singleton(s));
-        }
+        }       
+    }
+    
+    public static Subscriptions make(Biomine3000Mimetype o) {
+        return null;
     }
     
     public static Subscriptions make(Object o) throws JSONException {
@@ -57,6 +63,11 @@ public abstract class Subscriptions {
         }
         else if (o instanceof JSONArray) {
             return new IncludeList((JSONArray)o);
+        }
+        else if (o instanceof Biomine3000Mimetype) {
+            IncludeList result = new IncludeList();
+            result.addAll(Collections.singletonList((Biomine3000Mimetype)o));
+            return result;
         }
         else {
             throw new JSONException("Unrecognized object type: "+o.getClass());

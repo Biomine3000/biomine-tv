@@ -72,6 +72,16 @@ public class Biomine3000Utils {
         }
     }
     
+    public static boolean atMelkki() {
+        String host = getHostName();
+        if (host != null && host.startsWith("melkki")) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    
     public static boolean isBMZTime() {
         Calendar cal = Calendar.getInstance();
         int BMZ_ZERO_HOUR1  = 23;
