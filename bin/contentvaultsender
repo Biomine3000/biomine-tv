@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if [ "$USER" == "leronen" ]; then
+    instant-set-title "CONTENTVAULTSENDER"
+fi
+
 BIOMINE_TV_BIN="$(dirname $0)"
 $BIOMINE_TV_BIN/tv-java biomine3000.objects.ContentVaultSender "$@"
 
