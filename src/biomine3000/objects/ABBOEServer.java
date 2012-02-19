@@ -1,5 +1,7 @@
 package biomine3000.objects;
 
+import static biomine3000.objects.BusinessObjectEventType.*;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -130,6 +132,7 @@ public class ABBOEServer {
         ClientReceiveMode receiveMode = ClientReceiveMode.ALL;
         Subscriptions subscriptions = Subscriptions.ALL;
         boolean closed;
+        /** actual name of client, not including user or addr */
         String clientName;
         String user;
         String addr;
@@ -189,6 +192,12 @@ public class ABBOEServer {
             obj.getMetaData().setSender("ABBOE");
             log.info("Sending: "+obj);
             send(obj.bytes());
+        }
+        
+        private void send(String text) {
+            log("Sending plain text to client "+this+": "+text);
+            PlainTextObject reply = new PlainTextObject(text);
+            send(reply);        
         }
 
         /** Should the object <bo> from client <source> be sent to this client? */ 
@@ -280,13 +289,14 @@ public class ABBOEServer {
                 clients.remove(this);
                 closed = true;
                 if (state == State.SHUTTING_DOWN && clients.size() == 0) {
-                    // no more clients, finalize shutdown sequence...
+                    // last client closed, no more clients, finalize shutdown sequence...
                     log.info("No more clients, finalizing shutdown sequence...");
                     finalizeShutdownSequence();
                 }
             }
             
-            PlainTextObject msg = new PlainTextObject("Client "+this+" disconnected");
+            PlainTextObject msg = new PlainTextObject("Client "+this+" disconnected", CLIENTS_PART_NOTIFY);
+            msg.getMetaData().setName(this.name);
             msg.getMetaData().setSender("ABBOE");
             sendToAllClients(this, msg);
         }                
@@ -369,9 +379,6 @@ public class ABBOEServer {
             return name;
         }
 
-//        public void setEcho(boolean val) {
-//            echo = val;            
-//        }
     }
                     
     private void acceptSingleClient(Socket clientSocket) {
@@ -380,12 +387,12 @@ public class ABBOEServer {
          
         try {
             client = new Client(clientSocket);
-            String abboeUser = Biomine3000Utils.getUser();
-            String welcome = "Welcome to this fully operational java-A.B.B.O.E., run by "+abboeUser+".\n"+
-                             "Please register by sending a \"client/register\" event.\n"+
-                             "List of connected clients:\n\t"+
-                             StringUtils.collectionToString(clientReport(client), "\n\t");                        
-            sendTextReply(client, welcome);
+            String abboeUser = Biomine3000Utils.getUser();            
+            client.send("Welcome to this fully operational java-A.B.B.O.E., run by "+abboeUser);
+            if (Biomine3000Utils.isBMZTime()) {
+                client.send("For relaxing times, make it Zombie time");
+            }
+            client.send("Please register by sending a \""+CLIENTS_REGISTER+"\" event");           
         }
         catch (IOException e) {
             error("Failed creating streams on socket", e);
@@ -464,7 +471,11 @@ public class ABBOEServer {
         if (clients.size() > 0) {                   
             for (Client client: clients) {
                 client.initiateClosingSequence();
-            }                            
+            }                           
+            
+            // start a thread to ensure shutdown in case some clients fail to close their connections
+            ShutdownThread shutdownThread = new ShutdownThread();
+            shutdownThread.start();
         }
         else {
             // no clients to close!
@@ -488,6 +499,27 @@ public class ABBOEServer {
         System.exit(0);
     }
             
+    
+   /**
+    * Ensure shutdown in case some client(s) fail to close their connection properly 
+    * Note that tempting as it might be, it is not possible to send any "you fool" message
+    * to these clients at this stage, as any outgoing connections have already been shut down.
+    */
+    private class ShutdownThread extends Thread {
+        public void run() {
+            try {
+                Thread.sleep(5000);
+                log.error("Following clients have failed to close their connection properly:" +
+                           StringUtils.collectionToString(clients,", ")+
+                		  "; forcing shutdown...");
+                finalizeShutdownSequence();
+            }
+            catch (InterruptedException e) {
+                log.error("Shutdownthread interrupted");
+            }
+            
+        }
+    }
     
     private void handleServicesRegisterEvent(Client client, BusinessObject bo) {
         BusinessObjectMetadata meta = bo.getMetaData();        
@@ -521,16 +553,21 @@ public class ABBOEServer {
         
         synchronized(ABBOEServer.this) {
             clientReport = new PlainTextObject(StringUtils.colToStr(clientReport(requestingClient), "\n"));
-            List<String> clientNames = new ArrayList<String>();
+            List<String> clientNames = new ArrayList<String>();            
             for (Client client: clients) {
-                clientNames.add(client.name);
+                if (client != requestingClient) {
+                    clientNames.add(client.name);
+                }
             }
-            clientReport.getMetaData().setEvent(BusinessObjectEventType.CLIENTS_LIST_REPLY);
-            clientReport.getMetaData().putStringList("names", clientNames);
+            clientReport.getMetaData().put("you", requestingClient.name);
+            clientReport.getMetaData().setEvent(CLIENTS_LIST_REPLY);
+            clientReport.getMetaData().putStringList("others", clientNames);
         }
         
         requestingClient.send(clientReport);
     }
+    
+    
     
     private void handleClientRegisterEvent(Client client, BusinessObject bo) {
         BusinessObjectMetadata meta = bo.getMetaData(); 
@@ -581,7 +618,8 @@ public class ABBOEServer {
             msg+=" You did not specify subscriptions; using the default: "+client.subscriptions;                            
         }                        
                      
-        BusinessObject replyObj = new PlainTextObject(msg);                                                
+        BusinessObject replyObj = new PlainTextObject(msg);
+        replyObj.setEvent(CLIENTS_REGISTER_REPLY);
         client.send(replyObj);
 
         // only set after sending the plain text reply                        
@@ -589,7 +627,8 @@ public class ABBOEServer {
             client.subscriptions = subscriptions;                            
         }               
         
-        PlainTextObject registeredMsg = new PlainTextObject("Client "+client+" registered");
+        PlainTextObject registeredMsg = new PlainTextObject("Client "+client+" registered", CLIENTS_REGISTER_NOTIFY);
+        registeredMsg.getMetaData().setName(client.name);
         registeredMsg.getMetaData().setSender("ABBOE");
         sendToAllClients(client, registeredMsg);
     }
@@ -610,23 +649,23 @@ public class ABBOEServer {
                 boolean forwardEvent = true;
                 if (et != null) {                    
                     log("Received "+et+" event: "+bo);
-                    if (et == BusinessObjectEventType.CLIENT_REGISTER) {
+                    if (et == CLIENT_REGISTER) {
                         sendErrorReply(client, "Using deprecated name for client registration; the " +
                                        "present-day jargon defines that event type be \""+
-                                BusinessObjectEventType.CLIENTS_REGISTER.toString()+"\"");
+                                CLIENTS_REGISTER.toString()+"\"");
                         handleClientRegisterEvent(client, bo);                        
                         forwardEvent = false;
                     }
-                    if (et == BusinessObjectEventType.CLIENTS_REGISTER) {
+                    if (et == CLIENTS_REGISTER) {
                         // deprecated version
                         handleClientRegisterEvent(client, bo);
                         forwardEvent = false;
                     }
-                    else if (et == BusinessObjectEventType.CLIENTS_LIST_REQUEST) {
+                    else if (et == CLIENTS_LIST) {
                         handleClientsListEvent(client);
                         forwardEvent = false;
                     }
-                    else if (et == BusinessObjectEventType.SERVICES_REGISTER) {
+                    else if (et == SERVICES_REGISTER) {
                         handleServicesRegisterEvent(client, bo);
                         forwardEvent = false;
                     }
@@ -669,7 +708,7 @@ public class ABBOEServer {
         }
 
         private void handleException(Exception e) {
-            if (e.getMessage().equals("Connection reset")) {
+            if (e.getMessage() != null && e.getMessage().equals("Connection reset")) {
                 log.info("Connection reset by client: "+this.client);
             }
             else {          
@@ -703,19 +742,12 @@ public class ABBOEServer {
         
     private void sendErrorReply(Client client, String error) {
         PlainTextObject reply = new PlainTextObject();
-        reply.getMetaData().setEvent(BusinessObjectEventType.ERROR);
+        reply.getMetaData().setEvent(ERROR);
         reply.setText(error);
         log("Sending error reply to client "+client+": "+error);
         client.send(reply);        
     }
-       
-    private void sendTextReply(Client client, String text) {
-        PlainTextObject reply = new PlainTextObject();        
-        reply.setText(text);
-        log("Sending plain text reply to client "+client+": "+text);
-        client.send(reply);        
-    }
-
+           
     private void startSystemInReadLoop() {           
         SystemInReader systemInReader = new SystemInReader();
         systemInReader.start();
@@ -732,7 +764,7 @@ public class ABBOEServer {
         }
         
         if (port == null) {
-            error("No port");
+            error("No -port");
             System.exit(1);
         }
         
@@ -746,7 +778,7 @@ public class ABBOEServer {
             server.mainLoop();
         }
         catch (IOException e) {
-            error("Failed initializing server", e);
+            error("Failed initializing ABBOE", e);
         }
     }
     

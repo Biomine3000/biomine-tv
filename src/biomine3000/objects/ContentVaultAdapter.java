@@ -57,7 +57,7 @@ public class ContentVaultAdapter {
     private void sendEvent(String msg) {
         log("Sending message: "+msg);
         PlainTextObject obj = new PlainTextObject(msg);
-        obj.getMetaData().setEvent(BusinessObjectEventType.SERVICE_STATE_CHANGED);
+        obj.getMetaData().setEvent(BusinessObjectEventType.SERVICES_STATE_CHANGED);
         handler.handleObject(obj);               
     }       
     

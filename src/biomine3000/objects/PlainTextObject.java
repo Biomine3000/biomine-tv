@@ -27,6 +27,13 @@ public class PlainTextObject extends BusinessObject {
         this.text = text;
     }
     
+    /** Create an event with plain text content. */ 
+    public PlainTextObject(String text, BusinessObjectEventType et) {
+        super(et);
+        getMetaData().setType(Biomine3000Mimetype.PLAINTEXT);
+        this.text = text;
+    }
+    
     /** Create a plain text business object with specified mimetype */ 
     public PlainTextObject(String text, String mimeType) {
         super(mimeType);
@@ -73,8 +80,24 @@ public class PlainTextObject extends BusinessObject {
         } 
     }
     
+    
+    private String formatAsEvent() {
+        return "event: "+getMetaData().getEvent()+": "+this.text;
+    }
+    
     public String toString() {
-        return getMetaData().getType()+": "+text;
+        if (isEvent()) {
+            return formatAsEvent();
+        }
+        else {
+            // purely content        
+            if (getMetaData().getType().equals(Biomine3000Mimetype.PLAINTEXT)) {
+                return text;
+            }
+            else {
+                return getMetaData().getType()+": "+text;
+            }
+        }
     }
             
 

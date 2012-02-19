@@ -9,6 +9,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Arrays;
+import java.util.Calendar;
 
 import org.json.JSONException;
 
@@ -66,6 +67,20 @@ public class Biomine3000Utils {
         if (host != null && host.startsWith("lakka")) {
             return true;
         }
+        else {
+            return false;
+        }
+    }
+    
+    public static boolean isBMZTime() {
+        Calendar cal = Calendar.getInstance();
+        int BMZ_ZERO_HOUR1  = 23;
+        int BMZ_ZERO_HOUR2  = -1;
+        int hour = cal.get(Calendar.HOUR_OF_DAY);
+        if (Math.abs(hour - BMZ_ZERO_HOUR1) <= 2                
+                || Math.abs(hour - BMZ_ZERO_HOUR2) <= 2) {
+            return true;
+        }        
         else {
             return false;
         }
@@ -136,6 +151,7 @@ public class Biomine3000Utils {
         throw lastEx;
     }
     
+    /** Trivially get USER from env */
     public static String getUser() {
         return System.getenv("USER");
     }
@@ -262,7 +278,7 @@ public class Biomine3000Utils {
                                                     ClientReceiveMode receiveMode,
                                                     Subscriptions subscriptions) {
         BusinessObjectMetadata meta = new BusinessObjectMetadata();        
-        meta.setEvent(BusinessObjectEventType.CLIENT_REGISTER);        
+        meta.setEvent(BusinessObjectEventType.CLIENTS_REGISTER);        
         meta.put("name", clientName);
         meta.put(ClientReceiveMode.KEY, receiveMode.toString());
         if (subscriptions != null) {

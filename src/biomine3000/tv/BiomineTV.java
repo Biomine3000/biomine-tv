@@ -21,6 +21,7 @@ import java.util.Map;
 
 import biomine3000.objects.*;
 
+import util.StringUtils;
 import util.collections.OneToOneBidirectionalMap;
 import util.dbg.ILogger;
 import util.dbg.Logger;
@@ -126,6 +127,8 @@ public class BiomineTV extends JFrame {
             throw new RuntimeException("Already receiving content from: "+address);
         }
                
+        ClientParameters clientParams = new ClientParameters(CLIENT_PARAMS);
+        clientParams.sender = Biomine3000Utils.getUser();
         ABBOEConnection connection = new ABBOEConnection(CLIENT_PARAMS, socket, log);
         BiomineTVImagePanel imagePanel = new BiomineTVImagePanel(this);
         imagePanelByConnection.put(connection, imagePanel);
@@ -135,6 +138,7 @@ public class BiomineTV extends JFrame {
         imagePanel.setMessage("Receiving content from server: "+address);
         connectionsByAddress.put(address, connection);
         connection.init(new ConnectionListener(connection, imagePanel));
+        connection.sendClientListRequest();
     }
                
 
@@ -286,9 +290,40 @@ public class BiomineTV extends JFrame {
         
         @Override
         public void handleObject(BusinessObject bo) {
-            log("Received content from channel "+bo.getMetaData().getChannel()+": "+bo.toString());
+//            log("Received content from channel "+bo.getMetaData().getChannel()+": "+bo.toString());
             
-            if (bo instanceof ImageObject) {
+            if (bo.isEvent()) {                
+                BusinessObjectEventType et = bo.getMetaData().getKnownEvent();
+                if (et == BusinessObjectEventType.CLIENTS_LIST_REPLY) {
+                    String registeredAs = bo.getMetaData().getString("you");
+                    log("This client registered on the server as: "+registeredAs);
+                    List<String> clients = bo.getMetaData().getList("others");
+                    if (clients.size() == 0) {
+                        log("No other clients");
+                    }
+                    else {
+                        log("Other clients:");
+                        log("\t"+StringUtils.collectionToString(clients, "\n\t"));
+                    }
+                    
+                }
+                else if (et == BusinessObjectEventType.CLIENTS_REGISTER_REPLY) {
+                    log("Registered successfully to the server");
+                }
+                else if (et == BusinessObjectEventType.CLIENTS_REGISTER_NOTIFY) {
+                    String name = bo.getMetaData().getName();
+                    log("Client "+name+" registered to ABBOE");
+                }
+                else if (et == BusinessObjectEventType.CLIENTS_PART_NOTIFY) {
+                    String name = bo.getMetaData().getName();
+                    log("Client "+name+" parted from ABBOE");
+                }
+                else {
+                    // unknown event
+                    log(Biomine3000Utils.formatBusinessObject(bo));
+                }
+            }
+            else if (bo instanceof ImageObject) {
                 imagePanel.setImage((ImageObject)bo);
                 String oldMsg = imagePanel.getMessage();
                 if (oldMsg != null && oldMsg.equals("Awaiting content from server...")) {
