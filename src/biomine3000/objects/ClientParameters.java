@@ -1,5 +1,8 @@
 package biomine3000.objects;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** Current parameters are as follows:
  * <ul>
  *   <li>name: name registered to server</li>
@@ -16,6 +19,7 @@ public class ClientParameters {
     public ClientReceiveMode receiveMode;
     public Subscriptions subscriptions;
     public boolean constructDedicatedImplementationsForBusineses;
+    public List<String> services;
     
     public ClientParameters(String name,
                             ClientReceiveMode receiveMode,
@@ -34,10 +38,17 @@ public class ClientParameters {
         this.receiveMode = receiveMode;
         this.subscriptions = subscriptions;
         this.constructDedicatedImplementationsForBusineses = constructDedicatedImplementationsForBusineses;
+        this.services = new ArrayList<String>();
     }
     
     /** Copy constructor */
     public ClientParameters(ClientParameters original) {
          this(original.name, original.sender, original.receiveMode, original.subscriptions, original.constructDedicatedImplementationsForBusineses);
+    }
+    
+    public void addServices(Biomine3000ServiceName... services) {
+        for (Biomine3000ServiceName s: services) {
+            this.services.add(s.toString());
+        }
     }
 }
