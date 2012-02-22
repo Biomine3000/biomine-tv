@@ -79,6 +79,12 @@ public class ContentVaultAdapter {
                 sender = new Sender();
                 new Thread(sender).start();
             }
+        }
+
+        @Override
+        public void loadedAllImages() {
+            log("All images have been loaded");
+            
         }       
     }
     

@@ -8,8 +8,10 @@ import java.net.Socket;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 
 import biomine3000.objects.ContentVaultProxy.InvalidStateException;
 
@@ -50,6 +52,9 @@ public class ABBOEServer {
     /** all access to this client list should be synchronized on the ABBOEServer instance */
     private List<Client> clients;
     
+    /** Shortcuts for clients, to be used for interactive server management only */
+    private Map<Integer, Client> clientShortcuts;
+    
     private State state;
     
     private synchronized List<String> clientReport(Client you) {
@@ -65,6 +70,16 @@ public class ABBOEServer {
         return result;
     }
     
+    /** Generates a map (small int) => (client) for later reference. */ 
+    private synchronized Map<Integer, Client> clientShortcuts() {
+        Map<Integer, Client> map = new HashMap<Integer, Client>();
+        int i=0;
+        for (Client client: clients) {
+            map.put(++i, client);            
+        }
+        return map;
+    }
+    
     /** Create server data structures and start listening */
     public ABBOEServer(int port) throws IOException {
         state = State.NOT_RUNNING;
@@ -73,19 +88,58 @@ public class ABBOEServer {
         clients = new ArrayList<Client>();
         log("Listening.");
         contentVaultProxy = new ContentVaultProxy();
+        contentVaultProxy.addListener(new ContentVaultListener());
         contentVaultProxy.startLoading();
     }                            
+    
+    /** Send some random image from the content vault to all clients */
+    private void sendImageToAllClients() {        
+        synchronized(clients) {
+            ImageObject image;
+            try {
+                image = contentVaultProxy.sampleImage();
+                for (Client client: clients) {
+                    client.send(image);
+                }
+            }
+            catch (InvalidStateException e) {
+                error("Content vault at invalid state after loading all images?");
+            }                
+        }
+                    
+    }
+    
+    private class ContentVaultListener implements biomine3000.objects.ContentVaultProxy.ContentVaultListener {
+
+        @Override
+        public void loadedImageList() {
+            // TODO Auto-generated method stub            
+        }
+
+        @Override
+        public void loadedImage(String image) {
+            // TODO Auto-generated method stub
+            
+        }
+
+        @Override
+        public void loadedAllImages() {
+            sendImageToAllClients();
+        }
+        
+    }
     
     /**
      * Send an object to all applicable clients. Does not block, as sending is done
      * using a dedicated thread for each client.
      */
     private synchronized void sendToAllClients(Client src, BusinessObject bo) {
-        // defer constructing send bytes to time when sending to first applicable client (there might be none) 
+        // defer coming up with bytes to send until the time comes 
+        // to send to the first applicable client (there might be none) 
         byte[] bytes = null;
-        for (Client client: clients) {
+        for (Client client: clients) {            
             if (client.shouldSend(src, bo)) {
-                if (bytes == null) {
+                if (bytes == null) {                    
                     bytes = bo.bytes();
                 }
                 client.send(bytes);               
@@ -133,7 +187,8 @@ public class ABBOEServer {
         boolean registered = false;
         Socket socket;
         BufferedInputStream is;
-        OutputStream os;        
+        OutputStream os;    
+        /** Please do not call send of this sender directly, even within this class, except in the one dedicated place */
         NonBlockingSender sender;
         BusinessObjectReader reader;
         ReaderListener readerListener;               
@@ -196,8 +251,13 @@ public class ABBOEServer {
             reader.setName("reader-"+name);
         }
         
+        /**
+         * Caller needs to first ensure that client is willing to receive such a packet 
+         * by calling {@link #shouldSend(Client, BusinessObject)} or {@link #receiveEvents()}.
+         * @param obj
+         */
         private void send(BusinessObject obj) {
-            obj.getMetaData().setSender("ABBOE");
+            obj.setSender("ABBOE");
             log.info("Sending: "+obj);
             send(obj.bytes());
         }
@@ -208,6 +268,11 @@ public class ABBOEServer {
             send(reply);        
         }
 
+        /** Should events be sent to this client? */
+        public boolean receiveEvents() {
+            return receiveMode != ClientReceiveMode.NONE; 
+        }
+        
         /** Should the object <bo> from client <source> be sent to this client? */ 
         public boolean shouldSend(Client source, BusinessObject bo) {
             
@@ -268,6 +333,40 @@ public class ABBOEServer {
         }               
         
         /**
+         * Forcibly terminate a connection with a client (supposedly called when
+         * client steadfastly refuses to close the connection when requested)
+         */
+        private void forceClose() {
+            if (closed) {
+                error("Attempting to close a client multiple times", null);
+            }
+            log("Forcing closing of connection with client: "+this);
+                       
+            try {
+                // closing socket also closes streams if needed
+                socket.close();
+            }
+            catch (IOException e) {
+                error("Failed closing socket", e);
+            }
+            
+            synchronized(ABBOEServer.this) {
+                clients.remove(this);
+                closed = true;
+                if (state == State.SHUTTING_DOWN && clients.size() == 0) {
+                    // last client closed and we are shutting down, finalize shutdown sequence...
+                    log.info("No more clients, finalizing shutdown sequence...");
+                    finalizeShutdownSequence();
+                }
+            }
+            
+            PlainTextObject msg = new PlainTextObject("Client "+this+" disconnected", CLIENTS_PART_NOTIFY);
+            msg.getMetaData().setName(this.name);
+            msg.getMetaData().setSender("ABBOE");
+            sendToAllClients(this, msg);
+        }
+        
+        /**
          * Gracefully dispose of a single client after ensuring both receiver and sender 
          * have finished
          */ 
@@ -315,23 +414,19 @@ public class ABBOEServer {
         }
             
         /** 
+         * Initiate shutting down of proceedings with this client. 
+         * 
          * Actually, just initiate closing of output channel. On noticing this,
          * client should close its socket, which will then be noticed on this server
          * as a {@link BusinessObjectReader.Listener#noMoreObjects()} notification from the {@link #reader}.  
          */
-        public void initiateClosingSequence() {
+        public void initiateClosingSequence(BusinessObject notification) {
             log.info("Initiating closing sequence for client: "+this);
-            BusinessObject shutdownNotification = new PlainTextObject("SERVER IS GOING TO SHUT DOWN IMMEDIATELY");            
-            BusinessObjectMetadata meta = shutdownNotification.getMetaData();
-            meta.setSender("ABBOE");
-            meta.setEvent("server/shutdown");
-            try {
+            
+            if (receiveEvents()) {                           
                 log.info("Sending shutdown event to client: "+this);
-                sender.send(shutdownNotification.bytes());
-            }
-            catch (IOException e) {
-                log.warning("Failed sending shutdown event to client "+this);
-            }
+                send(notification);
+            }            
             
             sender.requestStop();
         }
@@ -450,7 +545,54 @@ public class ABBOEServer {
         while (line != null && !gotStopRequest) {   
             if (line.equals("stop") || line.equals("s")) {
                 // this is the end
-                gotStopRequest = true;                
+                gotStopRequest = true;
+                break;
+            }
+            else if (line.equals("image") || line.equals("i")) {
+                sendImageToAllClients();
+            }
+            else if (line.equals("clients") || line.equals("c")) {
+                clientShortcuts = clientShortcuts();
+                for (Integer key: clientShortcuts.keySet()) {
+                    System.out.println(key+": "+clientShortcuts.get(key).name);
+                }
+            }
+            else if (line.startsWith("close ") || line.startsWith("c ")) {                 
+                // this is the end for one client
+                String shortcutStr;
+                if (line.startsWith("close ")) {                    
+                    shortcutStr = line.replace("close ", "");
+                }
+                else if (line.startsWith("c ")) {
+                    shortcutStr = line.replace("c ", "");
+                }
+                else {
+                    error("WhatWhatWhat");
+                    continue;
+                }
+                if (!(StringUtils.isIntegral(shortcutStr))) {
+                    error("Not a valid shortcut string: "+shortcutStr);
+                    continue;
+                }
+                if (clientShortcuts == null) {
+                    error("No client map!");
+                    continue;
+                }
+                int shortcut = Integer.parseInt(shortcutStr);
+                
+                Client client = clientShortcuts.get(shortcut);
+                if (client == null) {
+                    error("No such client shortcut: "+shortcut);
+                }
+                log("Closing connection to client: "+client);
+                String admin  = Biomine3000Utils.getUser();
+                BusinessObject closeNotification = new PlainTextObject("ABBOE IS GOING TO CLOSE THIS CONNECTION NOW (as requested by the ABBOE adminstrator, "+admin+")");            
+                closeNotification.setEvent(ABBOE_CLOSE_NOTIFY);
+                client.initiateClosingSequence(closeNotification);                                
+                
+                ClientShutdownThread cst = new ClientShutdownThread(client);
+                cst.start();
+                
             }
             else {
                 // just a message to be broadcast
@@ -459,9 +601,9 @@ public class ABBOEServer {
                 String sender = user != null ? "ABBOE-"+user : "ABBOE";
                 message.getMetaData().setSender(sender);
                 // log.dbg("Sending object: "+sendObj );  
-                sendToAllClients(null, message);
-                line = br.readLine();
+                sendToAllClients(null, message);                
             }
+            line = br.readLine();
         }
         
         if (gotStopRequest) {
@@ -485,8 +627,10 @@ public class ABBOEServer {
         log("Initiating shutdown sequence");
         
         if (clients.size() > 0) {                   
-            for (Client client: clients) {
-                client.initiateClosingSequence();
+            for (Client client: clients) {                
+                BusinessObject shutdownNotification = new PlainTextObject("ABBOE IS GOING TO SHUTDOWN in 5 seconds");            
+                shutdownNotification.setEvent(ABBOE_SHUTDOWN_NOTIFY);
+                client.initiateClosingSequence(shutdownNotification);
             }                           
             
             // start a thread to ensure shutdown in case some clients fail to close their connections
@@ -532,6 +676,25 @@ public class ABBOEServer {
             }
             catch (InterruptedException e) {
                 log.error("Shutdownthread interrupted");
+            }           
+        }
+    }
+    
+    private class ClientShutdownThread extends Thread {
+        Client client;
+        ClientShutdownThread(Client client) {
+            this.client = client;
+        }
+        public void run() {
+            try {
+                Thread.sleep(3000);
+                if (!client.closed) {
+                    log.error("Client "+client.name+" has failed to shut down properly, forcing shutdown...");                           
+                    client.forceClose();
+                }
+            }
+            catch (InterruptedException e) {
+                log.error("Shutdownthread for client: "+client.name+" interrupted, connection to client has not been shutdown");
             }           
         }
     }

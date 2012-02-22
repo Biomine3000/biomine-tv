@@ -82,6 +82,11 @@ public class BusinessObject {
         return metadata.hasPayload();
     }
     
+    /** Delegate to metadata (TODO: merge metadata class with this one) */
+    public void setSender(String sender) {
+        metadata.setSender(sender);        
+    }
+    
     /**
      * @return null if no more business objects in stream. Note that payload may be null!
      * @throws InvalidBusinessObjectException when packet is not correctly formatted

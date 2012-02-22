@@ -145,6 +145,9 @@ public class ContentVaultProxy {
                     }
                     for (ContentVaultListener listener: listeners) {
                         listener.loadedImage(url);
+                        if (loadedImagesByURL.size() == urls.size()) {
+                            listener.loadedAllImages();
+                        }
                     }
                 }
                 catch (IOException e) {
@@ -178,7 +181,15 @@ public class ContentVaultProxy {
          * Note that caller is reponsible for doing the actual responding in a synchronized way (more spefifically, this 
          * will not be called from the event dispatch thread)
          */
-        public void loadedImage(String image);                   
+        public void loadedImage(String image);
+        
+        /**
+         * Called after all images have been loaded. Note that loading the last image
+         * has event has already been notified through {@link #loadedImage(String)}
+         * when this is called.
+         */
+        public void loadedAllImages();
+                    
     }
     
     public static void main(String[] args) throws IOException {
