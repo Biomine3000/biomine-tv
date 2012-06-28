@@ -15,21 +15,25 @@ import util.dbg.ILogger;
 import util.dbg.Logger;
 
 public class TrivialClient {
-              
-    private static final ClientParameters CLIENT_PARAMS = 
-            new ClientParameters("TrivialClient", ClientReceiveMode.NO_ECHO, 
-                                 Subscriptions.make("text/plain"), false);
-    
+
+    private static final ClientParameters CLIENT_PARAMS =
+            new ClientParameters("TrivialClient", ClientReceiveMode.NO_ECHO,
+                    Subscriptions.make("text/plain"), false);
+
     private ILogger log;
-    private ABBOEConnection connection;            
-    private boolean stopYourStdinReading = false;    
+    private ABBOEConnection connection;
+    private boolean stopYourStdinReading = false;
     private SystemInReader systemInReader;
     private String user;
-    
-    /** Note that superclasses also have their own state related to the connection to the server */
+
+    /**
+     * Note that superclasses also have their own state related to the connection to the server
+     */
     private StdinReaderState stdinReaderState;
-    
-    /** Call {@link mainReadLoop()} to perform actual processing */
+
+    /**
+     * Call {@link mainReadLoop()} to perform actual processing
+     */
     public TrivialClient(Socket socket, String user, ILogger log) throws IOException, UnknownHostException, JSONException {
         this.log = log;
         this.user = user;
@@ -40,26 +44,27 @@ public class TrivialClient {
         this.connection.init(new ObjectHandler());
         this.connection.sendClientListRequest();
     }
-       
-    /** Start a SystemInReader thread */
+
+    /**
+     * Start a SystemInReader thread
+     */
     private void startMainReadLoop() {
         systemInReader = new SystemInReader();
         systemInReader.start();
     }
-    
+
     private class SystemInReader extends Thread {
         public void run() {
             try {
                 stdInReadLoop();
-            }
-            catch (IOException e)  {
+            } catch (IOException e) {
                 log.error("IOException in SystemInReader", e);
                 log.info("Requesting closing output if needed...");
                 connection.requestCloseOutputIfNeeded();
             }
         }
     }
-    
+
     /**
      * FOO: it does not seem to be possible to interrupt a thread waiting on system.in, even
      * by closing System.in... Thread.interrupt does not work either...
@@ -67,96 +72,91 @@ public class TrivialClient {
      */
     private void stdInReadLoop() throws IOException {
         stdinReaderState = StdinReaderState.READING;
-        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));            
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         String line = br.readLine();
         while (line != null && !stopYourStdinReading) {
             if (line.equals("stop")) {
                 stopYourStdinReading = true;
                 break;
-            }
-            else if (line.equals("s")) {
+            } else if (line.equals("s")) {
                 stopYourStdinReading = true;
                 break;
-            }
-            else if (line.equals("clients")) {
+            } else if (line.equals("clients")) {
                 connection.sendClientListRequest();
-            }
-            else {
+            } else {
                 BusinessObject sendObj = new PlainTextObject(line);
                 sendObj.getMetaData().setSender(user);
                 // log.dbg("Sending object: "+sendObj );  
-                connection.send(sendObj);                
+                connection.send(sendObj);
             }
             line = br.readLine();
         }
-        
+
         log.info("Tranquilly finished reading stdin");
         log.info("Likewise harmoniously requesting closing output...");
         stdinReaderState = StdinReaderState.FINISHED_READING;
-        connection.requestCloseOutputIfNeeded();        
+        connection.requestCloseOutputIfNeeded();
     }
-    
-    /** To be called when connection to server has already been terminated */
+
+    /**
+     * To be called when connection to server has already been terminated
+     */
     private void terminateStdinReadLoopIfNeeded() {
-        
+
         if (stdinReaderState == StdinReaderState.READING) {
             stopYourStdinReading = true;
-            
+
             // actually, setting the above flag is not enough, so let's just:
             log.dbg("Forcibly exiting");
             System.exit(0);
         }
-        
+
         // NOTE: there seems to be NO SAFE WAY to terminate a thread that is waiting on reading System.in
         // the only thing we can do here is to wait for a line to be read, after which actual 
         // closing can occur.
-        
+
         // - Thread.interrupt does not work (nothing happens)
         // - System.in.notify does not work (error if not a owner of the monitor; trying to become owner by 
         //                                   synchronizing on System.in waits for the current read to complete)
         // - closing system.in does not work (it only leads to a null being read AFTER finishing the current read...)
-        
+
         // TODO: actually, maybe we should just exit, after ensuring that all other activities have finished...         
     }
-    
-    /** Client receive buzinezz logic contained herein */
+
+    /**
+     * Client receive buzinezz logic contained herein
+     */
     private class ObjectHandler implements ABBOEConnection.BusinessObjectHandler {
 
         @Override
         public void handleObject(BusinessObject bo) {
-            if (bo.isEvent()) {                
+            if (bo.isEvent()) {
                 BusinessObjectEventType et = bo.getMetaData().getKnownEvent();
                 if (et == BusinessObjectEventType.CLIENTS_LIST_REPLY) {
                     String registeredAs = bo.getMetaData().getString("you");
-                    System.out.println("This client registered on the server as: "+registeredAs);
+                    System.out.println("This client registered on the server as: " + registeredAs);
                     List<String> clients = bo.getMetaData().getList("others");
                     if (clients.size() == 0) {
                         System.out.println("No other clients");
-                    }
-                    else {
+                    } else {
                         System.out.println("Other clients:");
-                        System.out.println("\t"+StringUtils.collectionToString(clients, "\n\t"));
+                        System.out.println("\t" + StringUtils.collectionToString(clients, "\n\t"));
                     }
-                    
-                }
-                else if (et == BusinessObjectEventType.CLIENTS_REGISTER_REPLY) {
+
+                } else if (et == BusinessObjectEventType.CLIENTS_REGISTER_REPLY) {
                     System.out.println("Registered successfully to the server");
-                }
-                else if (et == BusinessObjectEventType.CLIENTS_REGISTER_NOTIFY) {
+                } else if (et == BusinessObjectEventType.CLIENTS_REGISTER_NOTIFY) {
                     String name = bo.getMetaData().getName();
-                    System.out.println("Client "+name+" registered to ABBOE");
-                }
-                else if (et == BusinessObjectEventType.CLIENTS_PART_NOTIFY) {
+                    System.out.println("Client " + name + " registered to ABBOE");
+                } else if (et == BusinessObjectEventType.CLIENTS_PART_NOTIFY) {
                     String name = bo.getMetaData().getName();
-                    System.out.println("Client "+name+" parted from ABBOE");
-                }
-                else {
+                    System.out.println("Client " + name + " parted from ABBOE");
+                } else {
                     String formatted = Biomine3000Utils.formatBusinessObject(bo);
                     System.out.println(formatted);
                 }
-                
-            }
-            else {
+
+            } else {
                 String formatted = Biomine3000Utils.formatBusinessObject(bo);
                 System.out.println(formatted);
             }
@@ -172,20 +172,20 @@ public class TrivialClient {
             log.error(e);
             terminateStdinReadLoopIfNeeded();
         }
-        
-    }       
-        
+
+    }
+
     public static void main(String pArgs[]) throws Exception {
         Biomine3000Args args = new Biomine3000Args(pArgs, true);
-        Socket socket = Biomine3000Utils.connectToServer(args);        
+        Socket socket = Biomine3000Utils.connectToServer(args);
         String user = args.getUser();
         if (user == null) {
             user = "anonymous";
         }
-        TrivialClient client = new TrivialClient(socket, user, new Logger.ILoggerAdapter("TrivialClient: "));        
+        TrivialClient client = new TrivialClient(socket, user, new Logger.ILoggerAdapter("TrivialClient: "));
         client.startMainReadLoop();
     }
-    
+
     private enum StdinReaderState {
         NOT_YET_READING,
         READING,

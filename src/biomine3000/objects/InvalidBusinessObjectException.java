@@ -1,10 +1,12 @@
 package biomine3000.objects;
 
-/** Should this be called "InvalidBusinessObjectException" */
-public class InvalidBusinessObjectException extends Exception {    
-                              
+/**
+ * Should this be called "InvalidBusinessObjectException"
+ */
+public class InvalidBusinessObjectException extends Exception {
+
     private Throwable cause;
-        
+
     public InvalidBusinessObjectException(String message) {
         super(message);
     }
@@ -13,7 +15,7 @@ public class InvalidBusinessObjectException extends Exception {
         super(cause.getMessage());
         this.cause = cause;
     }
-    
+
     public InvalidBusinessObjectException(String message, Throwable cause) {
         super(cause.getMessage());
         this.cause = cause;

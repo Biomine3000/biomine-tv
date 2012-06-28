@@ -20,282 +20,274 @@ import util.dbg.ILogger;
 import util.dbg.Logger;
 
 public class Biomine3000Utils {
-    
-    /** Return null if host name for some reason could not be resolved */
-    public static String getHostName()  {
+
+    /**
+     * Return null if host name for some reason could not be resolved
+     */
+    public static String getHostName() {
         try {
             return InetAddress.getLocalHost().getHostName();
-        }
-        catch (UnknownHostException e) {
+        } catch (UnknownHostException e) {
             return null;
         }
     }
-    
-    /** Format a business object in an IRC-like fashion */
+
+    /**
+     * Format a business object in an IRC-like fashion
+     */
     public static String formatBusinessObject(BusinessObject bo) {
-        String sender = bo.getMetaData().getSender();            
+        String sender = bo.getMetaData().getSender();
         String channel = bo.getMetaData().getChannel();
         if (channel != null) {
             channel = channel.replace("MESKW", "");
         }
         String prefix;
-        
+
         if (sender == null && channel == null) {
             // no sender, no channel
             prefix = "<anonymous>";
-        }
-        else if (sender != null && channel == null) {
+        } else if (sender != null && channel == null) {
             // only sender
-            prefix = "<"+sender+">";
-        }
-        else if (sender == null && channel != null) {
+            prefix = "<" + sender + ">";
+        } else if (sender == null && channel != null) {
             // only channel
-            prefix = "<"+channel+">";
-        }
-        
-        else {
+            prefix = "<" + channel + ">";
+        } else {
             // both channel and sender
-            prefix = "<"+channel+"-"+sender+">";
+            prefix = "<" + channel + "-" + sender + ">";
         }
-        
-        return prefix+" "+bo;
+
+        return prefix + " " + bo;
 
     }
-    
+
     public static boolean atLakka() {
         String host = getHostName();
         if (host != null && host.startsWith("lakka")) {
             return true;
-        }
-        else {
+        } else {
             return false;
         }
     }
-    
+
     public static boolean atMelkki() {
         String host = getHostName();
         if (host != null && host.startsWith("melkki")) {
             return true;
-        }
-        else {
+        } else {
             return false;
         }
     }
-    
+
     public static boolean isBMZTime() {
         Calendar cal = Calendar.getInstance();
-        int BMZ_ZERO_HOUR1  = 23;
-        int BMZ_ZERO_HOUR2  = -1;
+        int BMZ_ZERO_HOUR1 = 23;
+        int BMZ_ZERO_HOUR2 = -1;
         int hour = cal.get(Calendar.HOUR_OF_DAY);
-        if (Math.abs(hour - BMZ_ZERO_HOUR1) <= 2                
+        if (Math.abs(hour - BMZ_ZERO_HOUR1) <= 2
                 || Math.abs(hour - BMZ_ZERO_HOUR2) <= 2) {
             return true;
-        }        
-        else {
+        } else {
             return false;
         }
     }
-    
+
     public static boolean atBC() {
         String host = getHostName();
         if (host != null && host.equals("xl2")) {
             return true;
-        }
-        else {
+        } else {
             return false;
         }
     }
-    
+
     public static boolean atVoodoomasiina() {
         String host = getHostName();
-        if (host != null && host.equals("voodoomasiina")) { 
+        if (host != null && host.equals("voodoomasiina")) {
             return true;
-        }
-        else {
+        } else {
             return false;
-        }        
+        }
     }
-    
+
     /**
      * Give a sensible port for a server, based on the host name.
      * Does not do any managering of ports, just assume there is one specific reserved port
-     * on some hosts. If no such port is defined for the present host, return null.    
+     * on some hosts. If no such port is defined for the present host, return null.
      */
     public static Integer conjurePortByHostName() {
         if (atLakka()) {
             return Biomine3000Constants.LERONEN_KAPSI_PORT_1;
-        }
-        else if (atVoodoomasiina()) {
+        } else if (atVoodoomasiina()) {
             return Biomine3000Constants.LERONEN_HIMA_PORT;
-        }
-        else {
+        } else {
             return null;
         }
     }
-    
+
     private static Socket connect(InetSocketAddress addr) throws IOException {
-        Socket socket = new Socket();                  
-        socket.connect(addr, DEFAULT_SERVER_CONNECT_TIMEOUT_MILLIS);        
-        return socket;              
+        Socket socket = new Socket();
+        socket.connect(addr, DEFAULT_SERVER_CONNECT_TIMEOUT_MILLIS);
+        return socket;
     }
-    
-    /** 
-     * On failure, just throw an IOException corresponding to the failure to 
+
+    /**
+     * On failure, just throw an IOException corresponding to the failure to
      * connect to the last of the tried addresses.
      */
     public static Socket connectToBestAvailableServer(ILogger log) throws IOException {
         IOException lastEx = null;
-        for (ServerAddress addr: ServerAddress.values()) {
+        for (ServerAddress addr : ServerAddress.values()) {
             try {
-                log.info("Connecting to server: "+addr);
+                log.info("Connecting to server: " + addr);
                 Socket socket = connectToServer(addr.getHost(), addr.getPort(), log);
                 log.info("Successfully connected");
-                return socket;                
-            }
-            catch (IOException e) {
-                log.info("Failed connecting to server: "+addr);
+                return socket;
+            } catch (IOException e) {
+                log.info("Failed connecting to server: " + addr);
                 lastEx = e;
             }
         }
-        
+
         throw lastEx;
     }
-    
-    /** Trivially get USER from env */
+
+    /**
+     * Trivially get USER from env
+     */
     public static String getUser() {
         return System.getenv("USER");
     }
-    
-    /** 
-     * Parse connection params (socket and host) from cmdline args. 
+
+    /**
+     * Parse connection params (socket and host) from cmdline args.
      * If no such args, we shall try all known server locations.
-     *
+     * <p/>
      * Always return a non-null connection when no exception is thrown.
      */
     public static Socket connectToServer(String[] pArgs) throws IOException, IllegalArgumentsException {
-        Biomine3000Args args = new Biomine3000Args(pArgs, false); 
+        Biomine3000Args args = new Biomine3000Args(pArgs, false);
         String host = args.getHost();
         Integer port = args.getPort();
         return connectToServer(host, port);
     }
-    
-    public static Socket connectToServer(Biomine3000Args args) throws IOException, IllegalArgumentsException {        
+
+    public static Socket connectToServer(Biomine3000Args args) throws IOException, IllegalArgumentsException {
         String host = args.get("host");
         Integer port = args.getInt("port");
         return connectToServer(host, port);
     }
-    
+
     public static void configureLogging(String[] pArgs) throws IOException, IllegalArgumentsException {
         configureLogging(new CmdLineArgs2(pArgs));
     }
-    
-    /** Set log level, log file and warning file based on args */
-    public static void configureLogging(CmdLineArgs2 args) throws IOException, IllegalArgumentsException {                        
+
+    /**
+     * Set log level, log file and warning file based on args
+     */
+    public static void configureLogging(CmdLineArgs2 args) throws IOException, IllegalArgumentsException {
         Integer loglevel = args.getInt("loglevel");
         if (loglevel != null) {
             // Logger.info("Setting log level to: "+loglevel);
             Logger.setLogLevel(loglevel);
-        }        
-        
+        }
+
         String logfile = args.get("logfile");
         if (logfile != null) {
-            Logger.info("Writing log to file: "+logfile);
+            Logger.info("Writing log to file: " + logfile);
             Logger.addStream(logfile, Logger.LOGLEVEL_INFO);
         }
-        
+
         String warningfile = args.get("warningfile");
         if (warningfile != null) {
-            Logger.info("Writing warnings to file: "+warningfile);
+            Logger.info("Writing warnings to file: " + warningfile);
             Logger.addStream(warningfile, Logger.LOGLEVEL_WARNING);
         }
     }
-    
+
     /**
-     * Socket and host may be null, in which case we shall try all known server locations. 
+     * Socket and host may be null, in which case we shall try all known server locations.
      * Connection timeout shall be somewhat smaller than the default one.
-     * 
+     * <p/>
      * Always return a non-null connection when no exception is thrown.
-     * 
+     * <p/>
      * Use default logger (util.dbg.Logger.ILoggerAdapter)
-     * 
      */
     public static Socket connectToServer(String host, Integer port) throws IOException {
-        return connectToServer(host, port, null); 
+        return connectToServer(host, port, null);
     }
-    
+
     /**
-     * Socket and host may be null, in which case we shall try all known server locations. 
+     * Socket and host may be null, in which case we shall try all known server locations.
      * Connection timeout shall be somewhat smaller than the default one.
-     * 
+     * <p/>
      * Always return a non-null connection when no exception is thrown.
      */
     public static Socket connectToServer(String host, Integer port, ILogger log) throws IOException {
         if (log == null) {
             log = new Logger.ILoggerAdapter();
         }
-        
+
         if (host != null && port != null) {
             // connect to a well-defined server
             return connect(new InetSocketAddress(host, port));
-        }
-        else if (host == null && port == null) {
+        } else if (host == null && port == null) {
             // no port or host, try default servers.
             return connectToBestAvailableServer(log);
-        }
-        else if (host == null) {
+        } else if (host == null) {
             throw new IOException("Cannot connect: host is null");
-        }
-        else if (port == null) {
+        } else if (port == null) {
             throw new IOException("Cannot connect: port is null");
-        }        
-        else {
+        } else {
             throw new RuntimeException("Impossible.");
         }
-                
+
     }
-    
-    /** TODO! */
+
+    /**
+     * TODO!
+     */
     public static String generateMessageId() {
         // http://www.jwz.org/doc/mid.html
         return null;
     }
-    
+
     public static void main(String[] args) {
-        System.out.println("at host: "+getHostName());
+        System.out.println("at host: " + getHostName());
     }
-    
+
     public static BusinessObject makeRegisterPacket(String clientName,
                                                     ClientReceiveMode receiveMode) {
         return makeRegisterPacket(clientName, receiveMode, null);
-        
+
     }
-    
+
     public static BusinessObject makeRegisterPacket(ClientParameters clientParams) {
         return makeRegisterPacket(clientParams.name, clientParams.receiveMode, clientParams.subscriptions);
     }
-    
-    
+
+
     /**
      * Make a register packet to be sent to the server,
      * e.g.: <pre>
      *   "event": "client/register",
      *   "receive: "only_events"
      * </pre>
+     *
      * @param clientName
-     * @param receiveMode 
+     * @param receiveMode
      */
     public static BusinessObject makeRegisterPacket(String clientName,
                                                     ClientReceiveMode receiveMode,
                                                     Subscriptions subscriptions) {
-        BusinessObjectMetadata meta = new BusinessObjectMetadata();        
-        meta.setEvent(BusinessObjectEventType.CLIENTS_REGISTER);        
+        BusinessObjectMetadata meta = new BusinessObjectMetadata();
+        meta.setEvent(BusinessObjectEventType.CLIENTS_REGISTER);
         meta.put("name", clientName);
         meta.put(ClientReceiveMode.KEY, receiveMode.toString());
         if (subscriptions != null) {
             try {
                 meta.setSubsciptions(subscriptions);
-            }
-            catch (JSONException e) {
+            } catch (JSONException e) {
                 throw new RuntimeException("Should not be possible");
             }
         }
@@ -303,7 +295,7 @@ public class Biomine3000Utils {
         if (user != null) {
             meta.setUser(user);
         }
-        
+
         return new BusinessObject(meta);
     }
 
@@ -313,13 +305,11 @@ public class Biomine3000Utils {
             File[] files = dir.listFiles();
             if (files.length > 0) {
                 return RandUtils.sample(Arrays.asList(files));
+            } else {
+                throw new IOException("No files in dir: " + dir);
             }
-            else {
-                throw new IOException("No files in dir: "+dir);
-            }            
-        }
-        else {
-            throw new IOException("No such dir: "+dir);
+        } else {
+            throw new IOException("No such dir: " + dir);
         }
     }
 }
