@@ -22,6 +22,10 @@ public enum ServerAddress implements IServerAddress {
     		// tunnel
     		return "localhost";
     	}
+        else if (this == LERONEN_KAPSI && Biomine3000Utils.atWel120()) {
+    		// tunnel
+    		return "localhost";
+    	}
     	else {
     		return host;
     	}
