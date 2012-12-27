@@ -84,7 +84,12 @@ public enum Biomine3000Mimetype {
 	}
 	
 	public static Biomine3000Mimetype getByName(String name) {
-	    return typeByName.get(name);
+        Biomine3000Mimetype ret = typeByName.get(name);
+        
+        if (ret == null && name.contains(";") && name.split(";").length > 0)
+            ret = typeByName.get(name.split(";")[0]);
+        
+        return ret;
 	}		
 	
 	/** Return null, if no suitable type found */

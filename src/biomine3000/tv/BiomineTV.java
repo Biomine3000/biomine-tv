@@ -15,10 +15,7 @@ import javax.swing.*;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.Socket;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import biomine3000.objects.*;
 
@@ -105,8 +102,8 @@ public class BiomineTV extends JFrame {
 	 	});	    	    	    	    	    
     } 
 
-    private void startConnectionMonitorThread() {
-        monitorThread = new ConnectionThread(ServerAddress.LIST);
+    private void startConnectionMonitorThread(List<IServerAddress> serverAddresses) {
+        monitorThread = new ConnectionThread(serverAddresses);
         monitorThread.start();
     }
     
@@ -175,9 +172,19 @@ public class BiomineTV extends JFrame {
         tv.setSize(800,600);
         tv.setLocation(300,300);
         tv.setVisible(true);
-                                
+
+        // Handle possible command line arguments
+        List<IServerAddress> serverAddresses;
+        if (args.getHost() != null) {
+            if (args.getPort() == null)
+                serverAddresses = getServerAddressList(args.getHost(), Biomine3000Constants.DEFAULT_ABBOE_PORT);
+            else
+                serverAddresses = getServerAddressList(args.getHost(), args.getPort());
+        } else
+            serverAddresses = ServerAddress.LIST;
+        
         // will connect to the server, and keep trying every second until successful
-        tv.startConnectionMonitorThread();     
+        tv.startConnectionMonitorThread(serverAddresses);
     }
   
     /** Tries to maintain connections to all servers at given addresses at all times. Retries connections persistently */
@@ -347,6 +354,24 @@ public class BiomineTV extends JFrame {
             BiomineTV.this.connectionTerminated(connection);
         }
         
+    }
+
+    private static List<IServerAddress> getServerAddressList(final String host, final int port) {
+        List<IServerAddress> ret = new ArrayList<IServerAddress>(1);
+
+        ret.add(new IServerAddress() {
+            @Override
+            public int getPort() {
+                return port;
+            }
+
+            @Override
+            public String getHost() {
+                return host;
+            }
+        });
+
+        return ret;
     }
 
     /**
