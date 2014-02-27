@@ -102,6 +102,7 @@ public class IRCLogManager  {
     
         
     /** Only after logs have been read? */
+    @SuppressWarnings("unused")
     private void connectToABBOE() throws IOException, IllegalArgumentsException {
         Socket socket = Biomine3000Utils.connectToServer(args);
         this.connection = new ABBOEConnection(CLIENT_PARAMS, socket, log);
@@ -175,6 +176,7 @@ public class IRCLogManager  {
     }
     
     private class LogFile {
+    	@SuppressWarnings("unused")
         String name;
         List<String> data;
         

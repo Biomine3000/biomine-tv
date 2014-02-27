@@ -125,7 +125,8 @@ public class BusinessObjectReader implements Runnable {
     
     /** Test by connecting to the server and reading everything. */
     public static void main(String[] args) throws Exception {
-        Socket socket = new Socket("localhost", LERONEN_HIMA_PORT);
+        @SuppressWarnings("resource")
+		Socket socket = new Socket("localhost", LERONEN_HIMA_PORT);
         BusinessObjectReader readerRunnable = new BusinessObjectReader(socket.getInputStream(), new DefaultListener(), "dummy reader", true);
         Thread readerThread = new Thread(readerRunnable);
         readerThread.start();
