@@ -9,7 +9,6 @@
 
 /*
 // Apply the java plugin to add support for Java
-apply plugin: 'java'
 
 // In this section you declare where to find the dependencies of your project
 repositories {
@@ -30,5 +29,31 @@ dependencies {
     testCompile "junit:junit:4.11"
 }
 */
+apply plugin: 'java'
 
-ant.importBuild 'build.xml'
+dependencies {
+    compile files(fileTree(dir: 'lib', includes: ['*.jar']))
+
+    assert System.env.LERONEN_JAVA_ROOT != null
+    compile files(fileTree(dir: System.env.LERONEN_JAVA_ROOT, includes: ['*.jar']))
+}
+
+// For monolithic jar
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'eu.appsatori:gradle-fatjar-plugin:0.2-rc1'
+    }
+}
+
+apply plugin: 'fatjar'
+
+// Make it runnable with java -jar
+fatJar {
+    manifest {
+        attributes("Main-Class": "biomine3000.tv.BiomineTV")
+    }
+}

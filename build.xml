@@ -2,7 +2,7 @@
     
 	<property environment="env"/>
 	
-	<property name="src" location="src"/>	
+	<property name="src" location="src/main/java"/>
     <property name="classes" location="ant-build"/>
 	<property name="jar" location="biomine-tv.jar"/>
 	<property name="leronen-java-root" value="${env.LERONEN_JAVA_ROOT}"/>

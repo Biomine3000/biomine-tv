@@ -14,7 +14,7 @@ BIOMINE-TV reference implementation be here
  BUILD INSTRUCTIONS
    - git pull git@github.com:leronen/leronen-java.git
    - point LERONEN_JAVA_ROOT to the resulting directory
-   - run ant in this directory (with no arguments)
+   - gradle fatJar
 
  TO BE ADDED LATER 
    - intructions for running tv components
