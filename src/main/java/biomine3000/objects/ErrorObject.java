@@ -1,5 +1,7 @@
 package biomine3000.objects;
 
+import com.google.common.net.MediaType;
+
 public class ErrorObject extends BusinessObject {
         
     /** Create unitialized instance. */
@@ -9,7 +11,7 @@ public class ErrorObject extends BusinessObject {
     }
         
     public ErrorObject(String text) {
-        super(Biomine3000Mimetype.PLAINTEXT.toString());
+        super(BusinessMediaType.PLAINTEXT.toString());
         getMetaData().setEvent(BusinessObjectEventType.ERROR);
         this.setPayload(text.getBytes());               
     }
@@ -25,7 +27,7 @@ public class ErrorObject extends BusinessObject {
      * It is left at the responsibility of the caller that the mimetype actually be representable
      * as a plain text object.
      */  
-    public ErrorObject(String text, Biomine3000Mimetype mimeType) {                
+    public ErrorObject(String text, MediaType mimeType) {
         super(mimeType.toString());
         getMetaData().setEvent(BusinessObjectEventType.ERROR);
         this.setPayload(text.getBytes());

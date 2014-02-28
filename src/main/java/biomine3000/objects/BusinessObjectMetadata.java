@@ -2,7 +2,9 @@ package biomine3000.objects;
 
 import java.io.UnsupportedEncodingException;
 import java.util.*;
+import java.util.List;
 
+import com.google.common.net.MediaType;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -16,7 +18,7 @@ import util.dbg.ILogger;
 /**
  * In the initial implementation, mandatory fields are as follows:
  *   -"size" to specify length of payload in bytes.
- *   -"type" one of {@link Biomine3000Mimetype}.
+ *   -"type" one of {@link biomine3000.objects.BusinessMediaType or @link MediaType}.
  *   
  * TBD:
  *   -Should we enforce the type of known fields, such as sender?
@@ -105,16 +107,16 @@ public class BusinessObjectMetadata {
         json.put("subscriptions", subscriptions.toJSON());
     }
     
-    public void setType(Biomine3000Mimetype type) {
+    public void setType(MediaType type) {
         put("type", type.toString());
     }
-        
+
     
     /**
      * Minimal metadata with only (mime)type and size of payload. Actually, even size might be null, if it is
      * not known at the time of creating the metadata...
      */
-    public BusinessObjectMetadata(Biomine3000Mimetype type) {
+    public BusinessObjectMetadata(MediaType type) {
         json = new JSONObject();
         setType(type.toString());        
     }
@@ -153,7 +155,7 @@ public class BusinessObjectMetadata {
     
     /**
      * @return null if no such key.
-     * @throws ClassCastExcpetion when the value is not a String.
+     * @throws ClassCastException when the value is not a String.
      */
     public String getString(String key) throws ClassCastException {
         Object val = json.opt(key);
@@ -171,7 +173,7 @@ public class BusinessObjectMetadata {
     
     /**
      * @return null if no such key.
-     * @throws ClassCastExcpetion when the value is not an Integer.
+     * @throws ClassCastException when the value is not an Integer.
      */
     public Integer getInteger(String key) throws ClassCastException {
         Object val = json.opt(key);
@@ -326,10 +328,12 @@ public class BusinessObjectMetadata {
     }
     
     /** 
-      See {@link Biomine3000Mimetype} for known types. Note that payload is not
-      mandatory, in which case this method returns null!
+     * See {@link biomine3000.objects.BusinessMediaType} for known types. Note that payload is not
+     * mandatory, in which case this method returns null!
      * 
      * @see #getOfficialType()
+     *
+     * TODO: get rid of String-typing, use MediaType all over.
      */
     public String getType() {
         return getString("type");                
@@ -342,12 +346,12 @@ public class BusinessObjectMetadata {
      * of when there is no payload.
      * @see #getType()
      */
-    public Biomine3000Mimetype getOfficialType() {
+    public MediaType getOfficialType() {
         String typeName = getType();
         if (typeName == null) {
             return null;
         }
-        return Biomine3000Mimetype.getByName(typeName);
+        return MediaType.parse(typeName);
     }
        
         

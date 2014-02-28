@@ -1,6 +1,5 @@
 package biomine3000.objects;
 
-import biomine3000.objects.Biomine3000Mimetype;
 import biomine3000.objects.BusinessObjectMetadata;
 
 public class ByteTest {
@@ -11,7 +10,7 @@ public class ByteTest {
         System.out.write(foo.getBytes());
         System.out.println("");
         
-        BusinessObjectMetadata meta = new BusinessObjectMetadata(Biomine3000Mimetype.PLAINTEXT);
+        BusinessObjectMetadata meta = new BusinessObjectMetadata(BusinessMediaType.PLAINTEXT);
         System.out.println("meta:");
         System.out.write(meta.toString().getBytes("UTF-8"));
         System.out.println("");

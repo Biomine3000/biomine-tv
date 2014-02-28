@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import com.google.common.net.MediaType;
 import org.json.JSONArray;
 import org.json.JSONException;
 
@@ -16,7 +17,7 @@ public abstract class Subscriptions {
     
     public static final Subscriptions ALL = new All();
     public static final Subscriptions NONE = new None();
-    public static final Subscriptions PLAINTEXT = make(Biomine3000Mimetype.PLAINTEXT);
+    public static final Subscriptions PLAINTEXT = make(BusinessMediaType.PLAINTEXT);
         
     
     public abstract boolean shouldSend(BusinessObject bo);
@@ -30,7 +31,7 @@ public abstract class Subscriptions {
         return make(CollectionUtils.makeArrayList(types));
     }
     
-    public static Subscriptions make(Biomine3000Mimetype... types) {
+    public static Subscriptions make(MediaType... types) {
         IncludeList result = new IncludeList();
         result.addAll(Arrays.asList(types));
         return result;
@@ -53,7 +54,7 @@ public abstract class Subscriptions {
         }       
     }
     
-    public static Subscriptions make(Biomine3000Mimetype o) {
+    public static Subscriptions make(MediaType o) {
         return null;
     }
     
@@ -64,9 +65,9 @@ public abstract class Subscriptions {
         else if (o instanceof JSONArray) {
             return new IncludeList((JSONArray)o);
         }
-        else if (o instanceof Biomine3000Mimetype) {
+        else if (o instanceof MediaType) {
             IncludeList result = new IncludeList();
-            result.addAll(Collections.singletonList((Biomine3000Mimetype)o));
+            result.addAll(Collections.singletonList((MediaType)o));
             return result;
         }
         else {
@@ -111,8 +112,8 @@ public abstract class Subscriptions {
             this.types = new LinkedHashSet<String>();            
         }
         
-        private void addAll(Collection<Biomine3000Mimetype> types) {
-            for (Biomine3000Mimetype type: types) {        
+        private void addAll(Collection<MediaType> types) {
+            for (MediaType type: types) {
                 this.types.add(type.toString());
             }
         }

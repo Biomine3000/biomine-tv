@@ -16,7 +16,7 @@ import java.util.Map;
 import biomine3000.objects.ContentVaultProxy.InvalidStateException;
 
 
-
+import com.google.common.net.MediaType;
 import util.CmdLineArgs2;
 import util.DateUtils;
 import util.StringUtils;
@@ -886,7 +886,8 @@ public class ABBOEServer {
             else {
                 // not an event, assume mythical "content"
                 
-                if (bo.hasPayload() && bo.getMetaData().getType().equals(Biomine3000Mimetype.PLAINTEXT.toString())) {
+                if (bo.hasPayload() &&
+                        bo.getMetaData().getType() == BusinessMediaType.PLAINTEXT.withoutParameters().toString()) {
                     PlainTextObject pto = new PlainTextObject(bo.getMetaData().clone(), bo.getPayload());
                     log("Received content: "+Biomine3000Utils.formatBusinessObject(pto));
                 }

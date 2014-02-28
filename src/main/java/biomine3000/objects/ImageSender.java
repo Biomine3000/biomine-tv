@@ -6,6 +6,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.Socket;
 
+import com.google.common.io.Files;
+import com.google.common.net.MediaType;
 import util.IOUtils;
 import util.StringUtils;
 import util.dbg.ILogger;
@@ -29,8 +31,8 @@ public class ImageSender {
         BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
         byte[] payload = IOUtils.readBytes(bis);
         bis.close();
-        
-        Biomine3000Mimetype type = Biomine3000Mimetype.getImageTypeByFileName(file.getName());
+
+        MediaType type = BusinessMediaType.getByExtension(Files.getFileExtension(file.getName()));
         if (type == null) {
             throw new UnsuitableFiletypeException(StringUtils.getExtension(file));
         }        

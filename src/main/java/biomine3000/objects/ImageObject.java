@@ -7,6 +7,7 @@ import java.io.IOException;
 import javax.imageio.ImageIO;
 
 
+import com.google.common.net.MediaType;
 import util.StringUtils;
 
 
@@ -33,7 +34,7 @@ public class ImageObject extends BusinessObject {
     }
                        
     /** Create a new business object to be sent; payload length will be set to metadata automatically */
-    public ImageObject(Biomine3000Mimetype type, byte[] payload) {
+    public ImageObject(MediaType type, byte[] payload) {
         super(type, payload);
     }
     
@@ -44,8 +45,8 @@ public class ImageObject extends BusinessObject {
         if (extension == null) {
             throw new UnknownImageTypeException(fileName);
         }
-        
-        Biomine3000Mimetype type = Biomine3000Mimetype.getByExtension(extension);
+
+        MediaType type = BusinessMediaType.getByExtension(extension);
         if (type == null) {
             throw new UnknownImageTypeException(fileName);
         }

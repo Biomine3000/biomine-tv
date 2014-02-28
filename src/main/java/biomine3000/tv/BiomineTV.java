@@ -348,7 +348,7 @@ public class BiomineTV extends JFrame {
 //                PlainTextObject to = (PlainTextObject)bo;
                 logPanel.appendText(Biomine3000Utils.formatBusinessObject(bo)+"\n");
             }
-            else if (bo.getMetaData().getOfficialType() == Biomine3000Mimetype.MP3) {
+            else if (bo.getMetaData().getOfficialType() == BusinessMediaType.MP3) {
                 playMP3(bo);
             }        
             else {

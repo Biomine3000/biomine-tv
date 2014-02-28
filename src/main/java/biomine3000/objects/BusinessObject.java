@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 
+import com.google.common.net.MediaType;
 import util.IOUtils;
 import util.IOUtils.UnexpectedEndOfStreamException;
 import util.collections.Pair;
@@ -91,7 +92,6 @@ public class BusinessObject {
      * @return null if no more business objects in stream. Note that payload may be null!
      * @throws InvalidBusinessObjectException when packet is not correctly formatted
      * @throws InvalidJSONException JSON metadata is not correctly formatted json
-     * @throws BusinessObjectException when some other errors occurs in constructing buziness object 
      * @throws IOException in case of general io error.
      */ 
     public static Pair<BusinessObjectMetadata, byte[]> readPacket(InputStream is) throws IOException, InvalidBusinessObjectException {
@@ -169,8 +169,7 @@ public class BusinessObject {
     }
     
     /**
-     * Construct a BusinessObject using a dedicated implementation class, if one exists
-     * (managed by class {@link Biomine3000Mimetype} 
+     * Construct a BusinessObject using a dedicated implementation class.
      * 
      * To construct a raw business object using the default implementation (this very class),
      * use the constructor with similar params, instead of this factory method.
@@ -178,12 +177,12 @@ public class BusinessObject {
      * Payload must be null IFF metadata does not contain field "type"
      */ 
     public static BusinessObject makeObject(BusinessObjectMetadata metadata, byte[] payload) {
-        Biomine3000Mimetype officialType = metadata.getOfficialType();
+        MediaType officialType = metadata.getOfficialType();
         BusinessObject bo = null;
         if (officialType != null) {
             // an official type
             try {
-                bo = officialType.makeBusinessObject();
+                bo = BusinessObjectFactory.make(officialType);
                 bo.setMetadata(metadata);
                 bo.setPayload(payload);
             }
@@ -246,7 +245,7 @@ public class BusinessObject {
      * Create a new business object to be sent; payload length will be set to metadata automatically.
      * Naturally, both type and payload are required to be non-null.
      */
-    protected BusinessObject(Biomine3000Mimetype type, byte[] payload) {
+    protected BusinessObject(MediaType type, byte[] payload) {
         initMetadata(type.toString());
         setPayload(payload); 
     }
@@ -352,49 +351,7 @@ public class BusinessObject {
 	    }
 	}			
 	
-
-	
-	public static void main(String[] args) {
-	    String msgStr = "It has been implemented";
-	    PlainTextObject sentBO = new PlainTextObject(msgStr, Biomine3000Mimetype.BIOMINE_ANNOUNCEMENT);
-	    ILogger log = new StdErrLogger();
-	    System.out.println("Sent bo: "+sentBO);
-	    byte[] msgBytes = sentBO.bytes();
-	    try {
-	        Pair<BusinessObjectMetadata, byte[]> tmp = parseBytes(msgBytes);
-	        BusinessObjectMetadata receivedMetadata = tmp.getObj1();
-	        byte[] receivedPayload = tmp.getObj2();	        
-	        Biomine3000Mimetype officialType = receivedMetadata.getOfficialType();
-	        BusinessObject receivedBO = null;
-	        if (officialType != null) {
-	            // an official type
-	            try {
-	                receivedBO = officialType.makeBusinessObject();
-	                receivedBO.setMetadata(receivedMetadata);
-	                receivedBO.setPayload(receivedPayload);
-	            }	            
-	            catch (IllegalAccessException e) {
-	                log.error("Failed constructing an instance of an official business object type", e);	                 
-	            }
-	            catch (InstantiationException e) {
-                    log.error("Failed constructing an instance of an official business object type", e);                    
-                }
-	            
-	        }
-	        
-            // gravely enough, type is not official, or even more gravely, failed to construct an 
-	        // instance => use pesky default implementation
-	        if (receivedBO == null) {
-	            receivedBO = new BusinessObject(receivedMetadata, receivedPayload);
-	        }
-	        log.info("Received business object: "+receivedBO);
-	    }
-	    catch (InvalidBusinessObjectException e) {
-	        log.error("Received business object with invalid JSON: "+e);	        
-	    }
-	}
-	
-	public String toString() {	    
+	public String toString() {
 	    String payloadStr = metadata.hasPayload() 
 	                      ? "<payload of "+getPayload().length+" bytes>" 
 	                      : (isEvent() ? "" : "<no payload>");
