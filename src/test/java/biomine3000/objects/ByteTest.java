@@ -1,5 +1,8 @@
 package biomine3000.objects;
 
+import biomine3000.objects.Biomine3000Mimetype;
+import biomine3000.objects.BusinessObjectMetadata;
+
 public class ByteTest {
     
     public static void main(String[] args) throws Exception {
