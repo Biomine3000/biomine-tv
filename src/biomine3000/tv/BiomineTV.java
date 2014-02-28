@@ -67,7 +67,7 @@ public class BiomineTV extends JFrame {
           
     /** TODO: support playing in a streaming fashion */     
     private void playMP3(BusinessObject bo) {
-        log("Playing: "+bo.getMetaData().get("name"));
+        message("Playing: "+bo.getMetaData().get("name"));
         mp3Player.play(bo.getPayload());
     }
     
@@ -143,7 +143,7 @@ public class BiomineTV extends JFrame {
         contentPanels.add(imagePanel);
         contentPanels.setLayout(new GridLayout(1, numConnections()));
         contentPanels.revalidate();
-        log("Connected to server: "+address);
+        message("Connected to server: "+address);
         imagePanel.setMessage("Receiving content from server: "+address);
         connectionsByAddress.put(address, connection);
         connection.init(new ConnectionListener(connection, imagePanel));
@@ -256,7 +256,7 @@ public class BiomineTV extends JFrame {
     }
     
     private synchronized void connectionTerminated(ABBOEConnection con) {
-        log("Connection terminated: "+con);
+        message("Connection terminated: "+con);
         this.connectionsByAddress.removeTgt(con);
         
         BiomineTVImagePanel imagePanel = imagePanelByConnection.get(con);
@@ -273,7 +273,7 @@ public class BiomineTV extends JFrame {
         if (shuttingDown()) {
             if (connectionsByAddress.size() == 0) {
                 // no more connections, we can finally die
-                log("Last connection terminated, exiting");
+                message("Last connection terminated, exiting");
                 System.exit(0);
             }
         }
@@ -296,31 +296,45 @@ public class BiomineTV extends JFrame {
                 BusinessObjectEventType et = bo.getMetaData().getKnownEvent();
                 if (et == BusinessObjectEventType.CLIENTS_LIST_REPLY) {
                     String registeredAs = bo.getMetaData().getString("you");
-                    log("This client registered on the server as: "+registeredAs);
+                    message("This client registered on the server as: "+registeredAs);
                     List<String> clients = bo.getMetaData().getList("others");
                     if (clients.size() == 0) {
-                        log("No other clients");
+                        message("No other clients");
                     }
                     else {
-                        log("Other clients:");
-                        log("\t"+StringUtils.collectionToString(clients, "\n\t"));
+                        message("Other clients:");
+                        message("\t"+StringUtils.collectionToString(clients, "\n\t"));
                     }
                     
                 }
                 else if (et == BusinessObjectEventType.CLIENTS_REGISTER_REPLY) {
-                    log("Registered successfully to the server");
+                    message("Registered successfully to the server");
                 }
                 else if (et == BusinessObjectEventType.CLIENTS_REGISTER_NOTIFY) {
                     String name = bo.getMetaData().getName();
-                    log("Client "+name+" registered to ABBOE");
+                    message("Client "+name+" registered to ABBOE");
                 }
                 else if (et == BusinessObjectEventType.CLIENTS_PART_NOTIFY) {
                     String name = bo.getMetaData().getName();
-                    log("Client "+name+" parted from ABBOE");
+                    message("Client "+name+" parted from ABBOE");
+                }
+                else if (et == BusinessObjectEventType.ROUTING_SUBSCRIBE_NOTIFICATION) {
+                	message("ROUTING_SUBSCRIBE_NOTIFICATION");
+                }
+                else if (et == BusinessObjectEventType.ROUTING_DISCONNECT) {
+                	message("ROUTING_DISCONNECT");
+                }
+                else if (et == BusinessObjectEventType.SERVICES_REQUEST) {
+                	String name = bo.getMetaData().getName();
+                	String request = bo.getMetaData().getString("request");
+                	message("HOST " +bo.getMetaData().get("host")+" REQUESTED "+ request + " FROM SERVICE " +name);
+                }
+                else if (et == BusinessObjectEventType.SERVICES_REPLY) {
+                	message("SERVICE_REPLY: "+Biomine3000Utils.formatBusinessObject(bo));
                 }
                 else {
                     // unknown event
-                    log(Biomine3000Utils.formatBusinessObject(bo));
+                    message("UNKNOWN_EVENT: "+Biomine3000Utils.formatBusinessObject(bo));
                 }
             }
             else if (bo instanceof ImageObject) {
@@ -339,7 +353,7 @@ public class BiomineTV extends JFrame {
             }        
             else {
                 // plain object with no or unsupported official type 
-                log("Unable to display content:" +bo);            
+                message("Unable to display content:" +bo);            
             }
         }
 
@@ -402,7 +416,7 @@ public class BiomineTV extends JFrame {
 		}					
 	}    
         
-    private void log(String msg) {
+    private void message(String msg) {
         logPanel.appendText(msg+"\n");
         log.info("BiomineTV: "+msg);
     }    
