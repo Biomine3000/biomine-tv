@@ -35,6 +35,7 @@ dependencies {
     compile files(fileTree(dir: 'lib', includes: ['*.jar']))
 
     assert System.env.LERONEN_JAVA_ROOT != null
+    assert java.nio.file.Paths.get(System.env.LERONEN_JAVA_ROOT, 'leronen.jar').toFile().isFile()
     compile files(fileTree(dir: System.env.LERONEN_JAVA_ROOT, includes: ['*.jar']))
 }
 
