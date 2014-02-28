@@ -96,9 +96,19 @@ public class Biomine3000Utils {
         }
     }
     
+    public static boolean atWel120() {
+        String host = getHostName();
+        if (host != null && host.startsWith("wel-120")) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    
     public static boolean atBC() {
         String host = getHostName();
-        if (host != null && host.equals("xl2")) {
+        if (host != null && host.startsWith("xl2")) {
             return true;
         }
         else {
@@ -180,8 +190,8 @@ public class Biomine3000Utils {
     }
     
     public static Socket connectToServer(Biomine3000Args args) throws IOException, IllegalArgumentsException {        
-        String host = args.get("host");
-        Integer port = args.getInt("port");
+        String host = args.getHost();
+        Integer port = args.getPort();
         return connectToServer(host, port);
     }
     

@@ -28,6 +28,7 @@ public class ContentVaultSender implements IBusinessObjectHandler {
     private ContentVaultAdapter vaultAdapter;
     private int nSent;
     private Integer nToSend;
+    private String channel;
         
     private ILogger log;
     private ABBOEConnection connection;            
@@ -37,11 +38,13 @@ public class ContentVaultSender implements IBusinessObjectHandler {
      * @param nToSend number of objects to send, null for no limit. 
      * @param sendInterval send interval in milliseconds.
      */
-    private ContentVaultSender(Socket socket, Integer nToSend, Integer sendInterval, ILogger log) throws UnknownHostException, IOException {
+    private ContentVaultSender(Socket socket, Integer nToSend, Integer sendInterval, String channel, ILogger log) throws UnknownHostException, IOException {
         this.log = log;
         
         // init state information
-        this.nToSend = nToSend;                        
+        this.nToSend = nToSend;
+        this.channel = channel;
+        
         this.nSent = 0;
         this.stopped = false;
         ClientParameters clientParams = new ClientParameters(CLIENT_PARAMS);
@@ -88,7 +91,7 @@ public class ContentVaultSender implements IBusinessObjectHandler {
             return;
         }
         
-        obj.getMetaData().put("channel", "virityskuva");        
+        obj.getMetaData().put("channel", channel);        
         log.info("Writing an object with following metadata: "+obj.getMetaData());
         
         try {
@@ -116,12 +119,16 @@ public class ContentVaultSender implements IBusinessObjectHandler {
         if (nToSend != null) {
             log.info("Only sending "+nToSend+" objects");
         }          
-                    
-        ContentVaultSender sender = null;
+            
+        String channel = args.getChannel();
+        if (channel == null) {
+        	channel = "virityskuva";
+        }
         
+        ContentVaultSender sender = null;
         try {
             Socket socket = Biomine3000Utils.connectToServer(args);            
-            sender = new ContentVaultSender(socket, nToSend, sendInterval, log);
+            sender = new ContentVaultSender(socket, nToSend, sendInterval, channel, log);                       
         }
         catch (IOException e) {
             log.error("Could not find a server");

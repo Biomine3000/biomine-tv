@@ -53,9 +53,11 @@ public class MP3Sender {
         IOUtils.writeBytes(socket.getOutputStream(), bo.bytes());
         log.info("Sent packet");                
     }
-
+                        
     public static void main(String[] pArgs) throws Exception {        
         Biomine3000Args args = new Biomine3000Args(pArgs);
+        ILogger log = new Logger.ILoggerAdapter();
+        log.info("args: "+args);        
         Socket socket = Biomine3000Utils.connectToServer(args);                
         String channel = args.getChannel();
         String user = args.getUser();
@@ -67,7 +69,7 @@ public class MP3Sender {
             file = Biomine3000Utils.randomFile(".");
         }
             
-        MP3Sender sender = new MP3Sender(socket, new Logger.ILoggerAdapter());
+        MP3Sender sender = new MP3Sender(socket, log);
         sender.send(file, channel, user);
         
         socket.close();

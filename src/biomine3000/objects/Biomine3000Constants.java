@@ -12,6 +12,9 @@ public class Biomine3000Constants {
     public static final int LERONEN_KAPSI_PORT_1 = DEFAULT_ABBOE_PORT;
     public static final int LERONEN_KAPSI_PORT_2 = 61911;
     public static final int LERONEN_KAPSI_PORT_3 = 61912;
+    
+    public static final String ENV_VAR_ABBOE_HOST = "ABBOE_HOST";
+    public static final String ENV_VAR_ABBOE_PORT = "ABBOE_PORT";
 }
 
 

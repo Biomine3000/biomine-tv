@@ -24,7 +24,7 @@ public class Biomine3000Args extends CmdLineArgs2 {
         return get("channel");
     }
     
-    /** opt -user, or env var "USER", or "anonymous"*/  
+    /** opt -user, or env var "USER", or "anonymos"*/  
     public String getUser() {
         // try opt
         String user = get("user");
@@ -42,12 +42,25 @@ public class Biomine3000Args extends CmdLineArgs2 {
         return "anonymous";      
     }
     
+    /** opt -host, or env var "ABBOE_HOST", or null */
     public String getHost() {
-        return get("host");
+        String host = get("host");
+        if (host == null) {
+        	host = System.getenv(Biomine3000Constants.ENV_VAR_ABBOE_HOST); 
+        }
+        return host;
     }
     
+    /** opt -port, or env var "ABBOE_PORT", or null */
     public Integer getPort() {
-        return getInt("port");
+        Integer port = getInt("port");
+        if (port == null) {
+        	String portStr = System.getenv(Biomine3000Constants.ENV_VAR_ABBOE_PORT);
+        	if (portStr != null) {
+        		port = Integer.parseInt(portStr);
+        	}       
+        }
+        return port;
     }
     
     
