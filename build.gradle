@@ -32,6 +32,7 @@ dependencies {
 apply plugin: 'eclipse'
 
 apply plugin: 'java'
+sourceCompatibility = JavaVersion.VERSION_1_7
 
 repositories {
     mavenCentral()
