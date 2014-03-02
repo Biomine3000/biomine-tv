@@ -3,6 +3,7 @@ package biomine3000.objects;
 /**
  * An exception which requires shutting down the server.
  */
+@SuppressWarnings("serial")
 public class UnrecoverableServerException extends ServerException {
 
     public UnrecoverableServerException(String pMsg, Throwable pCause) {

@@ -16,7 +16,6 @@ import java.util.Map;
 import biomine3000.objects.ContentVaultProxy.InvalidStateException;
 
 
-import com.google.common.net.MediaType;
 import util.CmdLineArgs2;
 import util.DateUtils;
 import util.StringUtils;
@@ -301,8 +300,7 @@ public class ABBOEServer {
             
             return result;
         }
-        
-        
+                
        /**
         * Put object to queue of messages to be sent (to this one client) and return immediately.        
         * Assume send queue has unlimited capacity.
@@ -618,8 +616,7 @@ public class ABBOEServer {
         
     }
             
-    
-    @SuppressWarnings("unused")
+        
     private synchronized void shutdown() {
         state = State.SHUTTING_DOWN;
         

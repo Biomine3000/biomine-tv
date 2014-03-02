@@ -42,18 +42,17 @@ public class BMTVMp3Player {
             }
         }.start();
     }
-    
-    @SuppressWarnings("unused")
+        
     private static void log(String msg) {
         Logger.info("BMTVMp3Player: "+msg);
     }
+        
     
     @SuppressWarnings("unused")
-    private static void warn(String msg) {
+	private static void warn(String msg) {
         Logger.warning("BMTVMp3Player: "+msg);
     }        
-    
-    @SuppressWarnings("unused")
+        
     private static void error(String msg, Exception e) {
         Logger.error("BMTVMp3Player: "+msg, e);
     }

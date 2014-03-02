@@ -1,5 +1,6 @@
 package biomine3000.objects;
 
+@SuppressWarnings("serial")
 public abstract class ServerException extends Exception {
     public ServerException(String pMsg, Throwable pCause) {
         super(pMsg, pCause);        

@@ -217,7 +217,8 @@ public class ContentVaultProxy {
         
     }
     
-    public class InvalidStateException extends Exception {
+    @SuppressWarnings("serial")
+	public class InvalidStateException extends Exception {
         public InvalidStateException(String msg) {
             super(msg);
         }

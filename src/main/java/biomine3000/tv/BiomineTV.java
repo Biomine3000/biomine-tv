@@ -24,6 +24,7 @@ import util.collections.OneToOneBidirectionalMap;
 import util.dbg.ILogger;
 import util.dbg.Logger;
 
+@SuppressWarnings("serial")
 public class BiomineTV extends JFrame {
 
     //////////////////////////////
@@ -164,8 +165,7 @@ public class BiomineTV extends JFrame {
     	}    	
     }    
     
-    public static void main(String[] pArgs) throws Exception {
-        @SuppressWarnings("unused")
+    public static void main(String[] pArgs) throws Exception {        
         Biomine3000Args args = new Biomine3000Args(pArgs, true);
         ILogger log = new Logger.ILoggerAdapter("BiomineTV: ");        
         BiomineTV tv = new BiomineTV(log);
@@ -425,8 +425,7 @@ public class BiomineTV extends JFrame {
     private void warn(String msg) {
         log.warning("BiomineTV: "+msg);
     }        
-    
-    @SuppressWarnings("unused")
+        
     private void error(String msg, Exception e) {
         log.error("BiomineTV: "+msg, e);
     }

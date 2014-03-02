@@ -6,6 +6,7 @@ package biomine3000.objects;
  *
  * In practice, InvalidInvalidJSONException will probably contain a JSONException as cause, though, at least initially.
  */
+@SuppressWarnings("serial")
 public class InvalidJSONException extends InvalidBusinessObjectException {               
     
     private Throwable cause;

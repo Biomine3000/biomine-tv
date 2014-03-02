@@ -1,6 +1,7 @@
 package biomine3000.objects;
 
 /** Should this be called "InvalidBusinessObjectException" */
+@SuppressWarnings("serial")
 public class InvalidBusinessObjectException extends Exception {    
                               
     private Throwable cause;

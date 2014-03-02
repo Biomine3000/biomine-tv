@@ -15,6 +15,7 @@ import biomine3000.objects.ImageObject;
 
 import util.dbg.Logger;
 
+@SuppressWarnings("serial")
 public class BiomineTVImagePanel extends JPanel implements
         java.awt.image.ImageObserver {
 

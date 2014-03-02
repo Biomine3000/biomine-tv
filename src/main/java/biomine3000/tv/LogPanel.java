@@ -12,6 +12,7 @@ import javax.swing.SwingUtilities;
 
 import util.dbg.ILogger;
 
+@SuppressWarnings("serial")
 public class LogPanel extends JPanel {
     
     ILogger log;

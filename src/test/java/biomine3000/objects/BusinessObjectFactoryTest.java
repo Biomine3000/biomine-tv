@@ -1,13 +1,9 @@
 package biomine3000.objects;
 
-import com.google.common.net.MediaType;
-import org.junit.Ignore;
 import org.junit.Test;
 
-import java.awt.*;
 
 import static biomine3000.objects.BusinessObjectFactory.make;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 public class BusinessObjectFactoryTest {
