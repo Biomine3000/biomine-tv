@@ -29,6 +29,8 @@ dependencies {
     testCompile "junit:junit:4.11"
 }
 */
+apply plugin: 'eclipse'
+
 apply plugin: 'java'
 
 repositories {
