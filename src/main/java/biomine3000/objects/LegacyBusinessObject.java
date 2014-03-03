@@ -1,4 +1,4 @@
-    package biomine3000.objects;
+package biomine3000.objects;
 
 import static biomine3000.objects.BusinessObjectEventType.CLIENTS_PART_NOTIFY;
 
@@ -8,12 +8,11 @@ import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 
 import com.google.common.net.MediaType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import util.IOUtils;
 import util.IOUtils.UnexpectedEndOfStreamException;
 import util.collections.Pair;
-import util.dbg.ILogger;
-import util.dbg.Logger;
-
 
 /**
  * <pre>
@@ -44,10 +43,8 @@ import util.dbg.Logger;
  */
 @Deprecated
 public class LegacyBusinessObject implements IBusinessObject  {    
-    
-    @SuppressWarnings("unused")
-    private static ILogger log = new Logger.ILoggerAdapter("BusinessObject");
-    
+    private static final Logger log = LoggerFactory.getLogger(LegacyBusinessObject.class);
+
    /**
     * Implementation note: this should never be set directly, but always using setMetadata.
     * This is because we always want a reverse link from the metadata to this object.
@@ -189,10 +186,10 @@ public class LegacyBusinessObject implements IBusinessObject  {
                 bo.setPayload(payload);
             }
             catch (IllegalAccessException e) {
-                Logger.error("Failed constructing an instance of an official business object type", e);                     
+                log.error("Failed constructing an instance of an official business object type", e);
             }
             catch (InstantiationException e) {
-                Logger.error("Failed constructing an instance of an official business object type", e);                    
+                log.error("Failed constructing an instance of an official business object type", e);
             }
             
         }

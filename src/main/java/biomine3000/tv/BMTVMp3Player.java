@@ -1,11 +1,15 @@
 package biomine3000.tv;
 
 import java.io.ByteArrayInputStream;
-import util.dbg.Logger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javazoom.jl.player.Player;
 
-public class BMTVMp3Player {    
+public class BMTVMp3Player {
+    private final Logger logger = LoggerFactory.getLogger(BMTVMp3Player.class);
+
     private Player player; 
     
     public void close() { 
@@ -24,37 +28,23 @@ public class BMTVMp3Player {
             player = new Player(bais);            
         }
         catch (Exception e) {
-            error("Failed creating player", e);
+            logger.error("Failed creating player", e);
             return;
         }
 
         // run in new thread to play in background
-        log("Creating thread to play");
+        logger.info("Creating thread to play");
         new Thread() {
             public void run() {
                 try { 
                     player.play();
-                    log("Returned from player.play");
+                    logger.info("Returned from player.play");
                 }
                 catch (Exception e) {
-                    error("Failed playing", e);
+                    logger.error("Failed playing", e);
                 }
             }
         }.start();
-    }
-        
-    private static void log(String msg) {
-        Logger.info("BMTVMp3Player: "+msg);
-    }
-        
-    
-    @SuppressWarnings("unused")
-	private static void warn(String msg) {
-        Logger.warning("BMTVMp3Player: "+msg);
-    }        
-        
-    private static void error(String msg, Exception e) {
-        Logger.error("BMTVMp3Player: "+msg, e);
     }
 }
 

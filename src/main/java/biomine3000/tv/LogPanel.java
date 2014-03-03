@@ -1,5 +1,8 @@
 package biomine3000.tv;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Rectangle;
@@ -10,12 +13,10 @@ import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 
 
-import util.dbg.ILogger;
-
 @SuppressWarnings("serial")
 public class LogPanel extends JPanel {
-    
-    ILogger log;
+    private final Logger log = LoggerFactory.getLogger(LogPanel.class);
+
     JTextArea textArea;
     JScrollPane scrollPane;
         
@@ -46,8 +47,7 @@ public class LogPanel extends JPanel {
         }
     }
     
-    public LogPanel(ILogger log) {
-        this.log = log;
+    public LogPanel() {
         textArea = new JTextArea();
         scrollPane = new JScrollPane(textArea);
         

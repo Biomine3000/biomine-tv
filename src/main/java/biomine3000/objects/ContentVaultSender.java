@@ -3,11 +3,9 @@ package biomine3000.objects;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.net.UnknownHostException;
 
-import util.dbg.ILogger;
-import util.dbg.Logger;
-import biomine3000.objects.ContentVaultProxy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Sends objects from the notorious content vault with a constant interval
@@ -19,10 +17,11 @@ import biomine3000.objects.ContentVaultProxy;
  * Use a {@link ContentVaultProxy} for loading the stuff over the web.
  */
 public class ContentVaultSender implements IBusinessObjectHandler {
+    private final Logger log = LoggerFactory.getLogger(ContentVaultSender.class);
 
     private static final ClientParameters CLIENT_PARAMS = 
-            new ClientParameters("ContentVaultSender", ClientReceiveMode.NONE, 
-                                 Subscriptions.NONE, false);
+            new ClientParameters("ContentVaultSender", ClientReceiveMode.NONE,
+                    Subscriptions.NONE, false);
     
     private boolean stopped;
     private ContentVaultAdapter vaultAdapter;
@@ -30,17 +29,15 @@ public class ContentVaultSender implements IBusinessObjectHandler {
     private Integer nToSend;
     private String channel;
         
-    private ILogger log;
-    private ABBOEConnection connection;            
+    private ABBOEConnection connection;
            
     /**
      * {@link #startLoadingContent} has to be called separately.
      * @param nToSend number of objects to send, null for no limit. 
      * @param sendInterval send interval in milliseconds.
      */
-    private ContentVaultSender(Socket socket, Integer nToSend, Integer sendInterval, String channel, ILogger log) throws UnknownHostException, IOException {
-        this.log = log;
-        
+    private ContentVaultSender(Socket socket, Integer nToSend, Integer sendInterval, String channel)
+            throws IOException {
         // init state information
         this.nToSend = nToSend;
         this.channel = channel;
@@ -50,7 +47,7 @@ public class ContentVaultSender implements IBusinessObjectHandler {
         ClientParameters clientParams = new ClientParameters(CLIENT_PARAMS);
         clientParams.sender = "ContentVaultSender-"+Biomine3000Utils.getUser();
         
-        this.connection = new ABBOEConnection(CLIENT_PARAMS, socket, log);
+        this.connection = new ABBOEConnection(CLIENT_PARAMS, socket);
         this.connection.init(new ObjectHandler());
                        
         // init adapter which we will use to periodically receive business objects from the content vault proxy
@@ -107,8 +104,9 @@ public class ContentVaultSender implements IBusinessObjectHandler {
     }    
             
     public static void main(String[] pArgs) throws Exception {                
-        Biomine3000Args args = new Biomine3000Args(pArgs, true);               
-        ILogger log = new Logger.ILoggerAdapter();
+        Biomine3000Args args = new Biomine3000Args(pArgs, true);
+
+        org.slf4j.Logger log = LoggerFactory.getLogger(ContentVaultSender.class);
                 
         Integer nToSend = args.getInt("n");
         if (nToSend != null) {
@@ -128,7 +126,7 @@ public class ContentVaultSender implements IBusinessObjectHandler {
         ContentVaultSender sender = null;
         try {
             Socket socket = Biomine3000Utils.connectToServer(args);            
-            sender = new ContentVaultSender(socket, nToSend, sendInterval, channel, log);                       
+            sender = new ContentVaultSender(socket, nToSend, sendInterval, channel);
         }
         catch (IOException e) {
             log.error("Could not find a server");

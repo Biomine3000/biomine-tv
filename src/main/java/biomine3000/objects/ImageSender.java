@@ -8,19 +8,18 @@ import java.net.Socket;
 
 import com.google.common.io.Files;
 import com.google.common.net.MediaType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import util.IOUtils;
 import util.StringUtils;
-import util.dbg.ILogger;
-import util.dbg.Logger;
 
 public class ImageSender {
+    private final Logger log = LoggerFactory.getLogger(ImageSender.class);
 
-    private ILogger log;
-    private Socket socket = null;    
+    private Socket socket = null;
     
-    public ImageSender(Socket socket, ILogger log) {
+    public ImageSender(Socket socket) {
         this.socket = socket;
-        this.log = log;
     }
           
     /** Channel and user may be null, file may not. */
@@ -73,7 +72,7 @@ public class ImageSender {
         else {
             file = Biomine3000Utils.randomFile(".");
         }
-        ImageSender sender = new ImageSender(socket, new Logger.ILoggerAdapter());
+        ImageSender sender = new ImageSender(socket);
         sender.send(file, channel, user);
         
         socket.close();

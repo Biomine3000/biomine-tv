@@ -16,7 +16,7 @@ public static final String CMD_ADDRTEST = "addrtest";
     @Override
     public void run(String cmd) throws Exception {
         if (cmd.equals(CMD_ADDRTEST)) {
-            Socket socket = Biomine3000Utils.connectToBestAvailableServer(new StdErrLogger());
+            Socket socket = Biomine3000Utils.connectToBestAvailableServer();
             log.info("Address: "+socket.getLocalSocketAddress().toString());
             socket.close();
         }

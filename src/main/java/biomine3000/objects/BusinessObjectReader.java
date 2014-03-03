@@ -8,10 +8,9 @@ import java.net.Socket;
 import java.net.SocketException;
 
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import util.collections.Pair;
-import util.dbg.DevNullLogger;
-import util.dbg.ILogger;
-import util.dbg.StdErrLogger;
 
 /**
  * Thread for reading business objects from a stream and notifying a single registered {@link Listener} 
@@ -24,9 +23,8 @@ import util.dbg.StdErrLogger;
  * TODO: generalize this to obtain a generic PacketReader.
  */
 public class BusinessObjectReader implements Runnable {
-           
-    private ILogger log;
-    
+    private final Logger log = LoggerFactory.getLogger(BusinessObjectReader.class);
+
     private State state;
     
     private InputStream is;
@@ -35,21 +33,11 @@ public class BusinessObjectReader implements Runnable {
     private boolean constructDedicatedImplementations;
     
     public BusinessObjectReader(InputStream is, Listener listener, String name, boolean constructDedicatedImplementations) {
-        this(is, listener, name, constructDedicatedImplementations, null);
-    }
-            
-    public BusinessObjectReader(InputStream is, Listener listener, String name, boolean constructDedicatedImplementations, ILogger log) {
         this.state = State.NOT_STARTED; 
         this.is = is;
         this.listener = listener;
         this.name = name;
         this.constructDedicatedImplementations = constructDedicatedImplementations;
-        if (log != null) {
-            this.log = log;
-        }
-        else {
-            this.log = DevNullLogger.SINGLETON;
-        }
     }
             
     public void setName(String name) {
@@ -120,7 +108,7 @@ public class BusinessObjectReader implements Runnable {
     }       
     
     private void dbg(String msg) {
-        log.dbg(name+": "+msg);
+        log.debug(name+": "+msg);
     }    
     
     /** Test by connecting to the server and reading everything. */
@@ -133,15 +121,7 @@ public class BusinessObjectReader implements Runnable {
     }
     
     public static abstract class AbstractListener implements Listener {                                                  
-
-        protected ILogger log;
-        
         public AbstractListener() {
-            log = new StdErrLogger();
-        }
-        
-        public AbstractListener(ILogger log) {
-            this.log = log;
         }
         
         /** Generic handling for all exception types, including RuntimeExceptions. */
@@ -164,16 +144,9 @@ public class BusinessObjectReader implements Runnable {
         }                             
     }
     
-    public static class DefaultListener extends AbstractListener {                                                  
-
-        protected ILogger log;
-        
+    public static class DefaultListener extends AbstractListener {
+        private Logger log = LoggerFactory.getLogger(DefaultListener.class);
         public DefaultListener() {
-            log = new StdErrLogger();
-        }
-        
-        public DefaultListener(ILogger log) {
-            this.log = log;
         }
         
         @Override

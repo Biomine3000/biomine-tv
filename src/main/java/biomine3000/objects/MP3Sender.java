@@ -7,19 +7,18 @@ import java.io.IOException;
 import java.net.Socket;
 
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import util.IOUtils;
 import util.StringUtils;
-import util.dbg.ILogger;
-import util.dbg.Logger;
 
 public class MP3Sender {
+    private static final Logger log = LoggerFactory.getLogger(MP3Sender.class);
 
-    private ILogger log;
-    private Socket socket = null;    
+    private Socket socket = null;
     
-    public MP3Sender(Socket socket, ILogger log) {
+    public MP3Sender(Socket socket) {
         this.socket = socket;
-        this.log = log;
     }
           
     /** Channel and user may be null, file may not. */
@@ -54,10 +53,9 @@ public class MP3Sender {
         log.info("Sent packet");                
     }
                         
-    public static void main(String[] pArgs) throws Exception {        
+    public static void main(String[] pArgs) throws Exception {
         Biomine3000Args args = new Biomine3000Args(pArgs);
-        ILogger log = new Logger.ILoggerAdapter();
-        log.info("args: "+args);        
+        log.info("args: "+args);
         Socket socket = Biomine3000Utils.connectToServer(args);                
         String channel = args.getChannel();
         String user = args.getUser();
@@ -69,7 +67,7 @@ public class MP3Sender {
             file = Biomine3000Utils.randomFile(".");
         }
             
-        MP3Sender sender = new MP3Sender(socket, log);
+        MP3Sender sender = new MP3Sender(socket);
         sender.send(file, channel, user);
         
         socket.close();

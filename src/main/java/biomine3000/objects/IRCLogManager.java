@@ -9,14 +9,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import util.CmdLineArgs2.IllegalArgumentsException;
 import util.IOUtils;
 import util.StringUtils;
-import util.dbg.ILogger;
-import util.dbg.Logger;
 import util.io.FileNameCondition;
 import util.io.FileUtils;
-import biomine3000.objects.ContentVaultProxy;
 
 /**
  * Sends objects from the notorious content vault with a constant interval
@@ -28,7 +27,8 @@ import biomine3000.objects.ContentVaultProxy;
  * Use a {@link ContentVaultProxy} for loading the stuff over the web.
  */
 public class IRCLogManager  {
-       
+    private final Logger log = LoggerFactory.getLogger(IRCLogManager.class);
+
     private static ClientParameters CLIENT_PARAMS = 
             new ClientParameters("IRCLogManager", ClientReceiveMode.NO_ECHO, 
                                  Subscriptions.PLAINTEXT, false);
@@ -40,7 +40,6 @@ public class IRCLogManager  {
     }
     
     private Biomine3000Args args;           
-    private ILogger log;
     private ABBOEConnection connection;
     
     private Map<String, LogFile> logFileByName;
@@ -50,7 +49,6 @@ public class IRCLogManager  {
      */
     private IRCLogManager(Biomine3000Args args) {
         this.args = args;       
-        this.log = new Logger.ILoggerAdapter();           
     }
      
     private void readLogs() throws IOException, IllegalArgumentsException {
@@ -105,7 +103,7 @@ public class IRCLogManager  {
     @SuppressWarnings("unused")
     private void connectToABBOE() throws IOException, IllegalArgumentsException {
         Socket socket = Biomine3000Utils.connectToServer(args);
-        this.connection = new ABBOEConnection(CLIENT_PARAMS, socket, log);
+        this.connection = new ABBOEConnection(CLIENT_PARAMS, socket);
         this.connection.init(new ObjectHandler());
                             
     }

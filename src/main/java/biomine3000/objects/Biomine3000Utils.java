@@ -13,13 +13,14 @@ import java.util.Calendar;
 
 import org.json.JSONException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import util.CmdLineArgs2;
 import util.CmdLineArgs2.IllegalArgumentsException;
 import util.RandUtils;
-import util.dbg.ILogger;
-import util.dbg.Logger;
 
 public class Biomine3000Utils {
+    private static final Logger log = LoggerFactory.getLogger(Biomine3000Utils.class);
     
     /** Return null if host name for some reason could not be resolved */
     public static String getHostName()  {
@@ -153,12 +154,12 @@ public class Biomine3000Utils {
      * On failure, just throw an IOException corresponding to the failure to 
      * connect to the last of the tried addresses.
      */
-    public static Socket connectToBestAvailableServer(ILogger log) throws IOException {
+    public static Socket connectToBestAvailableServer() throws IOException {
         IOException lastEx = null;
         for (ServerAddress addr: ServerAddress.values()) {
             try {
                 log.info("Connecting to server: "+addr);
-                Socket socket = connectToServer(addr.getHost(), addr.getPort(), log);
+                Socket socket = connectToServer(addr.getHost(), addr.getPort());
                 log.info("Successfully connected");
                 return socket;                
             }
@@ -204,33 +205,26 @@ public class Biomine3000Utils {
         Integer loglevel = args.getInt("loglevel");
         if (loglevel != null) {
             // Logger.info("Setting log level to: "+loglevel);
-            Logger.setLogLevel(loglevel);
+            // Logger.setLogLevel(loglevel);
+            // TODO: run-time configuration
+            log.warn("Command-line parameters for logging not respected.");
         }        
         
         String logfile = args.get("logfile");
         if (logfile != null) {
-            Logger.info("Writing log to file: "+logfile);
-            Logger.addStream(logfile, Logger.LOGLEVEL_INFO);
+            // Logger.info("Writing log to file: "+logfile);
+            // Logger.addStream(logfile, Logger.LOGLEVEL_INFO);
+            // TODO: run-time configuration
+            log.warn("Command-line parameters for logging not respected.");
         }
         
         String warningfile = args.get("warningfile");
         if (warningfile != null) {
-            Logger.info("Writing warnings to file: "+warningfile);
-            Logger.addStream(warningfile, Logger.LOGLEVEL_WARNING);
+            // Logger.info("Writing warnings to file: "+warningfile);
+            // Logger.addStream(warningfile, Logger.LOGLEVEL_WARNING)
+            // TODO: run-time configuration
+            log.warn("Command-line parameters for logging not respected.");
         }
-    }
-    
-    /**
-     * Socket and host may be null, in which case we shall try all known server locations. 
-     * Connection timeout shall be somewhat smaller than the default one.
-     * 
-     * Always return a non-null connection when no exception is thrown.
-     * 
-     * Use default logger (util.dbg.Logger.ILoggerAdapter)
-     * 
-     */
-    public static Socket connectToServer(String host, Integer port) throws IOException {
-        return connectToServer(host, port, null); 
     }
     
     /**
@@ -239,18 +233,14 @@ public class Biomine3000Utils {
      * 
      * Always return a non-null connection when no exception is thrown.
      */
-    public static Socket connectToServer(String host, Integer port, ILogger log) throws IOException {
-        if (log == null) {
-            log = new Logger.ILoggerAdapter();
-        }
-        
+    public static Socket connectToServer(String host, Integer port) throws IOException {
         if (host != null && port != null) {
             // connect to a well-defined server
             return connect(new InetSocketAddress(host, port));
         }
         else if (host == null && port == null) {
             // no port or host, try default servers.
-            return connectToBestAvailableServer(log);
+            return connectToBestAvailableServer();
         }
         else if (host == null) {
             throw new IOException("Cannot connect: host is null");

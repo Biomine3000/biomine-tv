@@ -10,18 +10,18 @@ import java.util.List;
 import org.json.JSONException;
 
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import util.StringUtils;
-import util.dbg.ILogger;
-import util.dbg.Logger;
 
 public class TrivialClient {
+    private final Logger log = LoggerFactory.getLogger(TrivialClient.class);
               
     private static final ClientParameters CLIENT_PARAMS = 
             new ClientParameters("TrivialClient", ClientReceiveMode.NO_ECHO, 
                                  Subscriptions.make("text/plain"), false);
     
-    private ILogger log;
-    private ABBOEConnection connection;            
+    private ABBOEConnection connection;
     private boolean stopYourStdinReading = false;    
     private SystemInReader systemInReader;
     private String user;
@@ -30,13 +30,12 @@ public class TrivialClient {
     private StdinReaderState stdinReaderState;
     
     /** Call {@link mainReadLoop()} to perform actual processing */
-    public TrivialClient(Socket socket, String user, ILogger log) throws IOException, UnknownHostException, JSONException {
-        this.log = log;
+    public TrivialClient(Socket socket, String user) throws IOException, JSONException {
         this.user = user;
         this.stdinReaderState = StdinReaderState.NOT_YET_READING;
         ClientParameters clientParams = new ClientParameters(CLIENT_PARAMS);
         clientParams.sender = Biomine3000Utils.getUser();
-        this.connection = new ABBOEConnection(clientParams, socket, log);
+        this.connection = new ABBOEConnection(clientParams, socket);
         this.connection.init(new ObjectHandler());
         this.connection.sendClientListRequest();
     }
@@ -103,7 +102,7 @@ public class TrivialClient {
             stopYourStdinReading = true;
             
             // actually, setting the above flag is not enough, so let's just:
-            log.dbg("Forcibly exiting");
+            log.debug("Forcibly exiting");
             System.exit(0);
         }
         
@@ -169,7 +168,7 @@ public class TrivialClient {
 
         @Override
         public void connectionTerminated(Exception e) {
-            log.error(e);
+            log.error("Connection terminated", e);
             terminateStdinReadLoopIfNeeded();
         }
         
@@ -182,7 +181,7 @@ public class TrivialClient {
         if (user == null) {
             user = "anonymous";
         }
-        TrivialClient client = new TrivialClient(socket, user, new Logger.ILoggerAdapter("TrivialClient: "));        
+        TrivialClient client = new TrivialClient(socket, user);
         client.startMainReadLoop();
     }
     

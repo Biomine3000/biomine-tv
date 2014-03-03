@@ -12,15 +12,16 @@ import java.awt.image.BufferedImage;
 import javax.swing.JPanel;
 
 import biomine3000.objects.ImageObject;
-
-import util.dbg.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("serial")
 public class BiomineTVImagePanel extends JPanel implements
         java.awt.image.ImageObserver {
+    private final Logger logger = LoggerFactory.getLogger(BiomineTVImagePanel.class);
 
     private BiomineTV tv;
-    
+
     String msg;
     BufferedImage img;
 
@@ -28,171 +29,148 @@ public class BiomineTVImagePanel extends JPanel implements
     int yoff = 0;
 
     public BiomineTVImagePanel(BiomineTV tv) {
-        this.tv = tv;        
+        this.tv = tv;
         img = null;
         Font font = new Font("Dialog", Font.PLAIN, 20);
         this.setFont(font);
         // setContent(urlStr);
-    }        
-    
+    }
+
     public String getMessage() {
         return msg;
     }
-    
+
     public void setMessage(String msg) {
         if (this.msg != null) {
-            synchronized(this.msg) {
+            synchronized (this.msg) {
                 this.msg = msg;
-                log("Message set to: "+msg);
+                logger.info("Message set to: " + msg);
             }
-        }
-        else {
+        } else {
             this.msg = msg;
         }
-        
+
         repaint();
     }
-    
+
     public void setImage(BufferedImage img) {
         if (this.img != null) {
-            synchronized(this.img) {
+            synchronized (this.img) {
                 // synchronization needed, otherwise we could change the image
                 // while it is being painted
                 // TODO: do not defer getting buffered image so far                
-                this.img = img;                               
+                this.img = img;
             }
-        }
-        else {
+        } else {
             // no image yet, nothing to synchronize
             this.img = img;
         }
         repaint();
-        
-    }        
+
+    }
 
     private void paintMessage(Graphics g) {
         if (msg == null) {
             return;
         }
-        
+
         int w = getWidth();
-        int h = getHeight();        
-        synchronized(msg) {
+        int h = getHeight();
+        synchronized (msg) {
             FontMetrics fm = g.getFontMetrics();
             int msgWidth = fm.stringWidth(msg);
             int msgHeight = fm.getHeight();
             int x = (w - msgWidth) / 2;
-            int y = h/2 + msgHeight / 2;
+            int y = h / 2 + msgHeight / 2;
             g.drawString(msg, x, y);
         }
     }
 
-    
-    
+
     public void paintComponent(Graphics g) {
-        
-        
+
+
         if (img != null) {
             paintImage(g);
-        }
-        else {
+        } else {
             // if no image, let's go for an opaque background
             super.paintComponent(g);
         }
-        
+
         if (msg != null) {
             paintMessage(g);
         }
     }
-        
-    
-    public void paintImage(Graphics g) {        
+
+
+    public void paintImage(Graphics g) {
         int w = getWidth();
         int h = getHeight();
         int iw = img.getWidth();
-        int ih = img.getHeight();                    
-        
-        double imageAspectRatio = ((double)iw)/ih;
-        double panelAspectRatio = ((double)w)/h;       
-        
+        int ih = img.getHeight();
+
+        double imageAspectRatio = ((double) iw) / ih;
+        double panelAspectRatio = ((double) w) / h;
+
         int x1 = 0;
         int x2 = w;
         int y1 = 0;
         int y2 = h;
-        
-        if ( imageAspectRatio > panelAspectRatio) {
+
+        if (imageAspectRatio > panelAspectRatio) {
             // by which factor the image would have to be made taller to make it suitable for the tv:            
             double yFactor = imageAspectRatio / panelAspectRatio;
-            int iHeightOnPanel= (int)(h / yFactor);
+            int iHeightOnPanel = (int) (h / yFactor);
             int extraHeight = h - iHeightOnPanel;
-            
-            y1 = extraHeight/2;
-            y2 = h - extraHeight/2;
-            
+
+            y1 = extraHeight / 2;
+            y2 = h - extraHeight / 2;
+
             // render top and bottom rectangles with uniform color that is average of colors on the corresponding edges of the image
             try {
-                
-                
+
+
                 Color topColor = ImageUtils.getEdgeColor(img, Edge.TOP);
                 g.setColor(topColor);
-                g.fillRect(0, 0, w, extraHeight/2);
-                                
+                g.fillRect(0, 0, w, extraHeight / 2);
+
                 Color bottomColor = ImageUtils.getEdgeColor(img, Edge.BOTTOM);
                 g.setColor(bottomColor);
-                g.fillRect(0, y2, w, extraHeight/2);
-            }
-            catch (RuntimeException e) {
+                g.fillRect(0, y2, w, extraHeight / 2);
+            } catch (RuntimeException e) {
                 e.printStackTrace();
                 tv.close();
             }
-        }
-        else if (imageAspectRatio < panelAspectRatio) {
+        } else if (imageAspectRatio < panelAspectRatio) {
             // by which factor the image would have to be made wider to make it suitable for the tv:            
             double xFactor = panelAspectRatio / imageAspectRatio;
-            int iWidthOnPanel= (int)(w / xFactor);
+            int iWidthOnPanel = (int) (w / xFactor);
             int extraWidth = w - iWidthOnPanel;
-            
-            x1 = extraWidth/2;
-            x2 = w - extraWidth/2;
-            
-           // render left and right rectangles with uniform color that is average of colors on the corresponding edges of the image
+
+            x1 = extraWidth / 2;
+            x2 = w - extraWidth / 2;
+
+            // render left and right rectangles with uniform color that is average of colors on the corresponding edges of the image
             Color leftColor = ImageUtils.getEdgeColor(img, Edge.LEFT);
             g.setColor(leftColor);
-            g.fillRect(0, 0, extraWidth/2, h);
-            
+            g.fillRect(0, 0, extraWidth / 2, h);
+
             Color rightColor = ImageUtils.getEdgeColor(img, Edge.RIGHT);
             g.setColor(rightColor);
-            g.fillRect(x2, 0, extraWidth/2, h);
+            g.fillRect(x2, 0, extraWidth / 2, h);
+        } else {
+            logger.warn("WOOT?");
         }
-        else {
-            Logger.warning("WOOT?");
-        }
-                 
+
         g.drawImage(img,
-                    x1, y1, x2, y2,
-                    0, 0, iw, ih,
-                    this);
-        
-        
+                x1, y1, x2, y2,
+                0, 0, iw, ih,
+                this);
+
+
     }
 
     public Dimension getPreferredSize() {
         return new Dimension(100, 100);
     }
-
-       
-    private static void log(String msg) {
-        Logger.info("BiomineTVImagePanel: "+msg);
-    }    
-    
-    @SuppressWarnings("unused")
-    private static void warn(String msg) {
-        Logger.warning("BiomineTVImagePanel: "+msg);
-    }        
-    
-    @SuppressWarnings("unused")
-    private static void error(String msg, Exception e) {
-        Logger.error("BiomineTVImagePanel: "+msg, e);
-    }
-
 }

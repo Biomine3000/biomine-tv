@@ -11,8 +11,6 @@ import org.json.JSONObject;
 
 import util.CollectionUtils;
 import util.JSONUtils;
-import util.dbg.DevNullLogger;
-import util.dbg.ILogger;
 
 
 /**
@@ -35,15 +33,8 @@ public class BusinessObjectMetadata {
         
     private IBusinessObject obj;
     
-    @SuppressWarnings("unused")
-    private static ILogger log = new DevNullLogger();
-    
-    public static void setLogger(ILogger log) {
-        BusinessObjectMetadata.log = log;
-    }
-            
     private JSONObject json;
-    
+
     public void setObject(IBusinessObject obj) {
         this.obj = obj;
     }

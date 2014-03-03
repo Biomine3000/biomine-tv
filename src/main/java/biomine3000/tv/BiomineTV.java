@@ -21,21 +21,20 @@ import java.util.*;
 
 import biomine3000.objects.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import util.StringUtils;
 import util.collections.OneToOneBidirectionalMap;
-import util.dbg.ILogger;
-import util.dbg.Logger;
 
 @SuppressWarnings("serial")
 public class BiomineTV extends JFrame {
+    private final Logger log = LoggerFactory.getLogger(BiomineTV.class);
 
     //////////////////////////////
     // CONSTANTS
     private static final double RETRY_INTERVAL_SEC = 1.0;
     private static final ClientParameters CLIENT_PARAMS = 
             new ClientParameters("BiomineTV", ClientReceiveMode.NO_ECHO, Subscriptions.ALL, true);
-    
-    private ILogger log;
     
     ////////////////////////////////
     // GUI
@@ -61,8 +60,7 @@ public class BiomineTV extends JFrame {
 	/** Thread for initiating and retrying connections */
 	private ConnectionThread monitorThread;
 	
-    public BiomineTV(ILogger log) {
-        this.log = log;
+    public BiomineTV() {
 	    init();
     }
 
@@ -86,7 +84,7 @@ public class BiomineTV extends JFrame {
 	    contentPanels.add(notConnectedLabel);
 	    logArea = new JTextArea();
 	    logArea.setSize(400, 400);
-	    logPanel = new LogPanel(log);
+	    logPanel = new LogPanel();
 	    logPanel.setPreferredSize(new Dimension(400, 400));
 	    logLines = new LinkedList<String>();	    
 	    setLayout(new BorderLayout());
@@ -137,7 +135,7 @@ public class BiomineTV extends JFrame {
                
         ClientParameters clientParams = new ClientParameters(CLIENT_PARAMS);
         clientParams.sender = Biomine3000Utils.getUser();
-        ABBOEConnection connection = new ABBOEConnection(CLIENT_PARAMS, socket, log);
+        ABBOEConnection connection = new ABBOEConnection(CLIENT_PARAMS, socket);
         BiomineTVImagePanel imagePanel = new BiomineTVImagePanel(this);
         imagePanelByConnection.put(connection, imagePanel);
         if (notConnectedLabel != null) {
@@ -169,8 +167,7 @@ public class BiomineTV extends JFrame {
     
     public static void main(String[] pArgs) throws Exception {        
         Biomine3000Args args = new Biomine3000Args(pArgs, true);
-        ILogger log = new Logger.ILoggerAdapter("BiomineTV: ");        
-        BiomineTV tv = new BiomineTV(log);
+        BiomineTV tv = new BiomineTV();
         tv.setSize(800,600);
         tv.setLocation(300,300);
         tv.setVisible(true);
@@ -218,7 +215,7 @@ public class BiomineTV extends JFrame {
                                 // no action 
                             }
                             catch (IOException e) {
-                                error("Failed connecting to server "+address, e);
+                                log.error("Failed connecting to server "+address, e);
                             }
                         }
                     }
@@ -454,15 +451,4 @@ public class BiomineTV extends JFrame {
         logPanel.appendText(msg+"\n");
         log.info("BiomineTV: "+msg);
     }    
-    
-    @SuppressWarnings("unused")
-    private void warn(String msg) {
-        log.warning("BiomineTV: "+msg);
-    }        
-        
-    private void error(String msg, Exception e) {
-        log.error("BiomineTV: "+msg, e);
-    }
-    
-
 }

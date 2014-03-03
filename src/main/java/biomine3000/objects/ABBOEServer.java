@@ -15,12 +15,11 @@ import java.util.Map;
 
 import biomine3000.objects.ContentVaultProxy.InvalidStateException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import util.CmdLineArgs2;
-import util.DateUtils;
 import util.StringUtils;
-import util.dbg.ILogger;
-import util.dbg.Logger;
 import util.net.NonBlockingSender;
 
 /**
@@ -36,10 +35,9 @@ import util.net.NonBlockingSender;
  * the server stops sending to that client and closes the socket. 
  *
  */
-public class ABBOEServer {   
-   
-    private static ILogger log = new Logger.ILoggerAdapter(null, new DateUtils.BMZGenerator());
-    
+public class ABBOEServer {
+    private final Logger log = LoggerFactory.getLogger(ABBOEServer.class);
+
     public static final DateFormat DEFAULT_DATE_FORMAT = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM);
         
     private ServerSocket serverSocket;    
@@ -85,7 +83,7 @@ public class ABBOEServer {
         this.serverPort = port;
         serverSocket = new ServerSocket(serverPort);        
         clients = new ArrayList<Client>();
-        log("Listening.");
+        log.info("Listening.");
         contentVaultProxy = new ContentVaultProxy();
         contentVaultProxy.addListener(new ContentVaultListener());
         contentVaultProxy.startLoading();
@@ -102,7 +100,7 @@ public class ABBOEServer {
                 }
             }
             catch (InvalidStateException e) {
-                error("Content vault at invalid state after loading all images?");
+                log.error("Content vault at invalid state after loading all images?");
             }                
         }
                     
@@ -155,24 +153,24 @@ public class ABBOEServer {
         state = State.ACCEPTING_CLIENTS;
         
         while (state == State.ACCEPTING_CLIENTS) {
-            log("Waiting for client...");
+            log.info("Waiting for client...");
             
             try {
                 Socket clientSocket = serverSocket.accept();
                 if (state == State.ACCEPTING_CLIENTS) {
-                    log("Client connected from "+clientSocket.getRemoteSocketAddress());
+                    log.info("Client connected from {}", clientSocket.getRemoteSocketAddress());
                     acceptSingleClient(clientSocket);                    
                 }
                 else {
                     // while waiting, someone seems to have changed our policy to "not accepting clients any more"
                     // TODO: more graceful way of rejecting this connection
-                    log("Not accepting client from: "+clientSocket.getRemoteSocketAddress());
+                    log.info("Not accepting client from: {}", clientSocket.getRemoteSocketAddress());
                     clientSocket.close();
                 }
             } 
             catch (IOException e) {
                 if (state == State.ACCEPTING_CLIENTS) {
-                    error("Accepting a client failed", e);
+                    log.error("Accepting a client failed", e);
                 }
                 // else we are shutting down, and failure is to be expected to result from server socket having been closed 
             }                                                            
@@ -213,7 +211,7 @@ public class ABBOEServer {
             initName();
             is = new BufferedInputStream(socket.getInputStream());
             os = socket.getOutputStream();            
-            sender = new NonBlockingSender(socket, this, log);
+            sender = new NonBlockingSender(socket, this);
             sender.setName(name);
             readerListener = new ReaderListener(this);
             closed = false;
@@ -307,7 +305,7 @@ public class ABBOEServer {
         */
         private void send(byte[] packet) {
             if (senderFinished) {
-                warn("No more sending business");
+                log.warn("No more sending business");
                 return;
             }
             
@@ -315,7 +313,7 @@ public class ABBOEServer {
                 sender.send(packet);
             }
             catch (IOException e) {
-                error("Failed sending to client "+this, e);
+                log.error("Failed sending to client "+this, e);
                 doSenderFinished();
             }
         }       
@@ -325,7 +323,7 @@ public class ABBOEServer {
         }
         
         private void startReaderThread() {
-            reader = new BusinessObjectReader(is, readerListener, name, false, log);            
+            reader = new BusinessObjectReader(is, readerListener, name, false);
             Thread readerThread = new Thread(reader);
             readerThread.start();
         }               
@@ -500,12 +498,12 @@ public class ABBOEServer {
                     client.send(contentVaultProxy.sampleImage());
                 }
                 catch (InvalidStateException e) {
-                    error("Invalid state while getting content from vault", e); 
+                    log.error("Invalid state while getting content from vault", e);
                 }
             }
         }
         catch (IOException e) {
-            error("Failed creating streams on socket", e);
+            log.error("Failed creating streams on socket", e);
             try {
                 clientSocket.close();
             }
@@ -565,24 +563,24 @@ public class ABBOEServer {
                     shortcutStr = line.replace("c ", "");
                 }
                 else {
-                    error("WhatWhatWhat");
+                    log.error("WhatWhatWhat");
                     continue;
                 }
                 if (!(StringUtils.isIntegral(shortcutStr))) {
-                    error("Not a valid shortcut string: "+shortcutStr);
+                    log.error("Not a valid shortcut string: {}", shortcutStr);
                     continue;
                 }
                 if (clientShortcuts == null) {
-                    error("No client map!");
+                    log.error("No client map!");
                     continue;
                 }
                 int shortcut = Integer.parseInt(shortcutStr);
                 
                 Client client = clientShortcuts.get(shortcut);
                 if (client == null) {
-                    error("No such client shortcut: "+shortcut);
+                    log.error("No such client shortcut: {}", shortcut);
                 }
-                log("Closing connection to client: "+client);
+                log.info("Closing connection to client: {}", client);
                 String admin  = Biomine3000Utils.getUser();
                 IBusinessObject closeNotification = new PlainTextObject("ABBOE IS GOING TO CLOSE THIS CONNECTION NOW (as requested by the ABBOE adminstrator, "+admin+")");            
                 closeNotification.setEvent(ABBOE_CLOSE_NOTIFY);
@@ -621,7 +619,7 @@ public class ABBOEServer {
         state = State.SHUTTING_DOWN;
         
         // TODO: more delicate termination needed?
-        log("Initiating shutdown sequence");
+        log.info("Initiating shutdown sequence");
         
         if (clients.size() > 0) {                   
             for (Client client: clients) {                
@@ -774,13 +772,13 @@ public class ABBOEServer {
             client.setName(name);
         }
         else {
-            warn("No name in register packet from "+client);
+            log.warn("No name in register packet from {}", client);
         }
         if (user != null) {
             client.setUser(user);
         }     
         else {
-            warn("No user in register packet from "+client);
+            log.warn("No user in register packet from {}", client);
         }
         
         String msg = "Registered you as \""+name+"-"+user+"\".";
@@ -845,7 +843,7 @@ public class ABBOEServer {
                 // does this event need to be sent to other clients?
                 boolean forwardEvent = true;
                 if (et != null) {                    
-                    log("Received "+et+" event: "+bo);
+                    log.info("Received {} event: ", bo);
                     if (et == CLIENT_REGISTER) {
                         sendErrorReply(client, "Using deprecated name for client registration; the " +
                                        "present-day jargon defines that event type be \""+
@@ -867,16 +865,16 @@ public class ABBOEServer {
                         forwardEvent = false;
                     }
                     else {
-                        log("Received known event which this ABBOE implementation does not handle: "+bo);
+                        log.info("Received known event which this ABBOE implementation does not handle: {}", bo);
                     }
                 }
                 else {
-                    log("Received unknown event: "+bo.getMetadata().getEvent());
+                    log.info("Received unknown event: {}", bo.getMetadata().getEvent());
                 }
                 
                 // send the event if needed 
                 if (forwardEvent) {
-                    log("Sending the very same event to all clients...");
+                    log.info("Sending the very same event to all clients...");
                     ABBOEServer.this.sendToAllClients(client, bo);
                 }
             }
@@ -886,10 +884,10 @@ public class ABBOEServer {
                 if (bo.hasPayload() &&
                         bo.getMetadata().getType() == BusinessMediaType.PLAINTEXT.withoutParameters().toString()) {
                     PlainTextObject pto = new PlainTextObject(bo.getMetadata().clone(), bo.getPayload());
-                    log("Received content: "+Biomine3000Utils.formatBusinessObject(pto));
+                    log.info("Received content: {}", Biomine3000Utils.formatBusinessObject(pto));
                 }
                 else {
-                    log("Received content: "+bo);
+                    log.info("Received content: {}", bo);
                 }
                 // log("Sending the very same content to all clients...");
                 ABBOEServer.this.sendToAllClients(client, bo);
@@ -901,7 +899,7 @@ public class ABBOEServer {
 
         @Override
         public void noMoreObjects() {
-            log("connectionClosed (client closed connection).");                                  
+            log.info("connectionClosed (client closed connection).");
             client.doReceiverFinished();            
         }
 
@@ -910,8 +908,7 @@ public class ABBOEServer {
                 log.info("Connection reset by client: "+this.client);
             }
             else {          
-                error("Exception while reading objects from client "+client, e);                                            
-                log.error(e);                
+                log.error("Exception while reading objects from client " + client, e);
             }
             client.doReceiverFinished();
         }
@@ -933,7 +930,7 @@ public class ABBOEServer {
         }
         
         public void connectionReset() {
-            error("Connection reset by client: "+this.client);
+            log.error("Connection reset by client: {}", this.client);
             client.doReceiverFinished();
         }
     }
@@ -942,7 +939,7 @@ public class ABBOEServer {
         PlainTextObject reply = new PlainTextObject();
         reply.getMetadata().setEvent(ERROR);
         reply.setText(error);
-        log("Sending error reply to client "+client+": "+error);
+        log.info("Sending error reply to client {}: {}", client, error);
         client.send(reply);        
     }
            
@@ -952,7 +949,8 @@ public class ABBOEServer {
     }
     
     public static void main(String[] pArgs) throws Exception {
-        
+        Logger log = LoggerFactory.getLogger(ABBOEServer.class);
+
         CmdLineArgs2 args = new CmdLineArgs2(pArgs);
                         
         Integer port = args.getInt("port");
@@ -962,11 +960,11 @@ public class ABBOEServer {
         }
         
         if (port == null) {
-            error("No -port");
+            log.error("No -port");
             System.exit(1);
         }
         
-        log("Starting ABBOE at port "+port);
+        log.info("Starting ABBOE at port "+port);
                        
         try {
             ABBOEServer server = new ABBOEServer(port);
@@ -976,24 +974,8 @@ public class ABBOEServer {
             server.mainLoop();
         }
         catch (IOException e) {
-            error("Failed initializing ABBOE", e);
+            log.error("Failed initializing ABBOE", e);
         }
-    }
-    
-    private static void log(String msg) {
-        log.info(msg);
-    }    
-    
-    private static void warn(String msg) {
-        log.warning(msg);
-    }        
-    
-    private static void error(String msg) {
-        log.error(msg);
-    }
-    
-    private static void error(String msg, Exception e) {
-        log.error(msg, e);
     }
     
     private enum State {
