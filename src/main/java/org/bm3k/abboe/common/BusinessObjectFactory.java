@@ -1,11 +1,14 @@
 package org.bm3k.abboe.common;
 
 import org.bm3k.abboe.objects.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import util.collections.Pair;
 
 import com.google.common.net.MediaType;
 
 public class BusinessObjectFactory implements IBusinessObjectFactory {
+    private static final Logger logger = LoggerFactory.getLogger(BusinessObjectFactory.class);
 
 	private static final String IMPL_SANE = "sane";
 	private static final String IMPL_LEGACY = "legacy";
@@ -20,7 +23,7 @@ public class BusinessObjectFactory implements IBusinessObjectFactory {
 			if (implName == null) {
 				implName = DEFAULT_IMPL;
 			}
-			System.err.println("Using business object implName: "+implName);
+			logger.info("Using business object implName: "+implName);
 			
 			switch(implName) {
 				case IMPL_SANE: 

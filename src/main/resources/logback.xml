@@ -15,7 +15,7 @@
         <target>System.err</target>
     </appender>
 
-    <logger name="biomine3000" level="INFO" additivity="true">
+    <logger name="org.bm3k.abboe" level="INFO" additivity="true">
         <appender-ref ref="STDERR"/>
     </logger>
 
