@@ -87,8 +87,8 @@ public class LegacyBusinessObject implements BusinessObject {
     }
 
 //    /** Delegate to metadata (TODO: merge metadata class with this one) */
-//    public void setSender(String sender) {
-//        metadata.setSender(sender);        
+//    public void setSender(String client) {
+//        metadata.setSender(client);
 //    }
     
     /**

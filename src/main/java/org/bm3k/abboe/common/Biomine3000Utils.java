@@ -34,11 +34,15 @@ public class Biomine3000Utils {
             return null;
         }
     }
-    
-    /** Format a business object in an IRC-like fashion */
+
+    /**
+     * Format a business object in an IRC-like fashion
+     *
+     * // TODO: support irc nature instead of hard-coded
+     */
     public static String formatBusinessObject(BusinessObject bo) {
-        String sender = bo.getMetadata().getSender();            
-        String channel = bo.getMetadata().getChannel();
+        String sender = bo.getMetadata().getString("sender");
+        String channel = bo.getMetadata().getString("channel");
         if (channel != null) {
             channel = channel.replace("MESKW", "");
         }
@@ -267,38 +271,6 @@ public class Biomine3000Utils {
         System.out.println("at host: "+getHostName());
     }
     
-    /**
-     * Make a register packet to be sent to the server,
-     * e.g.: <pre>
-     *   "event": "client/register",
-     *   "receive: "only_events"
-     * </pre>
-     * @param clientName
-     * @param receiveMode 
-     */
-    public static LegacyBusinessObject makeRegisterPacket(String clientName,
-                                                    ClientReceiveMode receiveMode,
-                                                    Subscriptions subscriptions) {
-        BusinessObjectMetadata meta = new BusinessObjectMetadata();        
-        meta.setEvent(BusinessObjectEventType.CLIENTS_REGISTER);
-        meta.put("name", clientName);
-        meta.put(ClientReceiveMode.KEY, receiveMode.toString());
-        if (subscriptions != null) {
-            try {
-                meta.setSubsciptions(subscriptions);
-            }
-            catch (JSONException e) {
-                throw new RuntimeException("Should not be possible");
-            }
-        }
-        String user = getUser();
-        if (user != null) {
-            meta.setUser(user);
-        }
-        
-        return new LegacyBusinessObject(meta);
-    }
-
     public static File randomFile(String dirName) throws IOException {
         File dir = new File(dirName);
         if (dir.exists() && dir.isDirectory()) {

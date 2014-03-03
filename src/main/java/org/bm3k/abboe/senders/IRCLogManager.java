@@ -134,11 +134,11 @@ public class IRCLogManager  {
                     System.out.println("Registered successfully to the server");
                 }
                 else if (et == BusinessObjectEventType.CLIENTS_REGISTER_NOTIFY) {
-                    String name = bo.getMetadata().getName();
+                    String name = bo.getMetadata().getString("name");
                     System.out.println("Client "+name+" registered to ABBOE");
                 }
                 else if (et == BusinessObjectEventType.CLIENTS_PART_NOTIFY) {
-                    String name = bo.getMetadata().getName();
+                    String name = bo.getMetadata().getString("name");
                     System.out.println("Client "+name+" parted from ABBOE");
                 }
                 else if (et == BusinessObjectEventType.ERROR) {                   

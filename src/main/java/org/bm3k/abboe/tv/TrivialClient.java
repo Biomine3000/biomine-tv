@@ -35,7 +35,7 @@ public class TrivialClient {
         this.user = user;
         this.stdinReaderState = StdinReaderState.NOT_YET_READING;
         ClientParameters clientParams = new ClientParameters(CLIENT_PARAMS);
-        clientParams.sender = Biomine3000Utils.getUser();
+        clientParams.client = Biomine3000Utils.getUser();
         this.connection = new ABBOEConnection(clientParams, socket);
         this.connection.init(new ObjectHandler());
         this.connection.sendClientListRequest();
@@ -84,9 +84,7 @@ public class TrivialClient {
             else {
                 BusinessObject sendObj = BOB.newBuilder()
                         .payload(new PlainTextPayload(line)).build();
-                sendObj.getMetadata().setSender(user);
-                // log.dbg("Sending object: "+sendObj );  
-                connection.send(sendObj);                
+                connection.send(sendObj);
             }
             line = br.readLine();
         }
@@ -144,11 +142,11 @@ public class TrivialClient {
                     System.out.println("Registered successfully to the server");
                 }
                 else if (et == BusinessObjectEventType.CLIENTS_REGISTER_NOTIFY) {
-                    String name = bo.getMetadata().getName();
+                    String name = bo.getMetadata().getString("name");
                     System.out.println("Client "+name+" registered to ABBOE");
                 }
                 else if (et == BusinessObjectEventType.CLIENTS_PART_NOTIFY) {
-                    String name = bo.getMetadata().getName();
+                    String name = bo.getMetadata().getString("name");
                     System.out.println("Client "+name+" parted from ABBOE");
                 }
                 else {

@@ -3,7 +3,9 @@ package org.bm3k.abboe.common;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Used to tell to the sender which stuff a client want to receive */
+/**
+ * Tells the server how the client wants to receive content.
+ */
 public enum ClientReceiveMode {
     /** All objects */
     ALL("all"),

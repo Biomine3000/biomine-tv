@@ -34,7 +34,7 @@ public class ClientUtils {
         metadata.put("name", "clients"); // name of registration service
         metadata.put("request", "join"); // name of service request
         metadata.put("user", params.name);
-        metadata.put("client", params.sender);
+        metadata.put("client", params.client);
 
         return BOB.newBuilder()
                 .event(BusinessObjectEventType.SERVICES_REQUEST)

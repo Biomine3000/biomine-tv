@@ -133,7 +133,7 @@ public class BiomineTV extends JFrame {
         }
                
         ClientParameters clientParams = new ClientParameters(CLIENT_PARAMS);
-        clientParams.sender = Biomine3000Utils.getUser();
+        clientParams.client = Biomine3000Utils.getUser();
         ABBOEConnection connection = new ABBOEConnection(CLIENT_PARAMS, socket);
         BiomineTVImagePanel imagePanel = new BiomineTVImagePanel(this);
         imagePanelByConnection.put(connection, imagePanel);
@@ -309,11 +309,11 @@ public class BiomineTV extends JFrame {
                     message("Registered successfully to the server");
                 }
                 else if (et == BusinessObjectEventType.CLIENTS_REGISTER_NOTIFY) {
-                    String name = bo.getMetadata().getName();
+                    String name = bo.getMetadata().getString("name");
                     message("Client "+name+" registered to ABBOE");
                 }
                 else if (et == BusinessObjectEventType.CLIENTS_PART_NOTIFY) {
-                    String name = bo.getMetadata().getName();
+                    String name = bo.getMetadata().getString("name");
                     message("Client "+name+" parted from ABBOE");
                 }
                 else if (et == BusinessObjectEventType.ROUTING_SUBSCRIBE_NOTIFICATION) {
@@ -323,7 +323,7 @@ public class BiomineTV extends JFrame {
                 	message("ROUTING_DISCONNECT");
                 }
                 else if (et == BusinessObjectEventType.SERVICES_REQUEST) {
-                	String name = bo.getMetadata().getName();
+                	String name = bo.getMetadata().getString("name");
                 	String request = bo.getMetadata().getString("request");
                 	message("HOST " +bo.getMetadata().get("host")+" REQUESTED "+ request + " FROM SERVICE " +name);
                 }

@@ -6,7 +6,6 @@ import java.net.Socket;
 import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
 import org.bm3k.abboe.objects.BusinessObjectEventType;
-import org.bm3k.abboe.objects.LegacyBusinessObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.net.NonBlockingSender;
@@ -110,8 +109,8 @@ public class ABBOEConnection {
                    
     /** Put object to queue of objects to be sent*/
     public void send(BusinessObject object) throws IOException {
-        if (clientParameters.sender != null) {
-            object.getMetadata().setSender(clientParameters.sender);
+        if (clientParameters.client != null) {
+            object.getMetadata().put("client", clientParameters.client);
         }
         this.sender.send(object.toBytes());
     }       

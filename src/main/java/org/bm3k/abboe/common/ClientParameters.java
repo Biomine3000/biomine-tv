@@ -8,7 +8,7 @@ import java.util.List;
 /** Current parameters are as follows:
  * <ul>
  *   <li>name: name registered to server</li>
- *   <li>sender: attached to all sent packets (by ABBOEConnection) as attribute "sender". May be null, 
+ *   <li>client: attached to all sent packets (by ABBOEConnection) as attribute "client". May be null,
  *       which should generally be interpreted as anonymous"</li> 
  *   <li>receive mode (affects what is sent to client by server; see {@link ClientReceiveMode})</li>
  *   <li>subscriptions (what content types are sent to client by server; see {@link Subscriptions})</li>
@@ -17,7 +17,7 @@ import java.util.List;
  */
 public class ClientParameters {
     public String name;
-    public String sender;
+    public String client;
     public ClientReceiveMode receiveMode;
     public Subscriptions subscriptions;
     public boolean constructDedicatedImplementationsForBusineses;
@@ -31,12 +31,12 @@ public class ClientParameters {
     }
     
     public ClientParameters(String name,
-                            String sender,
+                            String client,
                             ClientReceiveMode receiveMode,
                             Subscriptions subscriptions,
                             boolean constructDedicatedImplementationsForBusineses) {
         this.name = name;
-        this.sender = sender;
+        this.client = client;
         this.receiveMode = receiveMode;
         this.subscriptions = subscriptions;
         this.constructDedicatedImplementationsForBusineses = constructDedicatedImplementationsForBusineses;
@@ -45,7 +45,8 @@ public class ClientParameters {
     
     /** Copy constructor */
     public ClientParameters(ClientParameters original) {
-         this(original.name, original.sender, original.receiveMode, original.subscriptions, original.constructDedicatedImplementationsForBusineses);
+         this(original.name, original.client, original.receiveMode, original.subscriptions,
+                 original.constructDedicatedImplementationsForBusineses);
     }
     
     public void addServices(Biomine3000ServiceName... services) {
