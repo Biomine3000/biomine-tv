@@ -80,7 +80,7 @@ public class TrivialClient_old {
     }
             
    /* 
-    * Closing occurs by requesting a sender to send a special stop packet that causes 
+    * Closing occurs by requesting a client to send a special stop packet that causes
     * it to stop (done using method stop()), which after some intermediate processing 
     * should lead to our beloved SenderListener being notified, at which point actual
     * closing will occur. 
@@ -89,7 +89,7 @@ public class TrivialClient_old {
         
         if (!closeRequested) {
             closeRequested = true;
-            logger.info("Requesting sender to close");
+            logger.info("Requesting client to close");
             sender.requestStop();
         }
     }       
@@ -103,8 +103,8 @@ public class TrivialClient_old {
 //
 //        // register to server
 //        sendObj = Biomine3000Utils.makeRegisterPacket("TrivialClient");
-//        sender.send(sendObj);
-//        rcvObj = sender.receive();
+//        client.send(sendObj);
+//        rcvObj = client.receive();
 //        System.out.println("Received object: "+rcvObj);                        
 //        
 //        
@@ -116,8 +116,8 @@ public class TrivialClient_old {
 //            System.out.println("Sending object: "+sendObj );
 ////            System.out.write(sendObj.toBytes());
 ////            System.out.println("");
-//            sender.send(sendObj);
-//            rcvObj = sender.receive();
+//            client.send(sendObj);
+//            rcvObj = client.receive();
 //            System.out.println("Received object: "+rcvObj);
 ////            System.out.write(rcvObj.toBytes());
 ////            System.out.println("");
@@ -127,19 +127,19 @@ public class TrivialClient_old {
 //        
 ////        sendObj = new PlainTextObject("This is a ZOMBI notification");
 ////        info("Sending object 1: "+sendObj);
-////        sender.send(sendObj);
-////        rcvObj = sender.receive();
+////        client.send(sendObj);
+////        rcvObj = client.receive();
 ////        info("Received object 1: "+rcvObj);
 ////         
 ////        sendObj = new PlainTextObject("This is a COMPETITION declaration");
 ////        info("Sending object 2: "+sendObj);
-////        sender.send(sendObj);
-////        rcvObj = sender.receive();
+////        client.send(sendObj);
+////        rcvObj = client.receive();
 ////        info("Received object 2: "+rcvObj);
 //        
-//        sender.requestClose();        
+//        client.requestClose();
 //         
-//        sender.receiverFinished = true;
+//        client.receiverFinished = true;
 //        info("Ending main thread");
 //    }
 

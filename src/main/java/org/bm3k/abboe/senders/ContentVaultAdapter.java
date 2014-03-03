@@ -28,7 +28,7 @@ public class ContentVaultAdapter {
     /**
      * Creates a content vault and starts listening to it. Caller needs to call startLoading 
      * to instruct content vault to start loading content; this shall later trigger
-     * a sender thread to actually push content to the handler periodically, as dictated by 
+     * a sender thread to actually push content to the handler periodically, as dictated by
      * sendInterval.
      * 
      * @param sendInterval interval between sent objects (in milliseconds).

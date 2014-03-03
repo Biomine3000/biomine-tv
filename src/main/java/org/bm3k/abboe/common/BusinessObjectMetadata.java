@@ -21,7 +21,7 @@ import util.JSONUtils;
  *   -"type" one of {@link org.bm3k.abboe.objects.BusinessMediaType or @link MediaType}.
  *   
  * TBD:
- *   -Should we enforce the type of known fields, such as sender?
+ *   -Should we enforce the type of known fields, such as client?
  *   -Should the metadata be aware of its businessobject?
  *   -How should correctness of field size be enforced, as clearly it should obey the size of the actual data to be sent,
  *    and not maybe be stored at all except at the time of parsing the business object; when writing, the stored size
@@ -284,14 +284,6 @@ public class BusinessObjectMetadata {
         
     }
             
-    public String getName() {
-        return getString("name");                
-    }      
-    
-    public void setName(String name) {
-        put("name", name);                
-    }
-    
     public void setBoolean(String key, boolean value) {
         try {
             json.put(key, value);
@@ -312,15 +304,7 @@ public class BusinessObjectMetadata {
         }
     }
   
-    public String getUser() {
-        return getString("user");                
-    }
-    
-    public void setUser(String user) {
-        put("user", user);                
-    }
-    
-    /** 
+    /**
      * See {@link org.bm3k.abboe.objects.BusinessMediaType} for known types. Note that payload is not
      * mandatory, in which case this method returns null!
      * 
@@ -361,29 +345,6 @@ public class BusinessObjectMetadata {
             return getInteger("size");                       
         }
     }
-    
-    /** 
-     * The sender field is as of 2+11-12-12 estimated to be optional.
-     * @return null if no sender
-     */
-    public String getSender() {
-        return getString("sender");        
-    }
-    
-    /** 
-     * The sender field is as of 2011-12-12 estimated to be optional.
-     * @return null if no sender
-     */
-    public void setSender(String sender) {
-        put("sender", sender);        
-    }
-    
-    /** 
-     * @return null if no channel.
-     */
-    public String getChannel() {
-        return getString("channel");        
-    }          
     
     public BusinessObjectMetadata clone() {
         JSONObject jsonClone = JSONUtils.clone(this.json);

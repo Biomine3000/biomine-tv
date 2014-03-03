@@ -47,7 +47,7 @@ public class ContentVaultSender implements IBusinessObjectHandler {
         this.nSent = 0;
         this.stopped = false;
         ClientParameters clientParams = new ClientParameters(CLIENT_PARAMS);
-        clientParams.sender = "ContentVaultSender-"+Biomine3000Utils.getUser();
+        clientParams.client = "ContentVaultSender-"+Biomine3000Utils.getUser();
         
         this.connection = new ABBOEConnection(CLIENT_PARAMS, socket);
         this.connection.init(new ObjectHandler());
