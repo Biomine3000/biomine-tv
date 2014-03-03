@@ -58,7 +58,7 @@ public class BusinessObjectReader implements Runnable {
             while (packet != null) {                
                 BusinessObject bo;
                 if (constructDedicatedImplementations) {
-                    bo = BusinessObjectFactory.makeObject(packet);
+                    bo = new BusinessObjectFactory().makeObject(packet);
                 }
                 else {
                     bo = new LegacyBusinessObject(packet.getObj1(), packet.getObj2());

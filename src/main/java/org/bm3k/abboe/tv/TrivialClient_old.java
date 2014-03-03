@@ -53,13 +53,13 @@ public class TrivialClient_old {
     }                
        
     public void send(LegacyBusinessObject object) throws IOException {
-        sender.send(object.bytes());
+        sender.send(object.toBytes());
     }
     
     /** Return null when no more business objects available */
     public BusinessObject receive() throws IOException, InvalidBusinessObjectException {
         Pair<BusinessObjectMetadata, byte[]> packet = LegacyBusinessObject.readPacket(socket.getInputStream());
-        BusinessObject bo = BusinessObjectFactory.makeObject(packet);
+        BusinessObject bo = new BusinessObjectFactory().makeObject(packet);
         return bo;
     }
         
@@ -114,12 +114,12 @@ public class TrivialClient_old {
 //        while (line != null) {
 //            sendObj = new PlainTextObject(line);
 //            System.out.println("Sending object: "+sendObj );
-////            System.out.write(sendObj.bytes());
+////            System.out.write(sendObj.toBytes());
 ////            System.out.println("");
 //            sender.send(sendObj);
 //            rcvObj = sender.receive();
 //            System.out.println("Received object: "+rcvObj);
-////            System.out.write(rcvObj.bytes());
+////            System.out.write(rcvObj.toBytes());
 ////            System.out.println("");
 //            info(" "+rcvObj);
 //            line = br.readLine();

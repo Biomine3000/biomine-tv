@@ -18,25 +18,25 @@ import util.collections.Pair;
  * BEGIN Message Format 
  *     JSON METADATA in UTF-8 encoding
  *     NULL byte ('\0')
- *     PAYLOAD (raw bytes)
+ *     PAYLOAD (raw toBytes)
  * END Message Format
  * </pre> 
  * 
- * The JSON metadata MUST contain at least the keys "size" and "type" to specify the length (in bytes) 
+ * The JSON metadata MUST contain at least the keys "size" and "type" to specify the length (in toBytes)
  * and type (or "mimetype", as preferred by some pundits) of the payload to follow.
  * 
- * Note that while this class provides a default implementation for storing the payload as bytes,
+ * Note that while this class provides a default implementation for storing the payload as toBytes,
  * subclasses are free to implement their own mechanism, in which case the payload in this class
  * can just be left blank.
  * 
- * TODO: move default implementation of storing as bytes to a subclass "DefaultBusinessObject" and make
+ * TODO: move default implementation of storing as toBytes to a subclass "DefaultBusinessObject" and make
  * this class Abstract?
  * 
  * TODO: move payload type from businessobjectmetadata to this class.
  * 
  * TODO: move payload implementations to different class?
  * 
- * TBD: are business objects to be immutable, that is can the bytes change?
+ * TBD: are business objects to be immutable, that is can the toBytes change?
  *      At 2011-12-06, it appears that the answer should be "no".
  *  
  */
@@ -104,7 +104,7 @@ public class LegacyBusinessObject implements BusinessObject {
         catch (UnexpectedEndOfStreamException e) {
             throw new InvalidBusinessObjectException("End of stream reached before reading first null byte", e);
         }
-//        System.err.println("Got metadata bytes: "+new String(metabytes));                                                          
+//        System.err.println("Got metadata toBytes: "+new String(metabytes));
         BusinessObjectMetadata metadata = new BusinessObjectMetadata(metabytes);
 //        System.err.println("Got metadata: "+metadata);
         byte[] payload;
@@ -132,7 +132,7 @@ public class LegacyBusinessObject implements BusinessObject {
         metadata.setEvent(type);
     }
     
-    /** Parse businessobject represented as raw bytes into medatata and payload */ 
+    /** Parse businessobject represented as raw toBytes into medatata and payload */
     public static Pair<BusinessObjectMetadata, byte[]> parseBytes(byte[] data) throws InvalidBusinessObjectException {
         int i = 0;
         while (data[i] != '\0' && i < data.length) {
@@ -279,18 +279,18 @@ public class LegacyBusinessObject implements BusinessObject {
 	}
 	
 	/**
-	 * Get payload as transmittable bytes. This default implementation just returns a reference to a byte array 
+	 * Get payload as transmittable toBytes. This default implementation just returns a reference to a byte array
 	 * managed by this class. Subclasses desiring to implement storing of payload in some other manner than 
-	 * raw bytes should override this.
+	 * raw toBytes should override this.
 	 */	 
 	public byte[] getPayload() {
 	    return this.payload;
 	}
 
 	/**
-     * Set payload supposedly received as transmitted bytes. This default implementation just stores a reference to the
-     * bytes provided; subclasses desiring to implement storing of payload in some other manner than raw 
-     * bytes should override this.
+     * Set payload supposedly received as transmitted toBytes. This default implementation just stores a reference to the
+     * toBytes provided; subclasses desiring to implement storing of payload in some other manner than raw
+     * toBytes should override this.
      * 
      * Sets size to payload as a side-effect.
      */  
@@ -299,16 +299,16 @@ public class LegacyBusinessObject implements BusinessObject {
 	}
 	
 	/**
-	 * Represent business object as transmittable bytes. Returns a byte array containing both the header and payload, 
+	 * Represent business object as transmittable toBytes. Returns a byte array containing both the header and payload,
 	 * separated by a null character, as emphasized elsewhere. Note that in order to avoid laying memory to waste,
-	 * some byte iterator or other more abstract representation should be used to avoid copying the payload bytes...
+	 * some byte iterator or other more abstract representation should be used to avoid copying the payload toBytes...
 	 *
 	 * Also, the content is not cached, so calling this multiple times will result in multiple memory initializations.
 	 * 
-	 * Alas, somewhere, in some time, there might exist a garbage collector, which should make copying the bytes 
+	 * Alas, somewhere, in some time, there might exist a garbage collector, which should make copying the toBytes
 	 * acceptable for now.
 	 */  
-	public final byte[] bytes() {
+	public final byte[] toBytes() {
 	    byte[] jsonBytes = null;
 	    try {
             jsonBytes = metadata.toString().getBytes("UTF-8");           

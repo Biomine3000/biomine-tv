@@ -1,6 +1,6 @@
 package org.bm3k.abboe.server;
 
-import static org.bm3k.abboe.common.BusinessObjectEventType.*;
+import static org.bm3k.abboe.objects.BusinessObjectEventType.*;
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -14,7 +14,9 @@ import java.util.List;
 import java.util.Map;
 
 import org.bm3k.abboe.common.*;
+import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
+import org.bm3k.abboe.objects.BusinessObjectEventType;
 import org.bm3k.abboe.objects.PlainTextObject;
 import org.bm3k.abboe.senders.ContentVaultProxy;
 import org.bm3k.abboe.senders.ContentVaultProxy.InvalidStateException;
@@ -135,13 +137,13 @@ public class ABBOEServer {
      * using a dedicated thread for each client.
      */
     private synchronized void sendToAllClients(Client src, BusinessObject bo) {
-        // defer coming up with bytes to send until the time comes 
+        // defer coming up with toBytes to send until the time comes
         // to send to the first applicable client (there might be none) 
         byte[] bytes = null;
         for (Client client: clients) {            
             if (client.shouldSend(src, bo)) {
                 if (bytes == null) {                    
-                    bytes = bo.bytes();
+                    bytes = bo.toBytes();
                 }
                 client.send(bytes);               
             }
@@ -260,12 +262,12 @@ public class ABBOEServer {
         private void send(BusinessObject obj) {
             obj.getMetadata().setSender("ABBOE");
             log.info("Sending: "+obj);
-            send(obj.bytes());
+            send(obj.toBytes());
         }
         
         private void send(String text) {
             log("Sending plain text to client "+this+": "+text);
-            BusinessObject reply = BusinessObjectFactory.makePlainTextObject(text);
+            BusinessObject reply = new BusinessObjectFactory().makePlainTextObject(text);
             send(reply);        
         }
 
@@ -586,9 +588,11 @@ public class ABBOEServer {
                 }
                 log.info("Closing connection to client: {}", client);
                 String admin  = Biomine3000Utils.getUser();
-                BusinessObject closeNotification = new PlainTextObject("ABBOE IS GOING TO CLOSE THIS CONNECTION NOW (as requested by the ABBOE adminstrator, "+admin+")");
-                closeNotification.setEvent(ABBOE_CLOSE_NOTIFY);
-                client.initiateClosingSequence(closeNotification);                                
+
+                BusinessObject closeNotification = BOB.newBuilder()
+                        .payload(new PlainTextPayload("ABBOE IS GOING TO CLOSE THIS CONNECTION NOW (as requested by the ABBOE adminstrator, "+admin+")"))
+                        .event(ABBOE_CLOSE_NOTIFY).build();
+                client.initiateClosingSequence(closeNotification);
                 
                 ClientShutdownThread cst = new ClientShutdownThread(client);
                 cst.start();
@@ -626,9 +630,10 @@ public class ABBOEServer {
         log.info("Initiating shutdown sequence");
         
         if (clients.size() > 0) {                   
-            for (Client client: clients) {                
-                BusinessObject shutdownNotification = new PlainTextObject("ABBOE IS GOING TO SHUTDOWN in 5 seconds");
-                shutdownNotification.setEvent(ABBOE_SHUTDOWN_NOTIFY);
+            for (Client client: clients) {
+                BusinessObject shutdownNotification = BOB.newBuilder()
+                        .payload(new PlainTextPayload("ABBOE IS GOING TO SHUTDOWN in 5 seconds"))
+                        .event(ABBOE_SHUTDOWN_NOTIFY).build();
                 client.initiateClosingSequence(shutdownNotification);
             }                           
             
@@ -815,9 +820,9 @@ public class ABBOEServer {
         else {
             msg+=" You did not specify subscriptions; using the default: "+client.subscriptions;                            
         }                        
-                     
-        BusinessObject replyObj = new PlainTextObject(msg);
-        replyObj.setEvent(CLIENTS_REGISTER_REPLY);
+
+        BusinessObject replyObj = BOB.newBuilder().payload(new PlainTextPayload(msg))
+                .event(CLIENTS_LIST_REPLY).build();
         client.send(replyObj);
 
         // only set after sending the plain text reply                        

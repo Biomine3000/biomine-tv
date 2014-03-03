@@ -3,7 +3,9 @@ package org.bm3k.abboe.common;
 import java.io.IOException;
 import java.net.Socket;
 
+import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
+import org.bm3k.abboe.objects.BusinessObjectEventType;
 import org.bm3k.abboe.objects.LegacyBusinessObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,8 +94,8 @@ public class ABBOEConnection {
 
         // send registration to server
         LegacyBusinessObject registerObj = Biomine3000Utils.makeRegisterPacket(clientParameters);
-        log.info("Sending register packet:" +new String(registerObj.bytes()));
-        sender.send(registerObj.bytes());
+        log.info("Sending register packet:" +new String(registerObj.toBytes()));
+        sender.send(registerObj.toBytes());
         this.state = State.ACTIVE;
 
         // start listening to objects from server
@@ -106,11 +108,11 @@ public class ABBOEConnection {
         if (clientParameters.sender != null) {
             object.getMetadata().setSender(clientParameters.sender);
         }
-        this.sender.send(object.bytes());
+        this.sender.send(object.toBytes());
     }       
         
     public void sendClientListRequest() throws IOException {
-        send(BusinessObjectFactory.makeEvent(BusinessObjectEventType.CLIENTS_LIST));
+        send(BOB.newBuilder().event(BusinessObjectEventType.CLIENTS_LIST).build());
     }
 
     public synchronized String getName() {

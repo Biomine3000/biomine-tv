@@ -1,14 +1,11 @@
 package org.bm3k.abboe.common;
 
-import org.bm3k.abboe.objects.BusinessObject;
-import org.bm3k.abboe.objects.BusinessObjectImpl;
-import org.bm3k.abboe.objects.IBusinessObjectFactory;
-import org.bm3k.abboe.objects.LegacyBusinessObject;
+import org.bm3k.abboe.objects.*;
 import util.collections.Pair;
 
 import com.google.common.net.MediaType;
 
-public class BusinessObjectFactory {
+public class BusinessObjectFactory implements IBusinessObjectFactory {
 
 	private static final String IMPL_SANE = "sane";
 	private static final String IMPL_LEGACY = "legacy";
@@ -27,7 +24,7 @@ public class BusinessObjectFactory {
 			
 			switch(implName) {
 				case IMPL_SANE: 
-					impl = new BusinessObjectImpl.Factory();
+					impl = new BusinessObjectFactory();
 					break;
 				case IMPL_LEGACY: 					
 					impl = new LegacyBusinessObject.Factory();
@@ -40,22 +37,22 @@ public class BusinessObjectFactory {
 		return impl;
 	}
 	
-	public static BusinessObject makeEvent(BusinessObjectEventType eventType) {
+	public BusinessObject makeEvent(BusinessObjectEventType eventType) {
 		return getImpl().makeEvent(eventType);
 	}
 	
-    public static BusinessObject makeObject(MediaType type, byte[] payload) {
+    public BusinessObject makeObject(MediaType type, byte[] payload) {
     	return getImpl().makeObject(type, payload);
     }
     
-    public static BusinessObject makeObject(Pair<BusinessObjectMetadata, byte[]> data) {
+    public BusinessObject makeObject(Pair<BusinessObjectMetadata, byte[]> data) {
     	return getImpl().makeObject(data);
     }
 	
-    public static BusinessObject makePlainTextObject(String text) {
+    public BusinessObject makePlainTextObject(String text) {
     	return getImpl().makePlainTextObject(text);
     }
-    public static BusinessObject makePlainTextObject(String text, BusinessObjectEventType eventType) {
+    public BusinessObject makePlainTextObject(String text, BusinessObjectEventType eventType) {
     	return getImpl().makePlainTextObject(text, eventType);
     }
 	

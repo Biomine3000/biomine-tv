@@ -53,12 +53,12 @@ public class ImageSender {
                 ClientReceiveMode.NONE,
                 Subscriptions.NONE);
         log.info("Writing register object:" +registerObj);        
-        IOUtils.writeBytes(socket.getOutputStream(), registerObj.bytes());
+        IOUtils.writeBytes(socket.getOutputStream(), registerObj.toBytes());
         
         // write actual image
-        byte[] bytes = bo.bytes();        
+        byte[] bytes = bo.toBytes();
         log.info("Writing "+StringUtils.formatSize(bytes.length)+" bytes");
-        IOUtils.writeBytes(socket.getOutputStream(), bo.bytes());
+        IOUtils.writeBytes(socket.getOutputStream(), bo.toBytes());
         log.info("Sent packet");                
     }
 

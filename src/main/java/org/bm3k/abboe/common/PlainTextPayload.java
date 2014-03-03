@@ -35,8 +35,8 @@ public class PlainTextPayload extends Payload {
         this.text = text;
     }
 
-    /** Override superclass payload storage mechanism: only provide as raw bytes if requested. 
-     * In this case, duplicate the bytes from the String into the parent class byte buffer
+    /** Override superclass payload storage mechanism: only provide as raw toBytes if requested.
+     * In this case, duplicate the toBytes from the String into the parent class byte buffer
      */
     @Override
     public byte[] getBytes() {

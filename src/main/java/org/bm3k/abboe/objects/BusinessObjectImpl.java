@@ -21,23 +21,23 @@ import util.collections.Pair;
  * BEGIN Message Format 
  *     METADATA (UTF-8 encoded JSON) 
  *     NULL byte ('\0')
- *     PAYLOAD (raw bytes)
+ *     PAYLOAD (raw toBytes)
  * END Message Format
  * </pre> 
  * 
- * The JSON metadata MUST contain at least the keys "size" and "type" to specify the length (in bytes) 
+ * The JSON metadata MUST contain at least the keys "size" and "type" to specify the length (in toBytes)
  * and type (or "mimetype", as preferred by some pundits) of the payload to follow.
  * 
- * Note that while this class provides a default implementation for storing the payload as bytes,
+ * Note that while this class provides a default implementation for storing the payload as toBytes,
  * subclasses are free to implement their own mechanism, in which case the payload in this class
  * can just be left blank.
  * 
- * TODO: move default implementation of storing as bytes to a subclass "DefaultBusinessObject" and make
+ * TODO: move default implementation of storing as toBytes to a subclass "DefaultBusinessObject" and make
  * this class Abstract?
  * 
  * TODO: move payload type from businessobjectmetadata to this class.
  * 
- * TBD: are business objects to be immutable, that is can the bytes change?
+ * TBD: are business objects to be immutable, that is can the toBytes change?
  *      At 2011-12-06, it appears that the answer should be "no". That means we 
  *      will not have equals and hashcode, either.
  *  
@@ -65,9 +65,35 @@ public class BusinessObjectImpl implements BusinessObject {
     protected BusinessObjectImpl(BusinessObjectMetadata meta, Payload payload) {
     	setMetadata(meta);
     	this.payload = payload;    	
-    }       
-                
-    public static BusinessObjectImpl readObject(InputStream is) throws IOException, InvalidBusinessObjectException {
+    }
+
+    BusinessObjectImpl(BOB builder) {
+        if (builder.metadata != null) {
+            this.metadata = builder.metadata;
+        } else {
+            this.metadata = new BusinessObjectMetadata();
+        }
+
+        if (builder.type != null) {
+            this.metadata.put("type", builder.type.toString());
+        }
+
+        if (builder.event != null) {
+            this.metadata.setEvent(builder.event);
+        }
+
+        if (builder.payload != null) {
+            this.payload = builder.payload;
+            this.metadata.put("size", this.payload.getBytes().length);
+
+            // TODO: generify or push into builder's switch case
+            if (this.payload instanceof PlainTextPayload) {
+                this.metadata.put("type", BusinessMediaType.PLAINTEXT.toString());
+            }
+        }
+    }
+
+    static BusinessObjectImpl readObject(InputStream is) throws IOException, InvalidBusinessObjectException {
         Pair<BusinessObjectMetadata, byte[]> packet = readPacket(is);
         return makeObject(packet);
     }
@@ -78,7 +104,7 @@ public class BusinessObjectImpl implements BusinessObject {
     
     /** Delegate to metadata (TODO(?): merge metadata class with this one once we get rid of burden of supporting different content types in 
      * this class (and subclasses, which are to be nuked in favor of Payload object hierarchy) */
-    public void setSender(String sender) {
+    void setSender(String sender) {
         metadata.setSender(sender);        
     }
     
@@ -88,7 +114,7 @@ public class BusinessObjectImpl implements BusinessObject {
      * @throws InvalidJSONException JSON metadata is not correctly formatted json
      * @throws IOException in case of general io error.
      */ 
-    public static Pair<BusinessObjectMetadata, byte[]> readPacket(InputStream is) throws IOException, InvalidBusinessObjectException {
+    static Pair<BusinessObjectMetadata, byte[]> readPacket(InputStream is) throws IOException, InvalidBusinessObjectException {
         byte[] metabytes;
         try {
             metabytes = IOUtils.readBytesUntilNull(is);
@@ -114,16 +140,16 @@ public class BusinessObjectImpl implements BusinessObject {
         return new Pair<BusinessObjectMetadata, byte[]>(metadata, payload);
     }
         
-    public void setEvent(String type) {
+    void setEvent(String type) {
         metadata.setEvent(type);
     }
     
-    public void setEvent(BusinessObjectEventType type) {
+    void setEvent(BusinessObjectEventType type) {
         metadata.setEvent(type);
     }
     
-    /** Parse BusinessObjectImpl represented as raw bytes into medatata and payload */
-    public static Pair<BusinessObjectMetadata, byte[]> parseBytes(byte[] data) throws InvalidBusinessObjectException {
+    /** Parse BusinessObjectImpl represented as raw toBytes into medatata and payload */
+    static Pair<BusinessObjectMetadata, byte[]> parseBytes(byte[] data) throws InvalidBusinessObjectException {
         int i = 0;
         while (data[i] != '\0' && i < data.length) {
             i++;
@@ -148,17 +174,17 @@ public class BusinessObjectImpl implements BusinessObject {
     }
     
     /** Make a business object representing an event of a given type. No other metadata fields are initialized */
-    public static BusinessObjectImpl makeEvent(BusinessObjectEventType eventType) {
+    static BusinessObjectImpl makeEvent(BusinessObjectEventType eventType) {
     	return new BusinessObjectImpl(eventType);
     }
     
-    public static BusinessObjectImpl makeObject(MediaType type, byte[] payload) {
+    static BusinessObjectImpl makeObject(MediaType type, byte[] payload) {
     	BusinessObjectMetadata meta = new BusinessObjectMetadata();
     	meta.setType(type);
     	return makeObject(meta, payload);
     }
     
-    public static BusinessObjectImpl makeObject(Pair<BusinessObjectMetadata, byte[]> data) {
+    static BusinessObjectImpl makeObject(Pair<BusinessObjectMetadata, byte[]> data) {
         if (data == null) {
             throw new RuntimeException("makeObject called with null data");
         }
@@ -173,7 +199,7 @@ public class BusinessObjectImpl implements BusinessObject {
      * 
      * Payload must be null IFF metadata does not contain field "type"
      */ 
-    public static BusinessObjectImpl makeObject(BusinessObjectMetadata metadata, byte[] payload) {
+    static BusinessObjectImpl makeObject(BusinessObjectMetadata metadata, byte[] payload) {
         MediaType officialType = metadata.getOfficialType();
         BusinessObjectImpl bo = null;
         if (officialType != null) {
@@ -204,12 +230,12 @@ public class BusinessObjectImpl implements BusinessObject {
     }
     
     /** Create a business object with no payload */
-    public BusinessObjectImpl(BusinessObjectMetadata metadata) {
+    BusinessObjectImpl(BusinessObjectMetadata metadata) {
         setMetadata(metadata);
     }    
     
     /** Create a business object supposedly being received and parsed earlier from the biomine business objects bus */
-    public BusinessObjectImpl(BusinessObjectMetadata metadata, byte[] payload) {
+    BusinessObjectImpl(BusinessObjectMetadata metadata, byte[] payload) {
     	this(metadata, new Payload(payload));
                 
         // sanity checks
@@ -222,7 +248,7 @@ public class BusinessObjectImpl implements BusinessObject {
      * Metadata is represented by a json object. However, should we provide some kind of wrapper to access standard fields? 
      * Current implementation does not perform validation of payload size against one reported in metadata.
      */
-    public void setMetadata(BusinessObjectMetadata metadata) {
+    void setMetadata(BusinessObjectMetadata metadata) {
         this.metadata = metadata;
         metadata.setObject(this);
     }           
@@ -240,9 +266,9 @@ public class BusinessObjectImpl implements BusinessObject {
 	}
 	
 	/**
-	 * Get payload as transmittable bytes. This default implementation just returns a reference to a byte array 
+	 * Get payload as transmittable toBytes. This default implementation just returns a reference to a byte array
 	 * managed by this class. Subclasses desiring to implement storing of payload in some other manner than 
-	 * raw bytes should override this.
+	 * raw toBytes should override this.
 	 * 
 	 * To be removed (use renamed getPayloadObject instead)
 	 */	 	
@@ -251,16 +277,16 @@ public class BusinessObjectImpl implements BusinessObject {
 	}
 	
 	/**
-	 * Represent business object as transmittable bytes. Returns a byte array containing both the header and payload, 
+	 * Represent business object as transmittable toBytes. Returns a byte array containing both the header and payload,
 	 * separated by a null character, as emphasized elsewhere. Note that in order to avoid laying memory to waste,
-	 * some byte iterator or other more abstract representation should be used to avoid copying the payload bytes...
+	 * some byte iterator or other more abstract representation should be used to avoid copying the payload toBytes...
 	 *
 	 * Also, the content is not cached, so calling this multiple times will result in multiple memory initializations.
 	 * 
-	 * Alas, somewhere, in some time, there might exist a garbage collector, which should make copying the bytes 
+	 * Alas, somewhere, in some time, there might exist a garbage collector, which should make copying the toBytes
 	 * acceptable for now.
 	 */  
-	public final byte[] bytes() {
+	public final byte[] toBytes() {
 	    byte[] jsonBytes = null;
 	    try {
             jsonBytes = metadata.toString().getBytes("UTF-8");           
@@ -296,37 +322,4 @@ public class BusinessObjectImpl implements BusinessObject {
 	                      : (isEvent() ? "" : "<no payload>");
 	    return "BusinessObjectImpl <metadata: "+metadata.toString()+"> "+payloadStr;
 	}
-	
-	public static class Factory implements IBusinessObjectFactory {
-		
-		public BusinessObject makeEvent(BusinessObjectEventType e) {
-			return BusinessObjectImpl.makeEvent(e);
-		}
-	    
-		public BusinessObject makeObject(MediaType type, byte[] payload) {
-	    	return BusinessObjectImpl.makeObject(type, payload);
-	    }
-	    
-	    public BusinessObject makeObject(Pair<BusinessObjectMetadata, byte[]> data) {
-	    	return BusinessObjectImpl.makeObject(data);
-	    }
-	    
-		@Override
-		public BusinessObject makePlainTextObject(String text) {
-			BusinessObjectMetadata meta = new BusinessObjectMetadata();
-			meta.setType(BusinessMediaType.PLAINTEXT);			
-			PlainTextPayload payload = new PlainTextPayload(text);
-	        return new BusinessObjectImpl(meta, payload);
-		}
-
-		@Override
-		public BusinessObject makePlainTextObject(String text, BusinessObjectEventType eventType) {
-			BusinessObjectMetadata meta = new BusinessObjectMetadata();
-			meta.setType(BusinessMediaType.PLAINTEXT);
-			meta.setEvent(eventType);
-			PlainTextPayload payload = new PlainTextPayload(text);
-	        return new BusinessObjectImpl(meta, payload);
-		}
-	}
-	
 }

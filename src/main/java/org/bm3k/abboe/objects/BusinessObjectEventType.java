@@ -1,4 +1,4 @@
-package org.bm3k.abboe.common;
+package org.bm3k.abboe.objects;
 
 import java.util.HashMap;
 import java.util.Map;

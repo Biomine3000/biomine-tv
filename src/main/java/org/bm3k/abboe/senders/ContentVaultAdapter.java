@@ -3,6 +3,7 @@ package org.bm3k.abboe.senders;
 
 import org.bm3k.abboe.common.*;
 import org.bm3k.abboe.objects.BusinessObject;
+import org.bm3k.abboe.objects.BusinessObjectEventType;
 import org.bm3k.abboe.objects.PlainTextObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,7 +106,7 @@ public class ContentVaultAdapter {
                     Thread.sleep(sendInterval);
                 }
                 catch (ContentVaultProxy.InvalidStateException e) {
-                    handler.handleObject(BusinessObjectFactory.makePlainTextObject(ExceptionUtils.format(e, "; "), BusinessObjectEventType.ERROR));
+                    handler.handleObject(new BusinessObjectFactory().makePlainTextObject(ExceptionUtils.format(e, "; "), BusinessObjectEventType.ERROR));
                     try {
                         Thread.sleep(sendInterval);
                     }

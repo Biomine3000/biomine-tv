@@ -11,6 +11,7 @@ import java.util.Map;
 
 import org.bm3k.abboe.common.*;
 import org.bm3k.abboe.objects.BusinessObject;
+import org.bm3k.abboe.objects.BusinessObjectEventType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.CmdLineArgs2.IllegalArgumentsException;

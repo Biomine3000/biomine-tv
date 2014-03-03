@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.Calendar;
 
 import org.bm3k.abboe.objects.BusinessObject;
+import org.bm3k.abboe.objects.BusinessObjectEventType;
 import org.bm3k.abboe.objects.LegacyBusinessObject;
 import org.json.JSONException;
 
@@ -290,7 +291,7 @@ public class Biomine3000Utils {
                                                     ClientReceiveMode receiveMode,
                                                     Subscriptions subscriptions) {
         BusinessObjectMetadata meta = new BusinessObjectMetadata();        
-        meta.setEvent(BusinessObjectEventType.CLIENTS_REGISTER);        
+        meta.setEvent(BusinessObjectEventType.CLIENTS_REGISTER);
         meta.put("name", clientName);
         meta.put(ClientReceiveMode.KEY, receiveMode.toString());
         if (subscriptions != null) {

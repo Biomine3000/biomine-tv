@@ -5,7 +5,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import javax.imageio.ImageIO;
 
-/* duplicates image as BufferedImage on demand. Superclass byte buffer still always used to store bytes. */  
+/* duplicates image as BufferedImage on demand. Superclass byte buffer still always used to store toBytes. */
 public class ImagePayload extends Payload {
     
     /** Created on demand */
@@ -30,7 +30,7 @@ public class ImagePayload extends Payload {
     }
     
     /**
-     * KOVA PÄÄTÖS: return null on failure to load bytes. Caller may obtain 
+     * KOVA PÄÄTÖS: return null on failure to load toBytes. Caller may obtain
      * exception by method getException to alleviate wondering about receiving a null.
      */
     public BufferedImage getImage() {

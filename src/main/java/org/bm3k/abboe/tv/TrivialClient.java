@@ -8,6 +8,7 @@ import java.util.List;
 
 import org.bm3k.abboe.common.*;
 import org.bm3k.abboe.objects.BusinessObject;
+import org.bm3k.abboe.objects.BusinessObjectEventType;
 import org.bm3k.abboe.objects.LegacyBusinessObject;
 import org.bm3k.abboe.objects.PlainTextObject;
 import org.json.JSONException;

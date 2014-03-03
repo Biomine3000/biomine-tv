@@ -15,8 +15,8 @@ import util.StringUtils;
 
 
 /**
- * Represent image both as java-decoded BufferedImage and the original bytes
- * (bytes managed by superclass). An image usually has property "name".
+ * Represent image both as java-decoded BufferedImage and the original toBytes
+ * (toBytes managed by superclass). An image usually has property "name".
  * 
  * Initialize the BufferedImage from payload on demand. 
  * 
@@ -70,7 +70,7 @@ public class ImageObject extends LegacyBusinessObject {
     }
     
     /**
-     * KOVA PÄÄTÖS: return null on failure to load bytes. Caller may obtain 
+     * KOVA PÄÄTÖS: return null on failure to load toBytes. Caller may obtain
      * exception by method getException to alleviate wondering about receiving a null.
      */
     public BufferedImage getImage() {

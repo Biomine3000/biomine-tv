@@ -32,7 +32,7 @@ public class MP3Sender {
         BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
         byte[] payload = IOUtils.readBytes(bis);
         bis.close();
-        BusinessObject bo = BusinessObjectFactory.makeObject(BusinessMediaType.MP3, payload);
+        BusinessObject bo = new BusinessObjectFactory().makeObject(BusinessMediaType.MP3, payload);
         bo.getMetadata().put("name", file.getName());       
         if (channel != null) {
             bo.getMetadata().put("channel", channel);
@@ -47,12 +47,12 @@ public class MP3Sender {
                 ClientReceiveMode.NONE,
                 Subscriptions.NONE);
         log.info("Writing register object:" +registerObj);        
-        IOUtils.writeBytes(socket.getOutputStream(), registerObj.bytes());
+        IOUtils.writeBytes(socket.getOutputStream(), registerObj.toBytes());
         
         // write actual mp3
-        byte[] bytes = bo.bytes();        
+        byte[] bytes = bo.toBytes();
         log.info("Writing "+StringUtils.formatSize(bytes.length)+" bytes");
-        IOUtils.writeBytes(socket.getOutputStream(), bo.bytes());
+        IOUtils.writeBytes(socket.getOutputStream(), bo.toBytes());
         log.info("Sent packet");                
     }
                         

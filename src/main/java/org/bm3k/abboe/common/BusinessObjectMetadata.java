@@ -6,6 +6,7 @@ import java.util.List;
 
 import com.google.common.net.MediaType;
 import org.bm3k.abboe.objects.BusinessObject;
+import org.bm3k.abboe.objects.BusinessObjectEventType;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -16,7 +17,7 @@ import util.JSONUtils;
 
 /**
  * In the initial implementation, mandatory fields are as follows:
- *   -"size" to specify length of payload in bytes.
+ *   -"size" to specify length of payload in toBytes.
  *   -"type" one of {@link org.bm3k.abboe.objects.BusinessMediaType or @link MediaType}.
  *   
  * TBD:
@@ -41,7 +42,7 @@ public class BusinessObjectMetadata {
     }
     
     /** 
-     * Construct from JSON represented as UTF-8 coded bytes. Note that behavior is undefined 
+     * Construct from JSON represented as UTF-8 coded toBytes. Note that behavior is undefined
      * when the characters are not encoded as UTF-8.
      */
     public BusinessObjectMetadata (byte[] bytes) throws InvalidJSONException {
