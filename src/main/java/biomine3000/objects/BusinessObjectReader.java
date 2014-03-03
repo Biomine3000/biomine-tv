@@ -54,7 +54,7 @@ public class BusinessObjectReader implements Runnable {
             Pair<BusinessObjectMetadata, byte[]> packet = LegacyBusinessObject.readPacket(is);            
         
             while (packet != null) {                
-                IBusinessObject bo;
+                BusinessObject bo;
                 if (constructDedicatedImplementations) {
                     bo = BusinessObjectFactory.makeObject(packet);
                 }
@@ -150,7 +150,7 @@ public class BusinessObjectReader implements Runnable {
         }
         
         @Override
-        public void objectReceived(IBusinessObject bo) {
+        public void objectReceived(BusinessObject bo) {
             log("Received business object: "+bo);
         }
 
@@ -181,7 +181,7 @@ public class BusinessObjectReader implements Runnable {
     
     public interface Listener {    
         /** Always receive a non-null object */
-        public void objectReceived(IBusinessObject bo);
+        public void objectReceived(BusinessObject bo);
         
         /** 
          * Called when nothing more to read from stream (but there are no Exceptions).

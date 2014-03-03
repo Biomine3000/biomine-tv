@@ -1,7 +1,5 @@
 package biomine3000.objects;
 
-import static biomine3000.objects.BusinessObjectEventType.CLIENTS_PART_NOTIFY;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
@@ -42,7 +40,7 @@ import util.collections.Pair;
  *  
  */
 @Deprecated
-public class LegacyBusinessObject implements IBusinessObject  {    
+public class LegacyBusinessObject implements BusinessObject {
     private static final Logger log = LoggerFactory.getLogger(LegacyBusinessObject.class);
 
    /**
@@ -359,25 +357,25 @@ public class LegacyBusinessObject implements IBusinessObject  {
 	
 	public static class Factory implements IBusinessObjectFactory {
 		
-		public IBusinessObject makeEvent(BusinessObjectEventType eventType) {
+		public BusinessObject makeEvent(BusinessObjectEventType eventType) {
 			return new LegacyBusinessObject(eventType);
 		}
 	    
-		public IBusinessObject makeObject(MediaType type, byte[] payload) {			
+		public BusinessObject makeObject(MediaType type, byte[] payload) {
 	    	return new LegacyBusinessObject(type, payload);
 	    }
 	    
-	    public IBusinessObject makeObject(Pair<BusinessObjectMetadata, byte[]> data) {
+	    public BusinessObject makeObject(Pair<BusinessObjectMetadata, byte[]> data) {
 	    	return LegacyBusinessObject.makeObject(data);
 	    }
 
 		@Override
-		public IBusinessObject makePlainTextObject(String text) {
+		public BusinessObject makePlainTextObject(String text) {
 			return new PlainTextObject(text);
 		}
 
 		@Override
-		public IBusinessObject makePlainTextObject(String text, BusinessObjectEventType eventType) {
+		public BusinessObject makePlainTextObject(String text, BusinessObjectEventType eventType) {
 			return new PlainTextObject(text, eventType); 
 		}
 	}

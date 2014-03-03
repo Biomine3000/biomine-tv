@@ -41,8 +41,8 @@ import util.collections.Pair;
  *      will not have equals and hashcode, either.
  *  
  */
-public class BusinessObject2 implements IBusinessObject {
-    private static final Logger log = LoggerFactory.getLogger(BusinessObject2.class);
+public class BusinessObjectImpl implements BusinessObject {
+    private static final Logger log = LoggerFactory.getLogger(BusinessObjectImpl.class);
     
    /**
     * Implementation note: this should never be set directly, but always using setMetadata.
@@ -55,18 +55,18 @@ public class BusinessObject2 implements IBusinessObject {
     /**
      * Event with no payload.
      */
-    private BusinessObject2(BusinessObjectEventType eventType) {
+    private BusinessObjectImpl(BusinessObjectEventType eventType) {
         this(new BusinessObjectMetadata());
         metadata.setEvent(eventType);
     }
     
     /* trivial constructor with all data pre-mangled */
-    protected BusinessObject2(BusinessObjectMetadata meta, Payload payload) {
+    protected BusinessObjectImpl(BusinessObjectMetadata meta, Payload payload) {
     	setMetadata(meta);
     	this.payload = payload;    	
     }       
                 
-    public static BusinessObject2 readObject(InputStream is) throws IOException, InvalidBusinessObjectException {        
+    public static BusinessObjectImpl readObject(InputStream is) throws IOException, InvalidBusinessObjectException {
         Pair<BusinessObjectMetadata, byte[]> packet = readPacket(is);
         return makeObject(packet);
     }
@@ -121,7 +121,7 @@ public class BusinessObject2 implements IBusinessObject {
         metadata.setEvent(type);
     }
     
-    /** Parse BusinessObject2 represented as raw bytes into medatata and payload */ 
+    /** Parse BusinessObjectImpl represented as raw bytes into medatata and payload */
     public static Pair<BusinessObjectMetadata, byte[]> parseBytes(byte[] data) throws InvalidBusinessObjectException {
         int i = 0;
         while (data[i] != '\0' && i < data.length) {
@@ -147,17 +147,17 @@ public class BusinessObject2 implements IBusinessObject {
     }
     
     /** Make a business object representing an event of a given type. No other metadata fields are initialized */
-    public static BusinessObject2 makeEvent(BusinessObjectEventType eventType) {
-    	return new BusinessObject2(eventType);
+    public static BusinessObjectImpl makeEvent(BusinessObjectEventType eventType) {
+    	return new BusinessObjectImpl(eventType);
     }
     
-    public static BusinessObject2 makeObject(MediaType type, byte[] payload) {
+    public static BusinessObjectImpl makeObject(MediaType type, byte[] payload) {
     	BusinessObjectMetadata meta = new BusinessObjectMetadata();
     	meta.setType(type);
     	return makeObject(meta, payload);
     }
     
-    public static BusinessObject2 makeObject(Pair<BusinessObjectMetadata, byte[]> data) {
+    public static BusinessObjectImpl makeObject(Pair<BusinessObjectMetadata, byte[]> data) {
         if (data == null) {
             throw new RuntimeException("makeObject called with null data");
         }
@@ -165,20 +165,20 @@ public class BusinessObject2 implements IBusinessObject {
     }
     
     /**
-     * Construct a BusinessObject2, preferably using a dedicated implementation class.
+     * Construct a BusinessObjectImpl, preferably using a dedicated implementation class.
      * 
      * To construct a raw business object using the default implementation (this very class),
      * use the constructor with similar params, instead of this factory method.
      * 
      * Payload must be null IFF metadata does not contain field "type"
      */ 
-    public static BusinessObject2 makeObject(BusinessObjectMetadata metadata, byte[] payload) {
+    public static BusinessObjectImpl makeObject(BusinessObjectMetadata metadata, byte[] payload) {
         MediaType officialType = metadata.getOfficialType();
-        BusinessObject2 bo = null;
+        BusinessObjectImpl bo = null;
         if (officialType != null) {
             // an official type
             try {            	
-                bo = new BusinessObject2(metadata, PayloadFactory.make(officialType));
+                bo = new BusinessObjectImpl(metadata, PayloadFactory.make(officialType));
                 bo.payload.setBytes(payload);
             }
             catch (IllegalAccessException|InstantiationException e) {
@@ -192,7 +192,7 @@ public class BusinessObject2 implements IBusinessObject {
         
         // gravely enough, type is not official or failed constructing dedicated payload => use pesky default implementation
         if (bo == null) {
-            bo = new BusinessObject2(metadata, payload);
+            bo = new BusinessObjectImpl(metadata, payload);
         }
                 
         return bo;
@@ -203,17 +203,17 @@ public class BusinessObject2 implements IBusinessObject {
     }
     
     /** Create a business object with no payload */
-    public BusinessObject2(BusinessObjectMetadata metadata) {
+    public BusinessObjectImpl(BusinessObjectMetadata metadata) {
         setMetadata(metadata);
     }    
     
     /** Create a business object supposedly being received and parsed earlier from the biomine business objects bus */
-    public BusinessObject2(BusinessObjectMetadata metadata, byte[] payload) {
+    public BusinessObjectImpl(BusinessObjectMetadata metadata, byte[] payload) {
     	this(metadata, new Payload(payload));
                 
         // sanity checks
         if (metadata.hasPayload() != (payload != null)) {
-            throw new RuntimeException("Cannot construct a BusinessObject2 with a type and no payload");
+            throw new RuntimeException("Cannot construct a BusinessObjectImpl with a type and no payload");
         }        
     }                 
     
@@ -293,38 +293,38 @@ public class BusinessObject2 implements IBusinessObject {
 	    String payloadStr = metadata.hasPayload() 
 	                      ? "<payload of "+getPayload().length+" bytes>" 
 	                      : (isEvent() ? "" : "<no payload>");
-	    return "BusinessObject2 <metadata: "+metadata.toString()+"> "+payloadStr;
+	    return "BusinessObjectImpl <metadata: "+metadata.toString()+"> "+payloadStr;
 	}
 	
 	public static class Factory implements IBusinessObjectFactory {
 		
-		public IBusinessObject makeEvent(BusinessObjectEventType e) {
-			return BusinessObject2.makeEvent(e);
+		public BusinessObject makeEvent(BusinessObjectEventType e) {
+			return BusinessObjectImpl.makeEvent(e);
 		}
 	    
-		public IBusinessObject makeObject(MediaType type, byte[] payload) {
-	    	return BusinessObject2.makeObject(type, payload);
+		public BusinessObject makeObject(MediaType type, byte[] payload) {
+	    	return BusinessObjectImpl.makeObject(type, payload);
 	    }
 	    
-	    public IBusinessObject makeObject(Pair<BusinessObjectMetadata, byte[]> data) {
-	    	return BusinessObject2.makeObject(data);
+	    public BusinessObject makeObject(Pair<BusinessObjectMetadata, byte[]> data) {
+	    	return BusinessObjectImpl.makeObject(data);
 	    }
 	    
 		@Override
-		public IBusinessObject makePlainTextObject(String text) {
+		public BusinessObject makePlainTextObject(String text) {
 			BusinessObjectMetadata meta = new BusinessObjectMetadata();
 			meta.setType(BusinessMediaType.PLAINTEXT);			
 			PlainTextPayload payload = new PlainTextPayload(text);
-	        return new BusinessObject2(meta, payload);
+	        return new BusinessObjectImpl(meta, payload);
 		}
 
 		@Override
-		public IBusinessObject makePlainTextObject(String text, BusinessObjectEventType eventType) {
+		public BusinessObject makePlainTextObject(String text, BusinessObjectEventType eventType) {
 			BusinessObjectMetadata meta = new BusinessObjectMetadata();
 			meta.setType(BusinessMediaType.PLAINTEXT);
 			meta.setEvent(eventType);
 			PlainTextPayload payload = new PlainTextPayload(text);
-	        return new BusinessObject2(meta, payload);
+	        return new BusinessObjectImpl(meta, payload);
 		}
 	}
 	

@@ -33,7 +33,7 @@ public class Biomine3000Utils {
     }
     
     /** Format a business object in an IRC-like fashion */
-    public static String formatBusinessObject(IBusinessObject bo) {
+    public static String formatBusinessObject(BusinessObject bo) {
         String sender = bo.getMetadata().getSender();            
         String channel = bo.getMetadata().getChannel();
         if (channel != null) {

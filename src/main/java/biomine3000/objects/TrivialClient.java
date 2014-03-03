@@ -4,7 +4,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
-import java.rmi.UnknownHostException;
 import java.util.List;
 
 import org.json.JSONException;
@@ -122,7 +121,7 @@ public class TrivialClient {
     private class ObjectHandler implements ABBOEConnection.BusinessObjectHandler {
 
         @Override
-        public void handleObject(IBusinessObject bo) {
+        public void handleObject(BusinessObject bo) {
             if (bo.isEvent()) {                
                 BusinessObjectEventType et = bo.getMetadata().getKnownEvent();
                 if (et == BusinessObjectEventType.CLIENTS_LIST_REPLY) {

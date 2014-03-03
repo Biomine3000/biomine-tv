@@ -52,9 +52,9 @@ public class TrivialClient_old {
     }
     
     /** Return null when no more business objects available */
-    public IBusinessObject receive() throws IOException, InvalidBusinessObjectException {
+    public BusinessObject receive() throws IOException, InvalidBusinessObjectException {
         Pair<BusinessObjectMetadata, byte[]> packet = LegacyBusinessObject.readPacket(socket.getInputStream());               
-        IBusinessObject bo = BusinessObjectFactory.makeObject(packet);
+        BusinessObject bo = BusinessObjectFactory.makeObject(packet);
         return bo;
     }
         

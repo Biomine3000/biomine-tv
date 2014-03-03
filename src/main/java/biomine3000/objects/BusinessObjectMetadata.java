@@ -31,11 +31,11 @@ import util.JSONUtils;
  */
 public class BusinessObjectMetadata {
         
-    private IBusinessObject obj;
+    private BusinessObject obj;
     
     private JSONObject json;
 
-    public void setObject(IBusinessObject obj) {
+    public void setObject(BusinessObject obj) {
         this.obj = obj;
     }
     

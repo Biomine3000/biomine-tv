@@ -112,7 +112,7 @@ public class IRCLogManager  {
     private class ObjectHandler implements ABBOEConnection.BusinessObjectHandler {
 
         @Override
-        public void handleObject(IBusinessObject bo) {
+        public void handleObject(BusinessObject bo) {
             if (bo.isEvent()) {                
                 BusinessObjectEventType et = bo.getMetadata().getKnownEvent();
                 if (et == BusinessObjectEventType.CLIENTS_LIST_REPLY) {

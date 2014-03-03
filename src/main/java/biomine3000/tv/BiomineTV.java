@@ -12,8 +12,6 @@ import java.awt.event.WindowEvent;
 
 import javax.swing.*;
 
-import com.google.common.net.MediaType;
-
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.Socket;
@@ -67,7 +65,7 @@ public class BiomineTV extends JFrame {
     static int LOG_SIZE = 10;
           
     /** TODO: support playing in a streaming fashion */     
-    private void playMP3(IBusinessObject bo) {
+    private void playMP3(BusinessObject bo) {
         message("Playing: "+bo.getMetadata().get("name"));
         mp3Player.play(bo.getPayload());
     }
@@ -289,7 +287,7 @@ public class BiomineTV extends JFrame {
         }
         
         @Override
-        public void handleObject(IBusinessObject bo) {
+        public void handleObject(BusinessObject bo) {
             
             if (bo.getMetadata().isEvent()) {                
                 BusinessObjectEventType et = bo.getMetadata().getKnownEvent();
@@ -336,11 +334,11 @@ public class BiomineTV extends JFrame {
                     message("UNKNOWN_EVENT: "+Biomine3000Utils.formatBusinessObject(bo));
                 }
             }
-            else if (bo instanceof BusinessObject2){
+            else if (bo instanceof BusinessObjectImpl){
             	// NOTICE (of retraction): very horribly indeed examine implementation class type
-            	// to make things work during the transition period from LegacyBusinessObject to BusinessObject2
+            	// to make things work during the transition period from LegacyBusinessObject to BusinessObjectImpl
             	            	            	            	
-            	BusinessObject2 bo2 = (BusinessObject2)bo;
+            	BusinessObjectImpl bo2 = (BusinessObjectImpl)bo;
             	Payload payload = bo2.getPayloadObject();            	
             	if (payload instanceof ImagePayload) {
             		imagePanel.setImage(((ImagePayload)payload).getImage());
@@ -384,7 +382,7 @@ public class BiomineTV extends JFrame {
 	            }
             }
             else {
-            	message("Unable to display content; unknown IBusinessObject implementation: "+bo);
+            	message("Unable to display content; unknown BusinessObject implementation: "+bo);
             }
         }
 

@@ -29,7 +29,7 @@ import util.net.NonBlockingSender;
  * to all clients.
  * 
  * Two dedicated threads will created for each client, one for sending and one for reading {@link
- * IBusinessObject}s.  
+ * BusinessObject}s.
  * 
  * Once a client closes its sockets outputstream (the inputstream of the server's socket),
  * the server stops sending to that client and closes the socket. 
@@ -92,7 +92,7 @@ public class ABBOEServer {
     /** Send some random image from the content vault to all clients */
     private void sendImageToAllClients() {        
         synchronized(clients) {
-            IBusinessObject image;
+            BusinessObject image;
             try {
                 image = contentVaultProxy.sampleImage();
                 for (Client client: clients) {
@@ -130,7 +130,7 @@ public class ABBOEServer {
      * Send an object to all applicable clients. Does not block, as sending is done
      * using a dedicated thread for each client.
      */
-    private synchronized void sendToAllClients(Client src, IBusinessObject bo) {
+    private synchronized void sendToAllClients(Client src, BusinessObject bo) {
         // defer coming up with bytes to send until the time comes 
         // to send to the first applicable client (there might be none) 
         byte[] bytes = null;
@@ -250,10 +250,10 @@ public class ABBOEServer {
         
         /**
          * Caller needs to first ensure that client is willing to receive such a packet 
-         * by calling {@link #shouldSend(Client, IBusinessObject)} or {@link #receiveEvents()}.
+         * by calling {@link #shouldSend(Client, BusinessObject)} or {@link #receiveEvents()}.
          * @param obj
          */
-        private void send(IBusinessObject obj) {
+        private void send(BusinessObject obj) {
             obj.getMetadata().setSender("ABBOE");
             log.info("Sending: "+obj);
             send(obj.bytes());
@@ -261,7 +261,7 @@ public class ABBOEServer {
         
         private void send(String text) {
             log("Sending plain text to client "+this+": "+text);
-            IBusinessObject reply = BusinessObjectFactory.makePlainTextObject(text);
+            BusinessObject reply = BusinessObjectFactory.makePlainTextObject(text);
             send(reply);        
         }
 
@@ -271,7 +271,7 @@ public class ABBOEServer {
         }
         
         /** Should the object <bo> from client <source> be sent to this client? */ 
-        public boolean shouldSend(Client source, IBusinessObject bo) {
+        public boolean shouldSend(Client source, BusinessObject bo) {
             
             boolean result;
             
@@ -416,7 +416,7 @@ public class ABBOEServer {
          * client should close its socket, which will then be noticed on this server
          * as a {@link BusinessObjectReader.Listener#noMoreObjects()} notification from the {@link #reader}.  
          */
-        public void initiateClosingSequence(IBusinessObject notification) {
+        public void initiateClosingSequence(BusinessObject notification) {
             log.info("Initiating closing sequence for client: "+this);
             
             if (receiveEvents()) {                           
@@ -582,7 +582,7 @@ public class ABBOEServer {
                 }
                 log.info("Closing connection to client: {}", client);
                 String admin  = Biomine3000Utils.getUser();
-                IBusinessObject closeNotification = new PlainTextObject("ABBOE IS GOING TO CLOSE THIS CONNECTION NOW (as requested by the ABBOE adminstrator, "+admin+")");            
+                BusinessObject closeNotification = new PlainTextObject("ABBOE IS GOING TO CLOSE THIS CONNECTION NOW (as requested by the ABBOE adminstrator, "+admin+")");
                 closeNotification.setEvent(ABBOE_CLOSE_NOTIFY);
                 client.initiateClosingSequence(closeNotification);                                
                 
@@ -592,7 +592,7 @@ public class ABBOEServer {
             }
             else {
                 // just a message to be broadcast
-                IBusinessObject message = new PlainTextObject(line);
+                BusinessObject message = new PlainTextObject(line);
                 String user = Biomine3000Utils.getUser();
                 String sender = user != null ? "ABBOE-"+user : "ABBOE";
                 message.getMetadata().setSender(sender);
@@ -623,7 +623,7 @@ public class ABBOEServer {
         
         if (clients.size() > 0) {                   
             for (Client client: clients) {                
-                IBusinessObject shutdownNotification = new PlainTextObject("ABBOE IS GOING TO SHUTDOWN in 5 seconds");            
+                BusinessObject shutdownNotification = new PlainTextObject("ABBOE IS GOING TO SHUTDOWN in 5 seconds");
                 shutdownNotification.setEvent(ABBOE_SHUTDOWN_NOTIFY);
                 client.initiateClosingSequence(shutdownNotification);
             }                           
@@ -715,7 +715,7 @@ public class ABBOEServer {
         }
     }
     
-    private void handleServicesRegisterEvent(Client client, IBusinessObject bo) {
+    private void handleServicesRegisterEvent(Client client, BusinessObject bo) {
         BusinessObjectMetadata meta = bo.getMetadata();        
         List<String> names = meta.getList("names");
         String name = meta.getString("name");
@@ -743,7 +743,7 @@ public class ABBOEServer {
     
     private void handleClientsListEvent(Client requestingClient) {
         
-        IBusinessObject clientReport;
+        BusinessObject clientReport;
         
         synchronized(ABBOEServer.this) {
             clientReport = new PlainTextObject(StringUtils.colToStr(clientReport(requestingClient), "\n"));
@@ -763,7 +763,7 @@ public class ABBOEServer {
     
     
     
-    private void handleClientRegisterEvent(Client client, IBusinessObject bo) {
+    private void handleClientRegisterEvent(Client client, BusinessObject bo) {
         BusinessObjectMetadata meta = bo.getMetadata(); 
         String name = meta.getName();
         String user = meta.getUser();
@@ -812,7 +812,7 @@ public class ABBOEServer {
             msg+=" You did not specify subscriptions; using the default: "+client.subscriptions;                            
         }                        
                      
-        IBusinessObject replyObj = new PlainTextObject(msg);
+        BusinessObject replyObj = new PlainTextObject(msg);
         replyObj.setEvent(CLIENTS_REGISTER_REPLY);
         client.send(replyObj);
 
@@ -837,7 +837,7 @@ public class ABBOEServer {
         }
 
         @Override
-        public void objectReceived(IBusinessObject bo) {                        
+        public void objectReceived(BusinessObject bo) {
             if (bo.isEvent()) {
                 BusinessObjectEventType et = bo.getMetadata().getKnownEvent();
                 // does this event need to be sent to other clients?

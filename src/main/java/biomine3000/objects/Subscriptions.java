@@ -20,7 +20,7 @@ public abstract class Subscriptions {
     public static final Subscriptions PLAINTEXT = make(BusinessMediaType.PLAINTEXT);
         
     
-    public abstract boolean shouldSend(IBusinessObject bo);
+    public abstract boolean shouldSend(BusinessObject bo);
     public abstract Object toJSON();
     @Override
     public String toString() {            
@@ -79,7 +79,7 @@ public abstract class Subscriptions {
     private static class All extends Subscriptions {
         
         @Override
-        public boolean shouldSend(IBusinessObject bo) {
+        public boolean shouldSend(BusinessObject bo) {
             return true;
         }
         
@@ -93,7 +93,7 @@ public abstract class Subscriptions {
     
     private static class None extends Subscriptions {
         @Override
-        public boolean shouldSend(IBusinessObject bo) {
+        public boolean shouldSend(BusinessObject bo) {
             // only send events
             return bo.isEvent(); 
         }
@@ -132,7 +132,7 @@ public abstract class Subscriptions {
         }
         
         @Override
-        public boolean shouldSend(IBusinessObject bo) {
+        public boolean shouldSend(BusinessObject bo) {
             String type = bo.getMetadata().getType();
             return (type != null && types.contains(type));            
         }

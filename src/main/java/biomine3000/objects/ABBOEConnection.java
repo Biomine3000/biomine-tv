@@ -98,7 +98,7 @@ public class ABBOEConnection {
     }                     
                    
     /** Put object to queue of objects to be sent*/
-    public void send(IBusinessObject object) throws IOException {        
+    public void send(BusinessObject object) throws IOException {
         if (clientParameters.sender != null) {
             object.getMetadata().setSender(clientParameters.sender);
         }
@@ -270,7 +270,7 @@ public class ABBOEConnection {
         /**
          * Self-explanatory
          */
-        public void handleObject(IBusinessObject obj);
+        public void handleObject(BusinessObject obj);
 
         /**
          * Connection to server has been terminated somehow "normally".
@@ -308,7 +308,7 @@ public class ABBOEConnection {
     private class ReaderListener extends BusinessObjectReader.AbstractListener {
 
         @Override
-        public void objectReceived(IBusinessObject bo) {
+        public void objectReceived(BusinessObject bo) {
             objectHandler.handleObject(bo);        
         }    
         

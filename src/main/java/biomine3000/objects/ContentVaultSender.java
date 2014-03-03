@@ -76,7 +76,7 @@ public class ContentVaultSender implements IBusinessObjectHandler {
                
     /** Handle object from the vault adapter */
     @Override
-    public void handleObject(IBusinessObject obj) {
+    public void handleObject(BusinessObject obj) {
         if (stopped) {
             // no more buizness
             log.info("No more buizness");
@@ -142,7 +142,7 @@ public class ContentVaultSender implements IBusinessObjectHandler {
     private class ObjectHandler implements ABBOEConnection.BusinessObjectHandler {
 
         @Override
-        public void handleObject(IBusinessObject bo) {
+        public void handleObject(BusinessObject bo) {
             // no action           
         }
 

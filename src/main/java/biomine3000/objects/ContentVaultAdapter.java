@@ -100,7 +100,7 @@ public class ContentVaultAdapter {
             
             while (!stop) {
                 try {                    
-                    IBusinessObject randomContent = contentVaultProxy.sampleImage();
+                    BusinessObject randomContent = contentVaultProxy.sampleImage();
                     handler.handleObject(randomContent);
                     Thread.sleep(sendInterval);
                 }
@@ -127,7 +127,7 @@ public class ContentVaultAdapter {
         ContentVaultAdapter adapter = new ContentVaultAdapter(
                 new IBusinessObjectHandler() {                                        
                     @Override
-                    public void handleObject(IBusinessObject bo) {                        
+                    public void handleObject(BusinessObject bo) {
                         logger.info("DUMMY HANDLER received object: {}", bo);
                     }
                 }, 3000);

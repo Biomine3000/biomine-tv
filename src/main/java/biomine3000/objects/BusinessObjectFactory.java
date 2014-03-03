@@ -23,7 +23,7 @@ public class BusinessObjectFactory {
 			
 			switch(implName) {
 				case IMPL_SANE: 
-					impl = new BusinessObject2.Factory();
+					impl = new BusinessObjectImpl.Factory();
 					break;
 				case IMPL_LEGACY: 					
 					impl = new LegacyBusinessObject.Factory();
@@ -36,22 +36,22 @@ public class BusinessObjectFactory {
 		return impl;
 	}
 	
-	public static IBusinessObject makeEvent(BusinessObjectEventType eventType) {
+	public static BusinessObject makeEvent(BusinessObjectEventType eventType) {
 		return getImpl().makeEvent(eventType);
 	}
 	
-    public static IBusinessObject makeObject(MediaType type, byte[] payload) {
+    public static BusinessObject makeObject(MediaType type, byte[] payload) {
     	return getImpl().makeObject(type, payload);
     }
     
-    public static IBusinessObject makeObject(Pair<BusinessObjectMetadata, byte[]> data) {
+    public static BusinessObject makeObject(Pair<BusinessObjectMetadata, byte[]> data) {
     	return getImpl().makeObject(data);
     }
 	
-    public static IBusinessObject makePlainTextObject(String text) {
+    public static BusinessObject makePlainTextObject(String text) {
     	return getImpl().makePlainTextObject(text);
     }
-    public static IBusinessObject makePlainTextObject(String text, BusinessObjectEventType eventType) {
+    public static BusinessObject makePlainTextObject(String text, BusinessObjectEventType eventType) {
     	return getImpl().makePlainTextObject(text, eventType);
     }
 	

@@ -29,7 +29,7 @@ public class MP3Sender {
         BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
         byte[] payload = IOUtils.readBytes(bis);
         bis.close();
-        IBusinessObject bo = BusinessObjectFactory.makeObject(BusinessMediaType.MP3, payload);
+        BusinessObject bo = BusinessObjectFactory.makeObject(BusinessMediaType.MP3, payload);
         bo.getMetadata().put("name", file.getName());       
         if (channel != null) {
             bo.getMetadata().put("channel", channel);
