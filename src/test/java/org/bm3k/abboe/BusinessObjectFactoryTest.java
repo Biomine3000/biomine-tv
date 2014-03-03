@@ -1,6 +1,6 @@
 package org.bm3k.abboe;
 
-import org.bm3k.abboe.objects.BusinessMediaType;
+import org.bm3k.abboe.common.BusinessMediaType;
 import org.bm3k.abboe.objects.ImageObject;
 import org.bm3k.abboe.objects.LegacyBusinessObject;
 import org.bm3k.abboe.objects.PlainTextObject;

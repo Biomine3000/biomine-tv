@@ -6,6 +6,7 @@ import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 
 import com.google.common.net.MediaType;
+import org.bm3k.abboe.common.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.IOUtils;
@@ -71,7 +72,7 @@ public class LegacyBusinessObject implements BusinessObject {
     }
     
      
-    public static LegacyBusinessObject readObject(InputStream is) throws IOException, InvalidBusinessObjectException {        
+    public static LegacyBusinessObject readObject(InputStream is) throws IOException, InvalidBusinessObjectException {
         Pair<BusinessObjectMetadata, byte[]> packet = readPacket(is);
         return makeObject(packet);
     }
@@ -88,7 +89,7 @@ public class LegacyBusinessObject implements BusinessObject {
     /**
      * @return null if no more business objects in stream. Note that payload may be null!
      * @throws InvalidBusinessObjectException when packet is not correctly formatted
-     * @throws InvalidJSONException JSON metadata is not correctly formatted json
+     * @throws org.bm3k.abboe.common.InvalidJSONException JSON metadata is not correctly formatted json
      * @throws IOException in case of general io error.
      */ 
     public static Pair<BusinessObjectMetadata, byte[]> readPacket(InputStream is) throws IOException, InvalidBusinessObjectException {
@@ -233,7 +234,7 @@ public class LegacyBusinessObject implements BusinessObject {
      * Type and payload are required to be non-null here (use constructor with no parameters to create
      * an object with (at least initially) no payload (and thus no type)
      */
-    protected LegacyBusinessObject(String type, byte[] payload) {
+    public LegacyBusinessObject(String type, byte[] payload) {
         initMetadata(type);
         setPayload(payload); 
     }               
@@ -242,7 +243,7 @@ public class LegacyBusinessObject implements BusinessObject {
      * Create a new business object to be sent; payload length will be set to metadata automatically.
      * Naturally, both type and payload are required to be non-null.
      */
-    protected LegacyBusinessObject(MediaType type, byte[] payload) {
+    public LegacyBusinessObject(MediaType type, byte[] payload) {
         initMetadata(type.toString());
         setPayload(payload); 
     }
@@ -253,7 +254,7 @@ public class LegacyBusinessObject implements BusinessObject {
      * Subclass is assumed to set the payload size to the superclass metadata by 
      * calling getMetadata().setPayloadSize() after its own construction process has been finished.
      */
-    protected LegacyBusinessObject(String type) {
+    public LegacyBusinessObject(String type) {
         BusinessObjectMetadata meta = new BusinessObjectMetadata();
         meta.setType(type);
         setMetadata(meta);

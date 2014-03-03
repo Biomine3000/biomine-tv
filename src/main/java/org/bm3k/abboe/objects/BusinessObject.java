@@ -1,5 +1,8 @@
 package org.bm3k.abboe.objects;
 
+import org.bm3k.abboe.common.BusinessObjectEventType;
+import org.bm3k.abboe.common.BusinessObjectMetadata;
+
 public interface BusinessObject {
 	BusinessObjectMetadata getMetadata();
 

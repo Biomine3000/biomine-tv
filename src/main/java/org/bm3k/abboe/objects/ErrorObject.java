@@ -1,6 +1,9 @@
 package org.bm3k.abboe.objects;
 
 import com.google.common.net.MediaType;
+import org.bm3k.abboe.common.BusinessMediaType;
+import org.bm3k.abboe.common.BusinessObjectEventType;
+import org.bm3k.abboe.objects.LegacyBusinessObject;
 
 @Deprecated
 public class ErrorObject extends LegacyBusinessObject {

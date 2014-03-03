@@ -2,7 +2,7 @@ package org.bm3k.abboe;
 
 import java.net.Socket;
 
-import org.bm3k.abboe.objects.Biomine3000Utils;
+import org.bm3k.abboe.common.Biomine3000Utils;
 import util.commandline.CommandLineTests;
 
 public class ABBOETests extends CommandLineTests {

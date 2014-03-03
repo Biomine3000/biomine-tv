@@ -17,8 +17,9 @@ import java.net.ConnectException;
 import java.net.Socket;
 import java.util.*;
 
-import org.bm3k.abboe.objects.*;
+import org.bm3k.abboe.common.*;
 
+import org.bm3k.abboe.objects.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.StringUtils;

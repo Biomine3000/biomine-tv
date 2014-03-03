@@ -8,6 +8,9 @@ import javax.imageio.ImageIO;
 
 
 import com.google.common.net.MediaType;
+import org.bm3k.abboe.common.BusinessMediaType;
+import org.bm3k.abboe.common.BusinessObjectMetadata;
+import org.bm3k.abboe.common.UnknownImageTypeException;
 import util.StringUtils;
 
 
