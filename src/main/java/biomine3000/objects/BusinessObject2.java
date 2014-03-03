@@ -6,11 +6,11 @@ import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 
 import com.google.common.net.MediaType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import util.IOUtils;
 import util.IOUtils.UnexpectedEndOfStreamException;
 import util.collections.Pair;
-import util.dbg.ILogger;
-import util.dbg.Logger;
 
 
 /**
@@ -41,10 +41,8 @@ import util.dbg.Logger;
  *      will not have equals and hashcode, either.
  *  
  */
-public class BusinessObject2 implements IBusinessObject {    
-    
-    @SuppressWarnings("unused")
-    private static ILogger log = new Logger.ILoggerAdapter("BusinessObject2");
+public class BusinessObject2 implements IBusinessObject {
+    private static final Logger log = LoggerFactory.getLogger(BusinessObject2.class);
     
    /**
     * Implementation note: this should never be set directly, but always using setMetadata.
@@ -184,7 +182,8 @@ public class BusinessObject2 implements IBusinessObject {
                 bo.payload.setBytes(payload);
             }
             catch (IllegalAccessException|InstantiationException e) {
-                Logger.error("Failed constructing payload for of an official business object type; reverting to default payload implementation", e);                     
+                log.error(
+                        "Failed constructing payload for of an official business object type; reverting to default payload implementation", e);
             }
 //            catch (InstantiationException e) {
 //                Logger.error("Failed constructing an instance of an official business object type", e);                    

@@ -4,8 +4,9 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import util.collections.Pair;
-import util.dbg.Logger;
 import util.net.NonBlockingSender;
 
 
@@ -15,6 +16,7 @@ import util.net.NonBlockingSender;
  * that the read object will be the line we just wrote, although that is not guaranteed in any way). 
  */
 public class TrivialClient_old {
+    private final Logger logger = LoggerFactory.getLogger(TrivialClient_old.class);
                       
     private Socket socket = null;
     
@@ -38,11 +40,11 @@ public class TrivialClient_old {
         this.socket = socket;
         sender = new NonBlockingSender(socket, new SenderListener());
   
-        info("TestTCPClient Connected to server");
+        logger.info("TestTCPClient Connected to server");
         
         MyShutdown sh = new MyShutdown();            
         Runtime.getRuntime().addShutdownHook(sh);
-        info("Initialized shutdown hook");       
+        logger.info("Initialized shutdown hook");
     }                
        
     public void send(LegacyBusinessObject object) throws IOException {        
@@ -58,17 +60,17 @@ public class TrivialClient_old {
         
     private synchronized void closeSocketIfNeeded() {
         if (senderFinished && receiverFinished && !socketClosed) {
-            info("Closing socket");
+            logger.info("Closing socket");
             try {
                 socket.close();
-                info("Closed socket");
+                logger.info("Closed socket");
             }
             catch (IOException e) {
-                error("Failed closing socket", e);
+                logger.error("Failed closing socket", e);
             }
         }
         else {
-            info("Socket already closed");
+            logger.info("Socket already closed");
         }
     }
             
@@ -82,7 +84,7 @@ public class TrivialClient_old {
         
         if (!closeRequested) {
             closeRequested = true;
-            info("Requesting sender to close");
+            logger.info("Requesting sender to close");
             sender.requestStop();
         }
     }       
@@ -139,10 +141,10 @@ public class TrivialClient_old {
     private class SenderListener implements NonBlockingSender.Listener {
         public void senderFinished() {
             synchronized(TrivialClient_old.this) {
-                info("SenderListener.finished()");
+                logger.info("SenderListener.finished()");
                 senderFinished = true;
                 closeSocketIfNeeded();
-                info("finished SenderListener.finished()");
+                logger.info("finished SenderListener.finished()");
             }
         }
     }       
@@ -153,24 +155,5 @@ public class TrivialClient_old {
             requestClose();
         }
     }
-    
-    @SuppressWarnings("unused")
-    private static void error(String msg) {
-        Logger.error("TestTCPClient: "+msg);
-    }
-        
-    private static void error(String msg, Exception e) {
-        Logger.error("TestTCPClient: "+msg, e);
-    }
-        
-    @SuppressWarnings("unused")
-    private static void warning(String msg) {
-        Logger.warning("TestTCPClient: "+msg);
-    }
-    
-    private static void info(String msg) {
-        Logger.info("TestTCPClient: "+msg);
-    }
-    
 }
 

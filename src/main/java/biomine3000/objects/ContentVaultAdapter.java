@@ -1,10 +1,10 @@
 package biomine3000.objects;
 
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import util.ExceptionUtils;
-import util.dbg.Logger;
 
-import biomine3000.objects.ContentVaultProxy;
 import biomine3000.objects.ContentVaultProxy.ContentVaultListener;
 import biomine3000.objects.ContentVaultProxy.InvalidStateException;
 
@@ -14,9 +14,8 @@ import biomine3000.objects.ContentVaultProxy.InvalidStateException;
  * updates from an content vault.  
  */
 public class ContentVaultAdapter {
+    private static final Logger logger = LoggerFactory.getLogger(ContentVaultAdapter.class);
 
-    private static boolean log = false;    
-    
     private IBusinessObjectHandler handler;
     private boolean firstImageLoaded;
     private ContentVaultProxy contentVaultProxy;
@@ -49,13 +48,13 @@ public class ContentVaultAdapter {
     
     /** Stop your business (instruct sender thread to stop sending content). */
     public void stop() {
-        log("stop requested");
+       logger.info("stop requested");
        sender.stop(); 
     }
     
     /** Sends event text as a PlainText "service/state-changed" event */
     private void sendEvent(String msg) {
-        log("Sending message: "+msg);
+        logger.info("Sending message: {}", msg);
         PlainTextObject obj = new PlainTextObject(msg);
         obj.getMetadata().setEvent(BusinessObjectEventType.SERVICES_STATE_CHANGED);
         handler.handleObject(obj);               
@@ -74,7 +73,7 @@ public class ContentVaultAdapter {
             String msg = "Loaded "+contentVaultProxy.getNumLoadedObjects()+"/"+contentVaultProxy.getTotalNumObjects()+" business objects";            
             sendEvent(msg);            
             if (firstImageLoaded == false) { 
-                log("First image loaded, starting sender thread to push content to handler");    
+                logger.info("First image loaded, starting sender thread to push content to handler");
                 firstImageLoaded = true;
                 sender = new Sender();
                 new Thread(sender).start();
@@ -83,9 +82,8 @@ public class ContentVaultAdapter {
 
         @Override
         public void loadedAllImages() {
-            log("All images have been loaded");
-            
-        }       
+            logger.info("All images have been loaded");
+        }
     }
     
     /** Sends random content from vault every 3 seconds to handler */
@@ -93,12 +91,12 @@ public class ContentVaultAdapter {
         private boolean stop = false;
         
         private void stop() {
-            log("stop requested");
+            logger.info("stop requested");
             stop = true;
         }
                        
         public void run() {
-            log("Sender running");
+            logger.info("Sender running");
             
             while (!stop) {
                 try {                    
@@ -120,13 +118,9 @@ public class ContentVaultAdapter {
                 }
             }                        
             
-            log("stopped");
+            logger.info("stopped");
         }
-        
-        private void log(String msg) {
-            if (log) Logger.info("ContentVaultAdapter.Sender: "+msg);
-        }
-    }      
+    }
       
     /** Unit testing */
     public static void main(String[] args) {
@@ -134,15 +128,9 @@ public class ContentVaultAdapter {
                 new IBusinessObjectHandler() {                                        
                     @Override
                     public void handleObject(IBusinessObject bo) {                        
-                        log("DUMMY HANDLER received object: "+bo);
+                        logger.info("DUMMY HANDLER received object: {}", bo);
                     }
                 }, 3000);
         adapter.startLoading();                        
     }
-       
-    private static void log(String msg) {
-        if (log) Logger.info("ContentVaultAdapter: "+msg);
-    }    
-           
-    
 }

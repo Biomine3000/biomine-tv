@@ -7,10 +7,11 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.*;
- 
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import util.IOUtils;
 import util.RandUtils;
-import util.dbg.Logger;
 
 
 /**
@@ -18,8 +19,8 @@ import util.dbg.Logger;
  * after each piece of content has been loaded.
  */
 public class ContentVaultProxy {
-    
-    private static boolean log = false;
+    private static final Logger logger = LoggerFactory.getLogger(ContentVaultProxy.class);
+
     public static String LERONEN_IMAGE_VAULT_URL = "http://www.cs.helsinki.fi/u/leronen/biomine3000/biomine_tv_image_vault";
     public static String LERONEN_IMAGE_VAULT_FILELIST_URL = LERONEN_IMAGE_VAULT_URL+"/filelist.txt";
     
@@ -102,7 +103,7 @@ public class ContentVaultProxy {
             return result;
    
         } catch (IOException e) {
-            Logger.error("Could now read file list from image vault", e);
+            logger.error("Could now read file list from image vault", e);
             return result;
         }
             
@@ -120,26 +121,26 @@ public class ContentVaultProxy {
             try {
                 urls = loadImageList(LERONEN_IMAGE_VAULT_FILELIST_URL);
                 state = State.LOADING_IMAGES;
-                log("Filelist loaded");
+                logger.info("Filelist loaded");
                 for (ContentVaultListener listener: listeners) {
                     listener.loadedImageList();
                 }
             }
             catch (IOException e) {
                 state = State.FAILED_LOADING_FILELIST;
-                Logger.warning("Failed loading filelist", e);
+                logger.warn("Failed loading filelist", e);
                 return;
             }
             
             for (String url: urls) {
-                log("Loading image: "+url);
+                logger.info("Loading image: {}", url);
                 try {
                    
                     InputStream is = new URL(url).openStream();
                     byte[] bytes = IOUtils.readBytes(is);                    
                     ImageObject img = new ImageObject(bytes, url);
                     
-                    log("Loaded image: "+url);
+                    logger.info("Loaded image: {}", url);
                     synchronized(loadedImagesByURL) {                    
                         loadedImagesByURL.put(url,  img);
                     }
@@ -151,20 +152,20 @@ public class ContentVaultProxy {
                     }
                 }
                 catch (IOException e) {
-                    Logger.warning("Failed loading image: "+url, e);                
+                    logger.warn("Failed loading image: " + url, e);
                 }
                 catch (UnknownImageTypeException e) {
-                    Logger.warning("Failed loading image: "+url, e);                
+                    logger.warn("Failed loading image: " + url, e);
                 }   
             }
                                                   
             if (loadedImagesByURL.size() == 0) {
                 state = State.FAILED_LOADING_IMAGES;
-                Logger.error("Failed to load any images");
+                logger.error("Failed to load any images");
             }
             else {            
                 state = State.INITIALIZED_SUCCESSFULLY;
-                log("Loaded "+loadedImagesByURL.keySet().size()+"/"+urls.size()+" images");
+                logger.info("Loaded {} images", loadedImagesByURL.keySet().size()+"/"+urls.size());
             }
         }
     }
@@ -223,9 +224,4 @@ public class ContentVaultProxy {
             super(msg);
         }
     }
-    
-    private static void log(String msg) {
-        if (log) Logger.info("ContentVaultProxy: "+msg);
-    }    
-    
 }
