@@ -9,7 +9,6 @@ import java.net.Socket;
 
 import org.bm3k.abboe.common.*;
 import org.bm3k.abboe.objects.BusinessObject;
-import org.bm3k.abboe.objects.LegacyBusinessObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.IOUtils;
@@ -41,13 +40,15 @@ public class MP3Sender {
             bo.getMetadata().put("user", user);
         }
         
-        // write register object
-        LegacyBusinessObject registerObj = Biomine3000Utils.makeRegisterPacket(
-                "MP3Sender",
-                ClientReceiveMode.NONE,
+        // Subscribe & registr
+        BusinessObject subscription = ClientUtils.makeSubscriptionObject(ClientReceiveMode.NONE,
                 Subscriptions.NONE);
-        log.info("Writing register object:" +registerObj);        
-        IOUtils.writeBytes(socket.getOutputStream(), registerObj.toBytes());
+        log.info("Writing subscription object: {}", subscription);
+        IOUtils.writeBytes(socket.getOutputStream(), subscription.toBytes());
+
+        BusinessObject registration = ClientUtils.makeRegistrationObject("MP3Sender");
+        log.info("Writing register object: {}", registration);
+        IOUtils.writeBytes(socket.getOutputStream(), registration.toBytes());
         
         // write actual mp3
         byte[] bytes = bo.toBytes();

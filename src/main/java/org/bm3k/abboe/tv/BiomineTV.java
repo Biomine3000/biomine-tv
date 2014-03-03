@@ -68,7 +68,7 @@ public class BiomineTV extends JFrame {
     /** TODO: support playing in a streaming fashion */     
     private void playMP3(BusinessObject bo) {
         message("Playing: "+bo.getMetadata().get("name"));
-        mp3Player.play(bo.getPayload());
+        mp3Player.play(bo.getPayload().getBytes());
     }
     
     private void init()  {
@@ -340,7 +340,7 @@ public class BiomineTV extends JFrame {
             	// to make things work during the transition period from LegacyBusinessObject to BusinessObjectImpl
             	            	            	            	
             	BusinessObjectImpl bo2 = (BusinessObjectImpl)bo;
-            	Payload payload = bo2.getPayloadObject();            	
+            	Payload payload = bo2.getPayload();
             	if (payload instanceof ImagePayload) {
             		imagePanel.setImage(((ImagePayload)payload).getImage());
 	                String oldMsg = imagePanel.getMessage();

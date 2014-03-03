@@ -7,10 +7,7 @@ import java.net.Socket;
 import java.util.List;
 
 import org.bm3k.abboe.common.*;
-import org.bm3k.abboe.objects.BusinessObject;
-import org.bm3k.abboe.objects.BusinessObjectEventType;
-import org.bm3k.abboe.objects.LegacyBusinessObject;
-import org.bm3k.abboe.objects.PlainTextObject;
+import org.bm3k.abboe.objects.*;
 import org.json.JSONException;
 
 
@@ -85,7 +82,8 @@ public class TrivialClient {
                 connection.sendClientListRequest();
             }
             else {
-                LegacyBusinessObject sendObj = new PlainTextObject(line);
+                BusinessObject sendObj = BOB.newBuilder()
+                        .payload(new PlainTextPayload(line)).build();
                 sendObj.getMetadata().setSender(user);
                 // log.dbg("Sending object: "+sendObj );  
                 connection.send(sendObj);                

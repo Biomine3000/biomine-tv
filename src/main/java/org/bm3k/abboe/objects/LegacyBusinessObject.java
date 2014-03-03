@@ -52,7 +52,7 @@ public class LegacyBusinessObject implements BusinessObject {
     
     /**
      * Might be null when subclass is implementing its own payload storage protocol. Should always be accessed through
-     * {@link #getPayload()}, never directly, even within this very class.
+     * {@link #getBytePayload()}, never directly, even within this very class.
      * */
     private byte[] payload;
     
@@ -80,7 +80,12 @@ public class LegacyBusinessObject implements BusinessObject {
     public boolean hasPayload() {
         return metadata.hasPayload();
     }
-    
+
+    @Override
+    public Payload getPayload() {
+        return new Payload(getBytePayload());
+    }
+
 //    /** Delegate to metadata (TODO: merge metadata class with this one) */
 //    public void setSender(String sender) {
 //        metadata.setSender(sender);        
@@ -283,7 +288,7 @@ public class LegacyBusinessObject implements BusinessObject {
 	 * managed by this class. Subclasses desiring to implement storing of payload in some other manner than 
 	 * raw toBytes should override this.
 	 */	 
-	public byte[] getPayload() {
+	public byte[] getBytePayload() {
 	    return this.payload;
 	}
 
@@ -321,7 +326,7 @@ public class LegacyBusinessObject implements BusinessObject {
 	    byte[] bytes;
 	    if (metadata.hasPayload()) {
     	    // ensure that payload size matches size in metadata at this point...
-    	    byte[] payload = getPayload();
+    	    byte[] payload = getBytePayload();
     	    
     	    // form packet
     	    bytes = new byte[jsonBytes.length+1+payload.length];
@@ -351,7 +356,7 @@ public class LegacyBusinessObject implements BusinessObject {
 	
 	public String toString() {
 	    String payloadStr = metadata.hasPayload() 
-	                      ? "<payload of "+getPayload().length+" bytes>" 
+	                      ? "<payload of "+ getBytePayload().length+" bytes>"
 	                      : (isEvent() ? "" : "<no payload>");
 	    return "BusinessObject <metadata: "+metadata.toString()+"> "+payloadStr;
 	}

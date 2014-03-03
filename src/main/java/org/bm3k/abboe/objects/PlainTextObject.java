@@ -3,6 +3,8 @@ package org.bm3k.abboe.objects;
 import com.google.common.net.MediaType;
 import org.bm3k.abboe.common.BusinessMediaType;
 import org.bm3k.abboe.common.BusinessObjectMetadata;
+import org.bm3k.abboe.common.Payload;
+import org.bm3k.abboe.common.PlainTextPayload;
 
 import java.io.UnsupportedEncodingException;
 
@@ -70,9 +72,9 @@ public class PlainTextObject extends LegacyBusinessObject {
     }
 
     @Override
-    public byte[] getPayload() {
+    public Payload getPayload() {
         try {
-            return text.getBytes("UTF-8");
+            return new PlainTextPayload(text.getBytes("UTF-8"));
         } catch (UnsupportedEncodingException e) {
             // the unthinkable has occurred; UTF-8 not supported by this very java instance
             throw new RuntimeException("guaqua has been observed to play ZOMBI all night");

@@ -355,7 +355,7 @@ public class BusinessObjectMetadata {
      */
     public Integer getSize() {
         if (obj != null) {
-            return obj.getPayload().length;
+            return obj.getPayload().getBytes().length;
         }
         else {             
             return getInteger("size");                       
@@ -396,7 +396,7 @@ public class BusinessObjectMetadata {
         if (hasPayload()) {            
             JSONObject json = JSONUtils.clone(this.json);
             try {
-                json.put("size", obj.getPayload().length);
+                json.put("size", obj.getPayload().getBytes().length);
             }
             catch (JSONException e) {
                 // should not be possible

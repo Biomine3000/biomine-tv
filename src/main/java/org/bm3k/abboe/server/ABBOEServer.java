@@ -892,7 +892,10 @@ public class ABBOEServer {
                 
                 if (bo.hasPayload() &&
                         bo.getMetadata().getType() == BusinessMediaType.PLAINTEXT.withoutParameters().toString()) {
-                    PlainTextObject pto = new PlainTextObject(bo.getMetadata().clone(), bo.getPayload());
+                    BusinessObject pto = BOB.newBuilder()
+                            .payload(bo.getPayload())
+                            .metadata(bo.getMetadata().clone())
+                            .build();
                     log.info("Received content: {}", Biomine3000Utils.formatBusinessObject(pto));
                 }
                 else {

@@ -8,9 +8,7 @@ import javax.imageio.ImageIO;
 
 
 import com.google.common.net.MediaType;
-import org.bm3k.abboe.common.BusinessMediaType;
-import org.bm3k.abboe.common.BusinessObjectMetadata;
-import org.bm3k.abboe.common.UnknownImageTypeException;
+import org.bm3k.abboe.common.*;
 import util.StringUtils;
 
 
@@ -24,8 +22,6 @@ import util.StringUtils;
  */ 
 @Deprecated
 public class ImageObject extends LegacyBusinessObject {
-            
-    
     /** Created on demand */
     private BufferedImage image;
     
@@ -64,9 +60,14 @@ public class ImageObject extends LegacyBusinessObject {
     }
         
     private void initImage() throws IOException {        
-        byte[] payload = getPayload();
+        byte[] payload = super.getBytePayload();
         ByteArrayInputStream bais = new ByteArrayInputStream(payload);
         image = ImageIO.read(bais);
+    }
+
+    @Override
+    public Payload getPayload() {
+        return new ImagePayload(super.getBytePayload());
     }
     
     /**

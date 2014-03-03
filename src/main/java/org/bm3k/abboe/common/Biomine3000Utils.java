@@ -267,17 +267,6 @@ public class Biomine3000Utils {
         System.out.println("at host: "+getHostName());
     }
     
-    public static LegacyBusinessObject makeRegisterPacket(String clientName,
-                                                    ClientReceiveMode receiveMode) {
-        return makeRegisterPacket(clientName, receiveMode, null);
-        
-    }
-    
-    public static LegacyBusinessObject makeRegisterPacket(ClientParameters clientParams) {
-        return makeRegisterPacket(clientParams.name, clientParams.receiveMode, clientParams.subscriptions);
-    }
-    
-    
     /**
      * Make a register packet to be sent to the server,
      * e.g.: <pre>

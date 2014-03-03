@@ -27,11 +27,11 @@ public class BusinessObjectFactory implements IBusinessObjectFactory {
 
     @Override
     public BusinessObject makePlainTextObject(String text, BusinessObjectEventType eventType) {
-        BusinessObjectMetadata meta = new BusinessObjectMetadata();
-        meta.setType(BusinessMediaType.PLAINTEXT);
-        meta.setEvent(eventType);
-        PlainTextPayload payload = new PlainTextPayload(text);
-        return new BusinessObjectImpl(meta, payload);
+        return BOB.newBuilder()
+                .type(BusinessMediaType.PLAINTEXT)
+                .payload(new PlainTextPayload(text))
+                .event(eventType)
+                .build();
     }
 }
 

@@ -92,13 +92,18 @@ public class ABBOEConnection {
         this.readerListener = new ReaderListener();
         this.sender = new NonBlockingSender(socket, new SenderListener());
 
-        // send registration to server
-        LegacyBusinessObject registerObj = Biomine3000Utils.makeRegisterPacket(clientParameters);
-        log.info("Sending register packet:" +new String(registerObj.toBytes()));
+        // Subscribe and register
+        BusinessObject subscription = ClientUtils.makeSubscriptionObject(clientParameters);
+        log.info("Sending subscription object: {}", new String(subscription.toBytes()));
+        sender.send(subscription.toBytes());
+
+        BusinessObject registerObj = ClientUtils.makeRegistrationObject(clientParameters);
+        log.info("Sending register packet: {}", new String(registerObj.toBytes()));
         sender.send(registerObj.toBytes());
+
         this.state = State.ACTIVE;
 
-        // start listening to objects from server
+        // Start listening to objects from server
         log.info("Starting reader thread...");
         startReaderThread();
     }                     

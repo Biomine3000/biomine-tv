@@ -9,6 +9,7 @@ import java.net.Socket;
 import com.google.common.io.Files;
 import com.google.common.net.MediaType;
 import org.bm3k.abboe.common.*;
+import org.bm3k.abboe.objects.BusinessObject;
 import org.bm3k.abboe.objects.LegacyBusinessObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,14 +48,16 @@ public class ImageSender {
             bo.getMetadata().put("user", user);
         }
         
-        // write register object
-        LegacyBusinessObject registerObj = Biomine3000Utils.makeRegisterPacket(
-                "ImageSender",
-                ClientReceiveMode.NONE,
+        // Subscribe & registrer
+        BusinessObject subscription = ClientUtils.makeSubscriptionObject(ClientReceiveMode.NONE,
                 Subscriptions.NONE);
-        log.info("Writing register object:" +registerObj);        
-        IOUtils.writeBytes(socket.getOutputStream(), registerObj.toBytes());
-        
+        log.info("Writing subscription object: {}", subscription);
+        IOUtils.writeBytes(socket.getOutputStream(), subscription.toBytes());
+
+        BusinessObject registration = ClientUtils.makeRegistrationObject("ImageSender");
+        log.info("Writing register object: {}", registration);
+        IOUtils.writeBytes(socket.getOutputStream(), registration.toBytes());
+
         // write actual image
         byte[] bytes = bo.toBytes();
         log.info("Writing "+StringUtils.formatSize(bytes.length)+" bytes");

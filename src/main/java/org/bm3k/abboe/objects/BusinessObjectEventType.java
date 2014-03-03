@@ -17,6 +17,7 @@ public enum BusinessObjectEventType {
     SERVICES_UNREGISTER("services/unregister"),
     SERVICES_LIST("services/list"),
     SERVICES_STATE_CHANGED("services/state-change"),
+    ROUTING_SUBSCRIPTION("routing/subscribe"),
     ROUTING_SUBSCRIBE_NOTIFICATION("routing/subscribe/notification"),
     ROUTING_DISCONNECT("routing/disconnect"),
     /** set a (client-specific) property at the server*/
