@@ -10,7 +10,7 @@
         -->
 
         <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
-            <layout class="biomine3000.logging.TvLogLayout"/>
+            <layout class="org.bm3k.abboe.logging.TvLogLayout"/>
         </encoder>
         <target>System.err</target>
     </appender>

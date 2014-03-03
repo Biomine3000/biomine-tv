@@ -71,6 +71,6 @@ apply plugin: 'fatjar'
 // Make it runnable with java -jar
 fatJar {
     manifest {
-        attributes("Main-Class": "biomine3000.tv.BiomineTV")
+        attributes("Main-Class": "org.bm3k.abboe.tv.BiomineTV")
     }
 }
