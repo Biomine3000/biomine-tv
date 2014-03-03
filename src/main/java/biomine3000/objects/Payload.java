@@ -1,20 +1,27 @@
 package biomine3000.objects;
 
-/** Payload for a {@link BusinessObject} */
+
+/** Payload for a {@link LegacyBusinessObject} 
+ * 
+ * TODO: 
+ *  • move default implementation of storing as bytes to a subclass "DefaultPayload" and make this class abstract?
+ *  • rename to Content?
+ */
 public class Payload {
+					
 	/**
      * Might be null when subclass is implementing its own payload storage protocol. Should always be accessed through
-     * {@link #getPayload()} and {@link #setPayload()} , never directly, even within this very class.
+     * {@link #getBytes()} and {@link #setPayload()} , never directly, even within this very class.
      * */
-    private byte[] payload;
-    
+    private byte[] bytes;
+            
     /** Create unitialized instance. TODO if this needed? */ 
-    public Payload() {
-    	payload = null;
+    public Payload() {    	
+    	this.bytes = null;
     }
     
     public Payload(byte[] data) {
-    	setPayload(data);
+    	setBytes(data);
     }
     
     /**
@@ -22,8 +29,8 @@ public class Payload {
 	 * managed by this class. Subclasses desiring to implement storing of payload in some other manner than 
 	 * raw bytes should override this.
 	 */	 
-	public byte[] getPayload() {
-	    return this.payload;
+	public byte[] getBytes() {
+	    return this.bytes;
 	}
 	
 	/**
@@ -31,8 +38,8 @@ public class Payload {
      * bytes provided; subclasses desiring to implement storing of payload in some other manner than raw 
      * bytes should override this.
      */  
-	public void setPayload(byte[] payload) {
-	    this.payload = payload; 
-	}
+	public void setBytes(byte[] payload) {
+	    this.bytes = payload; 
+	}	
     
 }

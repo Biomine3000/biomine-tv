@@ -33,7 +33,7 @@ import util.dbg.ILogger;
  */
 public class BusinessObjectMetadata {
         
-    private BusinessObject obj;
+    private IBusinessObject obj;
     
     @SuppressWarnings("unused")
     private static ILogger log = new DevNullLogger();
@@ -44,7 +44,7 @@ public class BusinessObjectMetadata {
             
     private JSONObject json;
     
-    public void setObject(BusinessObject obj) {
+    public void setObject(IBusinessObject obj) {
         this.obj = obj;
     }
     

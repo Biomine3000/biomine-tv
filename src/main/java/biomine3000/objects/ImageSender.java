@@ -37,17 +37,17 @@ public class ImageSender {
             throw new UnsuitableFiletypeException(StringUtils.getExtension(file));
         }        
         
-        BusinessObject bo = new BusinessObject(type, payload);
-        bo.getMetaData().put("name", file.getName());       
+        LegacyBusinessObject bo = new LegacyBusinessObject(type, payload);
+        bo.getMetadata().put("name", file.getName());       
         if (channel != null) {
-            bo.getMetaData().put("channel", channel);
+            bo.getMetadata().put("channel", channel);
         }
         if (user != null) {
-            bo.getMetaData().put("user", user);
+            bo.getMetadata().put("user", user);
         }
         
         // write register object
-        BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket(
+        LegacyBusinessObject registerObj = Biomine3000Utils.makeRegisterPacket(
                 "ImageSender",
                 ClientReceiveMode.NONE,
                 Subscriptions.NONE);

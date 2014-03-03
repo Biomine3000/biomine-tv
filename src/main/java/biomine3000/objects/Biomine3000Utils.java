@@ -32,9 +32,9 @@ public class Biomine3000Utils {
     }
     
     /** Format a business object in an IRC-like fashion */
-    public static String formatBusinessObject(BusinessObject bo) {
-        String sender = bo.getMetaData().getSender();            
-        String channel = bo.getMetaData().getChannel();
+    public static String formatBusinessObject(IBusinessObject bo) {
+        String sender = bo.getMetadata().getSender();            
+        String channel = bo.getMetadata().getChannel();
         if (channel != null) {
             channel = channel.replace("MESKW", "");
         }
@@ -274,13 +274,13 @@ public class Biomine3000Utils {
         System.out.println("at host: "+getHostName());
     }
     
-    public static BusinessObject makeRegisterPacket(String clientName,
+    public static LegacyBusinessObject makeRegisterPacket(String clientName,
                                                     ClientReceiveMode receiveMode) {
         return makeRegisterPacket(clientName, receiveMode, null);
         
     }
     
-    public static BusinessObject makeRegisterPacket(ClientParameters clientParams) {
+    public static LegacyBusinessObject makeRegisterPacket(ClientParameters clientParams) {
         return makeRegisterPacket(clientParams.name, clientParams.receiveMode, clientParams.subscriptions);
     }
     
@@ -294,7 +294,7 @@ public class Biomine3000Utils {
      * @param clientName
      * @param receiveMode 
      */
-    public static BusinessObject makeRegisterPacket(String clientName,
+    public static LegacyBusinessObject makeRegisterPacket(String clientName,
                                                     ClientReceiveMode receiveMode,
                                                     Subscriptions subscriptions) {
         BusinessObjectMetadata meta = new BusinessObjectMetadata();        
@@ -314,7 +314,7 @@ public class Biomine3000Utils {
             meta.setUser(user);
         }
         
-        return new BusinessObject(meta);
+        return new LegacyBusinessObject(meta);
     }
 
     public static File randomFile(String dirName) throws IOException {

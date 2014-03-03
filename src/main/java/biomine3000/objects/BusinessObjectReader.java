@@ -63,15 +63,15 @@ public class BusinessObjectReader implements Runnable {
         try {
             // log("Reading packet...");
             this.state = State.READING_PACKET;
-            Pair<BusinessObjectMetadata, byte[]> packet = BusinessObject.readPacket(is);            
+            Pair<BusinessObjectMetadata, byte[]> packet = LegacyBusinessObject.readPacket(is);            
         
             while (packet != null) {                
-                BusinessObject bo;
+                IBusinessObject bo;
                 if (constructDedicatedImplementations) {
-                    bo = BusinessObject.makeObject(packet);
+                    bo = BusinessObjectFactory.makeObject(packet);
                 }
                 else {
-                    bo = new BusinessObject(packet.getObj1(), packet.getObj2());
+                    bo = new LegacyBusinessObject(packet.getObj1(), packet.getObj2());
                 }
                 
                 this.state = State.EXECUTING_LISTENER_OBJECT_RECEIVED;
@@ -79,7 +79,7 @@ public class BusinessObjectReader implements Runnable {
                 
                 // log("Reading packet...");
                 this.state = State.READING_PACKET;
-                packet = BusinessObject.readPacket(is);
+                packet = LegacyBusinessObject.readPacket(is);
             }
                         
             listener.noMoreObjects();
@@ -177,7 +177,7 @@ public class BusinessObjectReader implements Runnable {
         }
         
         @Override
-        public void objectReceived(BusinessObject bo) {
+        public void objectReceived(IBusinessObject bo) {
             log("Received business object: "+bo);
         }
 
@@ -208,7 +208,7 @@ public class BusinessObjectReader implements Runnable {
     
     public interface Listener {    
         /** Always receive a non-null object */
-        public void objectReceived(BusinessObject bo);
+        public void objectReceived(IBusinessObject bo);
         
         /** 
          * Called when nothing more to read from stream (but there are no Exceptions).

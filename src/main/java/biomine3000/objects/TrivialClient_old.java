@@ -45,14 +45,14 @@ public class TrivialClient_old {
         info("Initialized shutdown hook");       
     }                
        
-    public void send(BusinessObject object) throws IOException {        
+    public void send(LegacyBusinessObject object) throws IOException {        
         sender.send(object.bytes());
     }
     
     /** Return null when no more business objects available */
-    public BusinessObject receive() throws IOException, InvalidBusinessObjectException {
-        Pair<BusinessObjectMetadata, byte[]> packet = BusinessObject.readPacket(socket.getInputStream());               
-        BusinessObject bo = BusinessObject.makeObject(packet);
+    public IBusinessObject receive() throws IOException, InvalidBusinessObjectException {
+        Pair<BusinessObjectMetadata, byte[]> packet = LegacyBusinessObject.readPacket(socket.getInputStream());               
+        IBusinessObject bo = BusinessObjectFactory.makeObject(packet);
         return bo;
     }
         

@@ -16,7 +16,7 @@ public class BusinessMediaType {
 	public static final MediaType ZOMBI_ALERT = MediaType.create("application", "zombi-alert");
 
 	/**
-	 * Announcement of a plötkä match soon to be initiated. Meta-data format to be decided, probably represented as JSON.
+	 * Announcement of a plätkä match soon to be initiated. Meta-data format to be decided, probably represented as JSON.
 	 * Relevant information includes, but is not limited to: match (or tournament?) participants, time, location, mode of play
 	 * (matsi 40:een, 5 min, etc)
 	 */

@@ -79,7 +79,7 @@ public class ContentVaultSender implements IBusinessObjectHandler {
                
     /** Handle object from the vault adapter */
     @Override
-    public void handleObject(BusinessObject obj) {
+    public void handleObject(IBusinessObject obj) {
         if (stopped) {
             // no more buizness
             log.info("No more buizness");
@@ -91,8 +91,8 @@ public class ContentVaultSender implements IBusinessObjectHandler {
             return;
         }
         
-        obj.getMetaData().put("channel", channel);        
-        log.info("Writing an object with following metadata: "+obj.getMetaData());
+        obj.getMetadata().put("channel", channel);        
+        log.info("Writing an object with following metadata: "+obj.getMetadata());
         
         try {
             connection.send(obj);
@@ -144,7 +144,7 @@ public class ContentVaultSender implements IBusinessObjectHandler {
     private class ObjectHandler implements ABBOEConnection.BusinessObjectHandler {
 
         @Override
-        public void handleObject(BusinessObject bo) {
+        public void handleObject(IBusinessObject bo) {
             // no action           
         }
 

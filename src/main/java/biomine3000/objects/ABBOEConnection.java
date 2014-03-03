@@ -12,7 +12,7 @@ import util.net.NonBlockingSender;
 
 /**
  * Connection to an ABBOE server. Implementors should use method 
- * {@link #send(BusinessObject)} to send stuff. 
+ * {@link #send(LegacyBusinessObject)} to send stuff. 
  */
 public class ABBOEConnection {
                    
@@ -86,7 +86,7 @@ public class ABBOEConnection {
         this.sender = new NonBlockingSender(socket, new SenderListener());
                       
         // send registration to server
-        BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket(clientParameters);
+        LegacyBusinessObject registerObj = Biomine3000Utils.makeRegisterPacket(clientParameters);
         log.info("Sending register packet:" +new String(registerObj.bytes()));
         sender.send(registerObj.bytes());
         this.state = State.ACTIVE;        
@@ -97,15 +97,15 @@ public class ABBOEConnection {
     }                     
                    
     /** Put object to queue of objects to be sent*/
-    public void send(BusinessObject object) throws IOException {        
+    public void send(IBusinessObject object) throws IOException {        
         if (clientParameters.sender != null) {
-            object.getMetaData().setSender(clientParameters.sender);
+            object.getMetadata().setSender(clientParameters.sender);
         }
         this.sender.send(object.bytes());        
     }       
         
     public void sendClientListRequest() throws IOException {            
-        send(new BusinessObject(BusinessObjectEventType.CLIENTS_LIST));
+        send(new LegacyBusinessObject(BusinessObjectEventType.CLIENTS_LIST));
     }
     
     public synchronized String getName() {
@@ -273,7 +273,7 @@ public class ABBOEConnection {
     public interface BusinessObjectHandler extends biomine3000.objects.IBusinessObjectHandler {
         
         /** Self-explanatory */
-        public void handleObject(BusinessObject obj);
+        public void handleObject(IBusinessObject obj);
         
         /**
          * Connection to server has been terminated somehow "normally". 
@@ -311,7 +311,7 @@ public class ABBOEConnection {
     private class ReaderListener extends BusinessObjectReader.AbstractListener {
         
         @Override
-        public void objectReceived(BusinessObject bo) {
+        public void objectReceived(IBusinessObject bo) {
             objectHandler.handleObject(bo);        
         }    
         

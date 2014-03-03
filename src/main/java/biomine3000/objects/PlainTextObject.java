@@ -4,7 +4,8 @@ import com.google.common.net.MediaType;
 
 import java.io.UnsupportedEncodingException;
 
-public class PlainTextObject extends BusinessObject {
+@Deprecated
+public class PlainTextObject extends LegacyBusinessObject {
 
     private String text;
 
@@ -14,7 +15,7 @@ public class PlainTextObject extends BusinessObject {
      */
     public PlainTextObject() {
         super();
-        getMetaData().setType(BusinessMediaType.PLAINTEXT);
+        getMetadata().setType(BusinessMediaType.PLAINTEXT);
     }
 
     public PlainTextObject(BusinessObjectMetadata meta, byte[] payload) {
@@ -27,7 +28,7 @@ public class PlainTextObject extends BusinessObject {
      */
     public PlainTextObject(String text) {
         super();
-        getMetaData().setType(BusinessMediaType.PLAINTEXT);
+        getMetadata().setType(BusinessMediaType.PLAINTEXT);
         this.text = text;
     }
 
@@ -36,7 +37,7 @@ public class PlainTextObject extends BusinessObject {
      */
     public PlainTextObject(String text, BusinessObjectEventType et) {
         super(et);
-        getMetaData().setType(BusinessMediaType.PLAINTEXT);
+        getMetadata().setType(BusinessMediaType.PLAINTEXT);
         this.text = text;
     }
 
@@ -88,7 +89,7 @@ public class PlainTextObject extends BusinessObject {
 
 
     private String formatAsEvent() {
-        return "event: " + getMetaData().getEvent() + ": " + this.text;
+        return "event: " + getMetadata().getEvent() + ": " + this.text;
     }
 
     public String toString() {
@@ -96,11 +97,11 @@ public class PlainTextObject extends BusinessObject {
             return formatAsEvent();
         } else {
             // purely content
-            if (MediaType.parse(getMetaData().getType()).withoutParameters() ==
+            if (MediaType.parse(getMetadata().getType()).withoutParameters() ==
                     BusinessMediaType.PLAINTEXT.withoutParameters()) {
                 return text;
             } else {
-                return getMetaData().getType() + ": " + text;
+                return getMetadata().getType() + ": " + text;
             }
         }
     }

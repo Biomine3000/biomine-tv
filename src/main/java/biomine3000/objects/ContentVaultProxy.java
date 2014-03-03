@@ -69,7 +69,7 @@ public class ContentVaultProxy {
      * Should only be called if called is certain that images have been loaded.
      * Never return null.
      */
-    public ImageObject sampleImage() throws InvalidStateException {
+    public IBusinessObject sampleImage() throws InvalidStateException {
         synchronized(loadedImagesByURL) {    
             if (loadedImagesByURL == null || loadedImagesByURL.size() == 0) {
                 throw new InvalidStateException("No images to sample from");

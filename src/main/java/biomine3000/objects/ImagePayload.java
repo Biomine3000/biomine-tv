@@ -5,6 +5,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import javax.imageio.ImageIO;
 
+/* duplicates image as BufferedImage on demand. Superclass byte buffer still always used to store bytes. */  
 public class ImagePayload extends Payload {
     
     /** Created on demand */
@@ -13,15 +14,19 @@ public class ImagePayload extends Payload {
     /** Exception caught during decoding image, if any. Not raised, but instead stored for later reference */
     private IOException imageDecodingException;
     
-    /** Create unitialized instance. */
+    public ImagePayload() {
+        super(null);
+    }
+    
     public ImagePayload(byte[] payload) {
         super(payload);
     }
                                           
-    private void initImage() throws IOException {        
-        byte[] payload = getPayload();
-        ByteArrayInputStream bais = new ByteArrayInputStream(payload);
-        image = ImageIO.read(bais);
+    private void decodeImage() throws IOException {        
+        byte[] payload = getBytes();
+        ByteArrayInputStream is = new ByteArrayInputStream(payload);
+        // le cargo-culte:
+        image = ImageIO.read(is);
     }
     
     /**
@@ -37,7 +42,7 @@ public class ImagePayload extends Payload {
         if (image == null) {
             // not yet decoded        
             try {
-                initImage();
+                decodeImage();
             }
             catch (IOException e) {
                 imageDecodingException = e; 

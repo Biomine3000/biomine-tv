@@ -19,7 +19,8 @@ import util.StringUtils;
  * 
  * Unfortunately this means that any errors in decoding are deferred until image access.
  */ 
-public class ImageObject extends BusinessObject {
+@Deprecated
+public class ImageObject extends LegacyBusinessObject {
             
     
     /** Created on demand */
@@ -89,11 +90,11 @@ public class ImageObject extends BusinessObject {
     }
     
     public String toString() {
-        String name = getMetaData().getString("name");
+        String name = getMetadata().getString("name");
         if (name == null) {
             name = "(no name)";
         }
-        return getMetaData().getType()+": "+name;
+        return getMetadata().getType()+": "+name;
     }
             
 

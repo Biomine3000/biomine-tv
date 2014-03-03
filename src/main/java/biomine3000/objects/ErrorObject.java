@@ -2,23 +2,24 @@ package biomine3000.objects;
 
 import com.google.common.net.MediaType;
 
-public class ErrorObject extends BusinessObject {
+@Deprecated
+public class ErrorObject extends LegacyBusinessObject {
         
     /** Create unitialized instance. */
     public ErrorObject() {
         super();
-        getMetaData().setEvent(BusinessObjectEventType.ERROR);
+        getMetadata().setEvent(BusinessObjectEventType.ERROR);
     }
         
     public ErrorObject(String text) {
         super(BusinessMediaType.PLAINTEXT.toString());
-        getMetaData().setEvent(BusinessObjectEventType.ERROR);
+        getMetadata().setEvent(BusinessObjectEventType.ERROR);
         this.setPayload(text.getBytes());               
     }
         
     public ErrorObject(String text, String mimeType) {
         super(mimeType);
-        getMetaData().setEvent(BusinessObjectEventType.ERROR);
+        getMetadata().setEvent(BusinessObjectEventType.ERROR);
         this.setPayload(text.getBytes());
     }
     
@@ -29,7 +30,7 @@ public class ErrorObject extends BusinessObject {
      */  
     public ErrorObject(String text, MediaType mimeType) {
         super(mimeType.toString());
-        getMetaData().setEvent(BusinessObjectEventType.ERROR);
+        getMetadata().setEvent(BusinessObjectEventType.ERROR);
         this.setPayload(text.getBytes());
     }
     
@@ -38,7 +39,7 @@ public class ErrorObject extends BusinessObject {
     }
                       
     public String toString() {
-        return "ERROR ("+getMetaData().getType()+": "+getText()+")";
+        return "ERROR ("+getMetadata().getType()+": "+getText()+")";
     }            
 
 }

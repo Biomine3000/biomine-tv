@@ -53,18 +53,18 @@ public class BiomineTVImagePanel extends JPanel implements
         repaint();
     }
     
-    public void setImage(ImageObject img) {
+    public void setImage(BufferedImage img) {
         if (this.img != null) {
             synchronized(this.img) {
                 // synchronization needed, otherwise we could change the image
                 // while it is being painted
                 // TODO: do not defer getting buffered image so far                
-                this.img = img.getImage();                               
+                this.img = img;                               
             }
         }
         else {
             // no image yet, nothing to synchronize
-            this.img = img.getImage();
+            this.img = img;
         }
         repaint();
         

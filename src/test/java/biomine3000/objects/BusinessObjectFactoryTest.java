@@ -3,7 +3,7 @@ package biomine3000.objects;
 import org.junit.Test;
 
 
-import static biomine3000.objects.BusinessObjectFactory.make;
+import static biomine3000.objects.LegacyBusinessObjectFactory.make;
 import static org.junit.Assert.assertTrue;
 
 public class BusinessObjectFactoryTest {
@@ -17,6 +17,6 @@ public class BusinessObjectFactoryTest {
 
     @Test
     public void shouldProduceDefaultTypeIfNoSubTypeFound() throws InstantiationException, IllegalAccessException {
-        assertTrue(make(BusinessMediaType.ARBITRARY) instanceof BusinessObject);
+        assertTrue(make(BusinessMediaType.ARBITRARY) instanceof LegacyBusinessObject);
     }
 }

@@ -114,13 +114,13 @@ public class IRCLogManager  {
     private class ObjectHandler implements ABBOEConnection.BusinessObjectHandler {
 
         @Override
-        public void handleObject(BusinessObject bo) {
+        public void handleObject(IBusinessObject bo) {
             if (bo.isEvent()) {                
-                BusinessObjectEventType et = bo.getMetaData().getKnownEvent();
+                BusinessObjectEventType et = bo.getMetadata().getKnownEvent();
                 if (et == BusinessObjectEventType.CLIENTS_LIST_REPLY) {
-                    String registeredAs = bo.getMetaData().getString("you");
+                    String registeredAs = bo.getMetadata().getString("you");
                     System.out.println("This client registered on the server as: "+registeredAs);
-                    List<String> clients = bo.getMetaData().getList("others");
+                    List<String> clients = bo.getMetadata().getList("others");
                     if (clients.size() == 0) {
                         System.out.println("No other clients");
                     }
@@ -133,11 +133,11 @@ public class IRCLogManager  {
                     System.out.println("Registered successfully to the server");
                 }
                 else if (et == BusinessObjectEventType.CLIENTS_REGISTER_NOTIFY) {
-                    String name = bo.getMetaData().getName();
+                    String name = bo.getMetadata().getName();
                     System.out.println("Client "+name+" registered to ABBOE");
                 }
                 else if (et == BusinessObjectEventType.CLIENTS_PART_NOTIFY) {
-                    String name = bo.getMetaData().getName();
+                    String name = bo.getMetadata().getName();
                     System.out.println("Client "+name+" parted from ABBOE");
                 }
                 else if (et == BusinessObjectEventType.ERROR) {                   

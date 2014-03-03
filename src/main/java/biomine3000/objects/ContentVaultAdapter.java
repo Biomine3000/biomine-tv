@@ -57,7 +57,7 @@ public class ContentVaultAdapter {
     private void sendEvent(String msg) {
         log("Sending message: "+msg);
         PlainTextObject obj = new PlainTextObject(msg);
-        obj.getMetaData().setEvent(BusinessObjectEventType.SERVICES_STATE_CHANGED);
+        obj.getMetadata().setEvent(BusinessObjectEventType.SERVICES_STATE_CHANGED);
         handler.handleObject(obj);               
     }       
     
@@ -102,12 +102,12 @@ public class ContentVaultAdapter {
             
             while (!stop) {
                 try {                    
-                    ImageObject randomContent = contentVaultProxy.sampleImage();
+                    IBusinessObject randomContent = contentVaultProxy.sampleImage();
                     handler.handleObject(randomContent);
                     Thread.sleep(sendInterval);
                 }
                 catch (InvalidStateException e) {
-                    handler.handleObject(new ErrorObject(ExceptionUtils.format(e,"; ")));
+                    handler.handleObject(BusinessObjectFactory.makePlainTextObject(ExceptionUtils.format(e,"; "), BusinessObjectEventType.ERROR));
                     try {
                         Thread.sleep(sendInterval);
                     }
@@ -133,7 +133,7 @@ public class ContentVaultAdapter {
         ContentVaultAdapter adapter = new ContentVaultAdapter(
                 new IBusinessObjectHandler() {                                        
                     @Override
-                    public void handleObject(BusinessObject bo) {                        
+                    public void handleObject(IBusinessObject bo) {                        
                         log("DUMMY HANDLER received object: "+bo);
                     }
                 }, 3000);

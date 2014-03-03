@@ -30,17 +30,17 @@ public class MP3Sender {
         BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
         byte[] payload = IOUtils.readBytes(bis);
         bis.close();
-        BusinessObject bo = new BusinessObject(BusinessMediaType.MP3, payload);
-        bo.getMetaData().put("name", file.getName());       
+        IBusinessObject bo = BusinessObjectFactory.makeObject(BusinessMediaType.MP3, payload);
+        bo.getMetadata().put("name", file.getName());       
         if (channel != null) {
-            bo.getMetaData().put("channel", channel);
+            bo.getMetadata().put("channel", channel);
         }
         if (user != null) {
-            bo.getMetaData().put("user", user);
+            bo.getMetadata().put("user", user);
         }
         
         // write register object
-        BusinessObject registerObj = Biomine3000Utils.makeRegisterPacket(
+        LegacyBusinessObject registerObj = Biomine3000Utils.makeRegisterPacket(
                 "MP3Sender",
                 ClientReceiveMode.NONE,
                 Subscriptions.NONE);

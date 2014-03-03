@@ -16,7 +16,7 @@ public class PlainTextPayload extends Payload {
 
     public PlainTextPayload(byte[] payload) {
     	super(null);
-    	setPayload(payload);    	
+    	setBytes(payload);    	
     }
 
     /**
@@ -39,13 +39,13 @@ public class PlainTextPayload extends Payload {
      * In this case, duplicate the bytes from the String into the parent class byte buffer
      */
     @Override
-    public byte[] getPayload() {
+    public byte[] getBytes() {
         try {
-        	byte[] bytes = super.getPayload();
+        	byte[] bytes = super.getBytes();
         	if (bytes == null) {
         		// cache byte[] rep into superclass buf
         		bytes = text.getBytes("UTF-8");
-                super.setPayload(bytes);
+                super.setBytes(bytes);
         	}
         	return bytes;
         	
@@ -57,10 +57,10 @@ public class PlainTextPayload extends Payload {
 
     /** Override superclass payload storage mechanism and store as String instead */
     @Override
-    public void setPayload(byte[] payload) {
+    public void setBytes(byte[] payload) {
         try {
             this.text = new String(payload, "UTF-8");
-            super.setPayload(null);
+            super.setBytes(null);            
         } catch (UnsupportedEncodingException e) {
         	// the unthinkable has occurred; UTF-8 not supported by this very java virtual machine instance
             throw new RuntimeException("leronen has joined facebook");

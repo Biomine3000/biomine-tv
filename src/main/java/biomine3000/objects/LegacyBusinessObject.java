@@ -1,5 +1,7 @@
     package biomine3000.objects;
 
+import static biomine3000.objects.BusinessObjectEventType.CLIENTS_PART_NOTIFY;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
@@ -40,7 +42,8 @@ import util.dbg.Logger;
  *      At 2011-12-06, it appears that the answer should be "no".
  *  
  */
-public class BusinessObject {    
+@Deprecated
+public class LegacyBusinessObject implements IBusinessObject  {    
     
     @SuppressWarnings("unused")
     private static ILogger log = new Logger.ILoggerAdapter("BusinessObject");
@@ -60,20 +63,20 @@ public class BusinessObject {
     /**
      * Metadata shall be empty, and there will be no payload.
      */
-    public BusinessObject() {
+    protected LegacyBusinessObject() {
         this(new BusinessObjectMetadata());
     }       
 
     /**
      * Create an event object with no payload.
      */
-    public BusinessObject(BusinessObjectEventType eventType) {
+    protected LegacyBusinessObject(BusinessObjectEventType eventType) {
         this(new BusinessObjectMetadata());
         metadata.setEvent(eventType);
     }
     
      
-    public static BusinessObject readObject(InputStream is) throws IOException, InvalidBusinessObjectException {        
+    public static LegacyBusinessObject readObject(InputStream is) throws IOException, InvalidBusinessObjectException {        
         Pair<BusinessObjectMetadata, byte[]> packet = readPacket(is);
         return makeObject(packet);
     }
@@ -82,10 +85,10 @@ public class BusinessObject {
         return metadata.hasPayload();
     }
     
-    /** Delegate to metadata (TODO: merge metadata class with this one) */
-    public void setSender(String sender) {
-        metadata.setSender(sender);        
-    }
+//    /** Delegate to metadata (TODO: merge metadata class with this one) */
+//    public void setSender(String sender) {
+//        metadata.setSender(sender);        
+//    }
     
     /**
      * @return null if no more business objects in stream. Note that payload may be null!
@@ -160,7 +163,7 @@ public class BusinessObject {
         return new Pair<BusinessObjectMetadata, byte[]>(metadata, payload);        
     }
     
-    public static BusinessObject makeObject(Pair<BusinessObjectMetadata, byte[]> data) {
+    private static LegacyBusinessObject makeObject(Pair<BusinessObjectMetadata, byte[]> data) {
         if (data == null) {
             throw new RuntimeException("makeObject called with null data");
         }
@@ -175,13 +178,13 @@ public class BusinessObject {
      * 
      * Payload must be null IFF metadata does not contain field "type"
      */ 
-    public static BusinessObject makeObject(BusinessObjectMetadata metadata, byte[] payload) {
+    public static LegacyBusinessObject makeObject(BusinessObjectMetadata metadata, byte[] payload) {
         MediaType officialType = metadata.getOfficialType();
-        BusinessObject bo = null;
+        LegacyBusinessObject bo = null;
         if (officialType != null) {
             // an official type
             try {
-                bo = BusinessObjectFactory.make(officialType);
+                bo = LegacyBusinessObjectFactory.make(officialType);
                 bo.setMetadata(metadata);
                 bo.setPayload(payload);
             }
@@ -197,7 +200,7 @@ public class BusinessObject {
         // gravely enough, type is not official, or even more gravely, failed to construct an 
         // instance => use pesky default implementation
         if (bo == null) {
-            bo = new BusinessObject(metadata, payload);
+            bo = new LegacyBusinessObject(metadata, payload);
         }
                 
         return bo;
@@ -208,12 +211,12 @@ public class BusinessObject {
     }
     
     /** Create a business object with no payload */
-    public BusinessObject(BusinessObjectMetadata metadata) {
+    public LegacyBusinessObject(BusinessObjectMetadata metadata) {
         setMetadata(metadata);
     }    
     
     /** Create a business object supposedly being received and parsed earlier from the biomine business objects bus */
-    public BusinessObject(BusinessObjectMetadata metadata, byte[] payload) {
+    public LegacyBusinessObject(BusinessObjectMetadata metadata, byte[] payload) {
         setMetadata(metadata);
         setPayload(payload);
         
@@ -235,7 +238,7 @@ public class BusinessObject {
      * Type and payload are required to be non-null here (use constructor with no parameters to create
      * an object with (at least initially) no payload (and thus no type)
      */
-    protected BusinessObject(String type, byte[] payload) {
+    protected LegacyBusinessObject(String type, byte[] payload) {
         initMetadata(type);
         setPayload(payload); 
     }               
@@ -244,7 +247,7 @@ public class BusinessObject {
      * Create a new business object to be sent; payload length will be set to metadata automatically.
      * Naturally, both type and payload are required to be non-null.
      */
-    protected BusinessObject(MediaType type, byte[] payload) {
+    protected LegacyBusinessObject(MediaType type, byte[] payload) {
         initMetadata(type.toString());
         setPayload(payload); 
     }
@@ -255,7 +258,7 @@ public class BusinessObject {
      * Subclass is assumed to set the payload size to the superclass metadata by 
      * calling getMetadata().setPayloadSize() after its own construction process has been finished.
      */
-    protected BusinessObject(String type) {
+    protected LegacyBusinessObject(String type) {
         BusinessObjectMetadata meta = new BusinessObjectMetadata();
         meta.setType(type);
         setMetadata(meta);
@@ -274,7 +277,7 @@ public class BusinessObject {
     
 	/** 
 	 * Sets correct size to metadata as a side-effect. */
-	public BusinessObjectMetadata getMetaData() {
+	public BusinessObjectMetadata getMetadata() {
 //	    setSizeToMetadata();
 	    return metadata;
 	}
@@ -340,8 +343,8 @@ public class BusinessObject {
 	}
 	
 	public boolean equals(Object o) {
-	    if (o instanceof BusinessObject) {
-	        BusinessObject bo = (BusinessObject)o;
+	    if (o instanceof LegacyBusinessObject) {
+	        LegacyBusinessObject bo = (LegacyBusinessObject)o;
 	        return metadata.equals(bo.metadata) 
 	                && Arrays.equals(payload, bo.payload);
 	    }
@@ -357,4 +360,28 @@ public class BusinessObject {
 	    return "BusinessObject <metadata: "+metadata.toString()+"> "+payloadStr;
 	}
 	
+	public static class Factory implements IBusinessObjectFactory {
+		
+		public IBusinessObject makeEvent(BusinessObjectEventType eventType) {
+			return new LegacyBusinessObject(eventType);
+		}
+	    
+		public IBusinessObject makeObject(MediaType type, byte[] payload) {			
+	    	return new LegacyBusinessObject(type, payload);
+	    }
+	    
+	    public IBusinessObject makeObject(Pair<BusinessObjectMetadata, byte[]> data) {
+	    	return LegacyBusinessObject.makeObject(data);
+	    }
+
+		@Override
+		public IBusinessObject makePlainTextObject(String text) {
+			return new PlainTextObject(text);
+		}
+
+		@Override
+		public IBusinessObject makePlainTextObject(String text, BusinessObjectEventType eventType) {
+			return new PlainTextObject(text, eventType); 
+		}
+	}
 }

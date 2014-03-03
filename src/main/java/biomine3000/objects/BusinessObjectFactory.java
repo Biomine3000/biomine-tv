@@ -1,26 +1,58 @@
 package biomine3000.objects;
 
+import util.collections.Pair;
+
 import com.google.common.net.MediaType;
 
-import java.util.HashMap;
-import java.util.Map;
-
 public class BusinessObjectFactory {
-    private static final Map<MediaType, Class<? extends BusinessObject>> implementations = new HashMap<>();
 
-    static {
-        implementations.put(BusinessMediaType.PLAINTEXT, PlainTextObject.class);
+	private static final String IMPL_SANE = "sane";
+	private static final String IMPL_LEGACY = "legacy";
+	private static final String DEFAULT_IMPL = IMPL_LEGACY;
+	
+	private static IBusinessObjectFactory impl;
+	
+	@SuppressWarnings("deprecation")
+	private static IBusinessObjectFactory getImpl() {
+		if (impl == null) {
+			String implName = System.getenv("BUSINESS_OBJECT_IMPL");
+			if (implName == null) {
+				implName = DEFAULT_IMPL;
+			}
+			System.err.println("Using business object implName: "+implName);
+			
+			switch(implName) {
+				case IMPL_SANE: 
+					impl = new BusinessObject2.Factory();
+					break;
+				case IMPL_LEGACY: 					
+					impl = new LegacyBusinessObject.Factory();
+					break;
+				default:
+				    throw new RuntimeException("No such business objects impl: "+implName);
+			}						
+		}
+		
+		return impl;
+	}
+	
+	public static IBusinessObject makeEvent(BusinessObjectEventType eventType) {
+		return getImpl().makeEvent(eventType);
+	}
+	
+    public static IBusinessObject makeObject(MediaType type, byte[] payload) {
+    	return getImpl().makeObject(type, payload);
     }
-
-    public static BusinessObject make(MediaType type) throws IllegalAccessException, InstantiationException {
-        if (type.is(MediaType.ANY_IMAGE_TYPE)) {
-            return new ImageObject();
-        }
-
-        if (implementations.containsKey(type)) {
-            return implementations.get(type).newInstance();
-        } else {
-            return BusinessObject.class.newInstance();
-        }
+    
+    public static IBusinessObject makeObject(Pair<BusinessObjectMetadata, byte[]> data) {
+    	return getImpl().makeObject(data);
     }
+	
+    public static IBusinessObject makePlainTextObject(String text) {
+    	return getImpl().makePlainTextObject(text);
+    }
+    public static IBusinessObject makePlainTextObject(String text, BusinessObjectEventType eventType) {
+    	return getImpl().makePlainTextObject(text, eventType);
+    }
+	
 }

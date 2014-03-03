@@ -12,6 +12,8 @@ import java.awt.event.WindowEvent;
 
 import javax.swing.*;
 
+import com.google.common.net.MediaType;
+
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.Socket;
@@ -67,8 +69,8 @@ public class BiomineTV extends JFrame {
     static int LOG_SIZE = 10;
           
     /** TODO: support playing in a streaming fashion */     
-    private void playMP3(BusinessObject bo) {
-        message("Playing: "+bo.getMetaData().get("name"));
+    private void playMP3(IBusinessObject bo) {
+        message("Playing: "+bo.getMetadata().get("name"));
         mp3Player.play(bo.getPayload());
     }
     
@@ -290,14 +292,14 @@ public class BiomineTV extends JFrame {
         }
         
         @Override
-        public void handleObject(BusinessObject bo) {
+        public void handleObject(IBusinessObject bo) {
             
-            if (bo.isEvent()) {                
-                BusinessObjectEventType et = bo.getMetaData().getKnownEvent();
+            if (bo.getMetadata().isEvent()) {                
+                BusinessObjectEventType et = bo.getMetadata().getKnownEvent();
                 if (et == BusinessObjectEventType.CLIENTS_LIST_REPLY) {
-                    String registeredAs = bo.getMetaData().getString("you");
+                    String registeredAs = bo.getMetadata().getString("you");
                     message("This client registered on the server as: "+registeredAs);
-                    List<String> clients = bo.getMetaData().getList("others");
+                    List<String> clients = bo.getMetadata().getList("others");
                     if (clients.size() == 0) {
                         message("No other clients");
                     }
@@ -311,11 +313,11 @@ public class BiomineTV extends JFrame {
                     message("Registered successfully to the server");
                 }
                 else if (et == BusinessObjectEventType.CLIENTS_REGISTER_NOTIFY) {
-                    String name = bo.getMetaData().getName();
+                    String name = bo.getMetadata().getName();
                     message("Client "+name+" registered to ABBOE");
                 }
                 else if (et == BusinessObjectEventType.CLIENTS_PART_NOTIFY) {
-                    String name = bo.getMetaData().getName();
+                    String name = bo.getMetadata().getName();
                     message("Client "+name+" parted from ABBOE");
                 }
                 else if (et == BusinessObjectEventType.ROUTING_SUBSCRIBE_NOTIFICATION) {
@@ -325,9 +327,9 @@ public class BiomineTV extends JFrame {
                 	message("ROUTING_DISCONNECT");
                 }
                 else if (et == BusinessObjectEventType.SERVICES_REQUEST) {
-                	String name = bo.getMetaData().getName();
-                	String request = bo.getMetaData().getString("request");
-                	message("HOST " +bo.getMetaData().get("host")+" REQUESTED "+ request + " FROM SERVICE " +name);
+                	String name = bo.getMetadata().getName();
+                	String request = bo.getMetadata().getString("request");
+                	message("HOST " +bo.getMetadata().get("host")+" REQUESTED "+ request + " FROM SERVICE " +name);
                 }
                 else if (et == BusinessObjectEventType.SERVICES_REPLY) {
                 	message("SERVICE_REPLY: "+Biomine3000Utils.formatBusinessObject(bo));
@@ -337,23 +339,55 @@ public class BiomineTV extends JFrame {
                     message("UNKNOWN_EVENT: "+Biomine3000Utils.formatBusinessObject(bo));
                 }
             }
-            else if (bo instanceof ImageObject) {
-                imagePanel.setImage((ImageObject)bo);
-                String oldMsg = imagePanel.getMessage();
-                if (oldMsg != null && oldMsg.equals("Awaiting content from server...")) {
-                    imagePanel.setMessage(null);
-                }
+            else if (bo instanceof BusinessObject2){
+            	// NOTICE (of retraction): very horribly indeed examine implementation class type
+            	// to make things work during the transition period from LegacyBusinessObject to BusinessObject2
+            	            	            	            	
+            	BusinessObject2 bo2 = (BusinessObject2)bo;
+            	Payload payload = bo2.getPayloadObject();            	
+            	if (payload instanceof ImagePayload) {
+            		imagePanel.setImage(((ImagePayload)payload).getImage());
+	                String oldMsg = imagePanel.getMessage();
+	                if (oldMsg != null && oldMsg.equals("Awaiting content from server...")) {
+	                    imagePanel.setMessage(null);
+	                }
+            	}
+            	else if (payload instanceof PlainTextPayload) {
+	                logPanel.appendText(Biomine3000Utils.formatBusinessObject(bo)+"\n");
+	            }
+	            else if (payload instanceof MP3Payload) {
+	                playMP3(bo);
+	            }        
+	            else {
+	                // plain object with no or unsupported type 
+	                message("Unable to display payload for non-event object:" +bo2);            
+	            }
+            	
             }
-            else if (bo instanceof PlainTextObject) {
-//                PlainTextObject to = (PlainTextObject)bo;
-                logPanel.appendText(Biomine3000Utils.formatBusinessObject(bo)+"\n");
+            else if (bo instanceof LegacyBusinessObject) {
+            	// support legacy business objects
+            	// TODO: this branch to be removed once LegacyBusinessObject no longer needed
+	            if (bo instanceof ImageObject) {
+	                imagePanel.setImage(((ImageObject)bo).getImage());
+	                String oldMsg = imagePanel.getMessage();
+	                if (oldMsg != null && oldMsg.equals("Awaiting content from server...")) {
+	                    imagePanel.setMessage(null);
+	                }
+	            }
+	            else if (bo instanceof PlainTextObject) {
+	//                PlainTextObject to = (PlainTextObject)bo;
+	                logPanel.appendText(Biomine3000Utils.formatBusinessObject(bo)+"\n");
+	            }
+	            else if (bo.getMetadata().getOfficialType() == BusinessMediaType.MP3) {
+	                playMP3(bo);
+	            }        
+	            else {
+	                // plain object with no or unsupported official type 
+	                message("Unable to display content:" +bo);            
+	            }
             }
-            else if (bo.getMetaData().getOfficialType() == BusinessMediaType.MP3) {
-                playMP3(bo);
-            }        
             else {
-                // plain object with no or unsupported official type 
-                message("Unable to display content:" +bo);            
+            	message("Unable to display content; unknown IBusinessObject implementation: "+bo);
             }
         }
 
