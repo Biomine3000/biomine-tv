@@ -59,14 +59,14 @@ public class BusinessObjectImpl implements BusinessObject {
      * @param builder
      */
     BusinessObjectImpl(BOB builder) {
-        if (builder.metadata != null) {
-            this.metadata = builder.metadata;
-        } else {
+        this.metadata = builder.metadata;
+
+        if (this.metadata == null) {
             this.metadata = new BusinessObjectMetadata();
         }
 
         if (builder.type != null) {
-            this.metadata.put("type", builder.type.toString());
+            this.metadata.setType(builder.type);
         }
 
         if (builder.event != null) {
@@ -75,11 +75,30 @@ public class BusinessObjectImpl implements BusinessObject {
 
         if (builder.payload != null) {
             this.payload = builder.payload;
-            this.metadata.put("size", this.payload.getBytes().length);
 
-            // TODO: generify or push into builder's switch case
+            // TODO: payload itself should be null, but it isn't.  This should be fixed at the source!
+            if (this.payload != null && this.payload.getBytes() != null) {
+                this.metadata.put("size", this.payload.getBytes().length);
+            } else {
+                this.metadata.put("size", 0);
+                this.payload = null;
+            }
+
             if (this.payload instanceof PlainTextPayload) {
-                this.metadata.put("type", BusinessMediaType.PLAINTEXT.toString());
+                this.metadata.setType(BusinessMediaType.PLAINTEXT);
+            } else if (this.payload instanceof ImagePayload) {
+                this.metadata.setType(builder.metadata.getType());
+            } else if (this.payload instanceof MP3Payload) {
+                this.metadata.setType(BusinessMediaType.MP3);
+            } else if (this.payload instanceof Payload) {
+                MediaType type = MediaType.parse(builder.metadata.getType());
+                this.metadata.setType(type);
+
+                if (type == BusinessMediaType.MP3) {
+                    this.payload = new MP3Payload(this.payload.getBytes());
+                } else if (type.is(MediaType.ANY_IMAGE_TYPE)) {
+                    this.payload = new ImagePayload(this.payload.getBytes());
+                }
             }
         }
     }

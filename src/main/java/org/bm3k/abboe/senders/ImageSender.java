@@ -11,7 +11,6 @@ import com.google.common.net.MediaType;
 import org.bm3k.abboe.common.*;
 import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
-import org.bm3k.abboe.objects.LegacyBusinessObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.IOUtils;

@@ -3,6 +3,7 @@ package org.bm3k.abboe.objects;
 import com.google.common.net.MediaType;
 import org.bm3k.abboe.common.BusinessObjectMetadata;
 import org.bm3k.abboe.common.Payload;
+import org.bm3k.abboe.common.PlainTextPayload;
 
 /**
  * BOB is the builder class for BusinessObjectImpl.  Short for BusinessObjectBuilder since they are
@@ -18,7 +19,10 @@ public class BOB {
     }
 
     public BusinessObject build() {
-        // TODO: switch case for type, if type is one of known (Image, MP3 etc), return another impl
+        if (this.metadata == null) {
+            this.metadata = new BusinessObjectMetadata();
+        }
+
         return new BusinessObjectImpl(this);
     }
 
@@ -55,6 +59,11 @@ public class BOB {
 
     public BOB payload(Payload payload) {
         this.payload = payload;
+        return this;
+    }
+
+    public BOB payload(String payload) {
+        this.payload = new PlainTextPayload(payload);
         return this;
     }
 }

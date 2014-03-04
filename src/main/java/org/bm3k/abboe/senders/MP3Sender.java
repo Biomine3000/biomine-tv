@@ -8,6 +8,7 @@ import java.net.Socket;
 
 
 import org.bm3k.abboe.common.*;
+import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,8 +32,9 @@ public class MP3Sender {
         BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
         byte[] payload = IOUtils.readBytes(bis);
         bis.close();
-        BusinessObject bo = new BusinessObjectFactory().makeObject(BusinessMediaType.MP3, payload);
-        bo.getMetadata().put("name", file.getName());       
+
+        BusinessObject bo = BOB.newBuilder().type(BusinessMediaType.MP3).payload(payload).build();
+        bo.getMetadata().put("name", file.getName());
         if (channel != null) {
             bo.getMetadata().put("channel", channel);
         }
