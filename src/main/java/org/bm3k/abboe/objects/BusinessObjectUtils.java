@@ -16,7 +16,7 @@ public class BusinessObjectUtils {
      * @throws org.bm3k.abboe.common.InvalidJSONException JSON metadata is not correctly formatted json
      * @throws IOException in case of general io error.
      */
-    static Pair<BusinessObjectMetadata, byte[]> readPacket(InputStream is) throws IOException, InvalidBusinessObjectException {
+    public static Pair<BusinessObjectMetadata, byte[]> readPacket(InputStream is) throws IOException, InvalidBusinessObjectException {
         byte[] metabytes;
         try {
             metabytes = IOUtils.readBytesUntilNull(is);

@@ -8,7 +8,9 @@ import java.net.Socket;
 import java.net.SocketException;
 
 
+import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
+import org.bm3k.abboe.objects.BusinessObjectUtils;
 import org.bm3k.abboe.objects.LegacyBusinessObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +55,7 @@ public class BusinessObjectReader implements Runnable {
         try {
             // log("Reading packet...");
             this.state = State.READING_PACKET;
-            Pair<BusinessObjectMetadata, byte[]> packet = LegacyBusinessObject.readPacket(is);
+            Pair<BusinessObjectMetadata, byte[]> packet = BusinessObjectUtils.readPacket(is);
         
             while (packet != null) {                
                 BusinessObject bo;
@@ -61,7 +63,10 @@ public class BusinessObjectReader implements Runnable {
                     bo = new BusinessObjectFactory().makeObject(packet);
                 }
                 else {
-                    bo = new LegacyBusinessObject(packet.getObj1(), packet.getObj2());
+                    bo = BOB.newBuilder()
+                            .metadata(packet.getObj1())
+                            .payload(packet.getObj2())
+                            .build();
                 }
                 
                 this.state = State.EXECUTING_LISTENER_OBJECT_RECEIVED;
@@ -69,7 +74,7 @@ public class BusinessObjectReader implements Runnable {
                 
                 // log("Reading packet...");
                 this.state = State.READING_PACKET;
-                packet = LegacyBusinessObject.readPacket(is);
+                packet = BusinessObjectUtils.readPacket(is);
             }
                         
             listener.noMoreObjects();

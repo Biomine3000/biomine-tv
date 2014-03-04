@@ -8,6 +8,7 @@ import org.bm3k.abboe.common.BusinessObjectFactory;
 import org.bm3k.abboe.common.BusinessObjectMetadata;
 import org.bm3k.abboe.common.InvalidBusinessObjectException;
 import org.bm3k.abboe.objects.BusinessObject;
+import org.bm3k.abboe.objects.BusinessObjectUtils;
 import org.bm3k.abboe.objects.LegacyBusinessObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,14 +52,14 @@ public class TrivialClient_old {
         Runtime.getRuntime().addShutdownHook(sh);
         logger.info("Initialized shutdown hook");
     }                
-       
-    public void send(LegacyBusinessObject object) throws IOException {
+
+    public void send(BusinessObject object) throws IOException {
         sender.send(object.toBytes());
     }
-    
+
     /** Return null when no more business objects available */
     public BusinessObject receive() throws IOException, InvalidBusinessObjectException {
-        Pair<BusinessObjectMetadata, byte[]> packet = LegacyBusinessObject.readPacket(socket.getInputStream());
+        Pair<BusinessObjectMetadata, byte[]> packet = BusinessObjectUtils.readPacket(socket.getInputStream());
         BusinessObject bo = new BusinessObjectFactory().makeObject(packet);
         return bo;
     }

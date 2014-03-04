@@ -9,6 +9,7 @@ import java.net.Socket;
 import com.google.common.io.Files;
 import com.google.common.net.MediaType;
 import org.bm3k.abboe.common.*;
+import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
 import org.bm3k.abboe.objects.LegacyBusinessObject;
 import org.slf4j.Logger;
@@ -39,7 +40,7 @@ public class ImageSender {
             throw new UnsuitableFiletypeException(StringUtils.getExtension(file));
         }        
         
-        LegacyBusinessObject bo = new LegacyBusinessObject(type, payload);
+        BusinessObject bo = BOB.newBuilder().type(type).payload(payload).build();
         bo.getMetadata().put("name", file.getName());       
         if (channel != null) {
             bo.getMetadata().put("channel", channel);
