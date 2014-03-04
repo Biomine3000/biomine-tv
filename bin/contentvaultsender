@@ -5,5 +5,5 @@ if [ "$USER" == "leronen" ]; then
 fi
 
 BIOMINE_TV_BIN="$(dirname $0)"
-$BIOMINE_TV_BIN/tv-java biomine3000.objects.ContentVaultSender "$@"
+$BIOMINE_TV_BIN/tv-java org.bm3k.abboe.senders.ContentVaultSender "$@"
 
