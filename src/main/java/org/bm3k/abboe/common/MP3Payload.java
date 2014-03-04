@@ -1,6 +1,7 @@
 package org.bm3k.abboe.common;
 
 
+
 /**
  * At this present stage, a MP3Payload offers no special handling of the payload on top of that offered
  * by the superclass Payload. Instead, the interpretation  of mp3 toBytes is left to the discretion of the
@@ -11,12 +12,12 @@ public class MP3Payload extends Payload {
                       
     /** Create unitialized instance. */
     public MP3Payload() {
-        super(null);
+        super(BusinessMediaType.MP3, null);
     }
                        
     /** Create a new business object to be sent; payload length will be set to metadata automatically */
     public MP3Payload(byte[] payload) {
-        super(payload);
+        super(BusinessMediaType.MP3, payload);
     }            
 
 }

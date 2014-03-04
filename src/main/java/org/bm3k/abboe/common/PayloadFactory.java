@@ -15,7 +15,7 @@ public class PayloadFactory  {
 
     public static Payload make(MediaType type) throws IllegalAccessException, InstantiationException {
         if (type.is(MediaType.ANY_IMAGE_TYPE)) {
-            return new ImagePayload();
+            return new ImagePayload(type);            
         }
 
         if (implementations.containsKey(type)) {

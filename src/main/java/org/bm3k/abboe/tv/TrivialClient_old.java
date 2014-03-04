@@ -9,7 +9,6 @@ import org.bm3k.abboe.common.BusinessObjectMetadata;
 import org.bm3k.abboe.common.InvalidBusinessObjectException;
 import org.bm3k.abboe.objects.BusinessObject;
 import org.bm3k.abboe.objects.BusinessObjectUtils;
-import org.bm3k.abboe.objects.LegacyBusinessObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.collections.Pair;

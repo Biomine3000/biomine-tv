@@ -1,5 +1,7 @@
 package org.bm3k.abboe.common;
 
+import com.google.common.net.MediaType;
+
 
 /** Payload for a {@link org.bm3k.abboe.objects.LegacyBusinessObject}
  * 
@@ -8,19 +10,17 @@ package org.bm3k.abboe.common;
  *  • rename to Content?
  */
 public class Payload {
-					
+			
+	MediaType type;
+	
 	/**
      * Might be null when subclass is implementing its own payload storage protocol. Should always be accessed through
      * {@link #getBytes()} and {@link #setPayload()} , never directly, even within this very class.
      * */
     private byte[] bytes;
-            
-    /** Create unitialized instance. TODO if this needed? */ 
-    public Payload() {    	
-    	this.bytes = null;
-    }
-    
-    public Payload(byte[] data) {
+                
+    public Payload(MediaType type, byte[] data) {
+    	this.type = type;
     	setBytes(data);
     }
     
@@ -31,6 +31,10 @@ public class Payload {
 	 */	 
 	public byte[] getBytes() {
 	    return this.bytes;
+	}
+	
+	public MediaType getType() {
+		return type;
 	}
 	
 	/**

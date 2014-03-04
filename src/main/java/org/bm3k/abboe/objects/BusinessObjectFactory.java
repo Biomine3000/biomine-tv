@@ -12,11 +12,11 @@ public class BusinessObjectFactory implements IBusinessObjectFactory {
     }
 
     public BusinessObject makeObject(MediaType type, byte[] payload) {
-        return BOB.newBuilder().type(type).payload(payload).build();
+        return BOB.newBuilder().type(type).payload(type, payload).build();
     }
 
     public BusinessObject makeObject(Pair<BusinessObjectMetadata, byte[]> data) {
-        return BOB.newBuilder().metadata(data.getObj1()).payload(data.getObj2()).build();
+        return BOB.newBuilder().metadata(data.getObj1()).payload(data.getObj1().getOfficialType(), data.getObj2()).build();
     }
 
     @Override

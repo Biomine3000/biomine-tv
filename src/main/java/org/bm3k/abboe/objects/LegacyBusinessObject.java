@@ -83,13 +83,13 @@ public class LegacyBusinessObject implements BusinessObject {
 
     @Override
     public Payload getPayload() {
-        return new Payload(getBytePayload());
+    	MediaType type = getMetadata().getOfficialType();
+    	if (type == null) {
+    		throw new RuntimeException("No type");
+    	}
+        return new Payload(type, getBytePayload());
     }
 
-//    /** Delegate to metadata (TODO: merge metadata class with this one) */
-//    public void setSender(String client) {
-//        metadata.setSender(client);
-//    }
     
     /**
      * @return null if no more business objects in stream. Note that payload may be null!

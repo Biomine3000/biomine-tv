@@ -11,7 +11,6 @@ import com.google.common.net.MediaType;
 import org.bm3k.abboe.common.*;
 import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
-import org.bm3k.abboe.objects.LegacyBusinessObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.IOUtils;
@@ -40,7 +39,7 @@ public class ImageSender {
             throw new UnsuitableFiletypeException(StringUtils.getExtension(file));
         }        
         
-        BusinessObject bo = BOB.newBuilder().type(type).payload(payload).build();
+        BusinessObject bo = BOB.newBuilder().type(type).payload(type,payload).build();
         bo.getMetadata().put("name", file.getName());       
         if (channel != null) {
             bo.getMetadata().put("channel", channel);

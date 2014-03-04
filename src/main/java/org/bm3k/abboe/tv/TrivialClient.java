@@ -24,18 +24,16 @@ public class TrivialClient {
     
     private ABBOEConnection connection;
     private boolean stopYourStdinReading = false;    
-    private SystemInReader systemInReader;
-    private String user;
+    private SystemInReader systemInReader;    
     
     /** Note that superclasses also have their own state related to the connection to the server */
     private StdinReaderState stdinReaderState;
     
     /** Call {@link startMainReadLoop()} to perform actual processing */
-    public TrivialClient(Socket socket, String user) throws IOException, JSONException {
-        this.user = user;
+    public TrivialClient(Socket socket, String user) throws IOException, JSONException {        
         this.stdinReaderState = StdinReaderState.NOT_YET_READING;
         ClientParameters clientParams = new ClientParameters(CLIENT_PARAMS);
-        clientParams.client = Biomine3000Utils.getUser();
+        clientParams.client = user;
         this.connection = new ABBOEConnection(clientParams, socket);
         this.connection.init(new ObjectHandler());
         this.connection.sendClientListRequest();
@@ -179,7 +177,10 @@ public class TrivialClient {
         Socket socket = Biomine3000Utils.connectToServer(args);        
         String user = args.getUser();
         if (user == null) {
-            user = "anonymous";
+            user = Biomine3000Utils.getUser();
+        }
+        if (user == null) {
+        	user = "anonymous";
         }
         TrivialClient client = new TrivialClient(socket, user);
         client.startMainReadLoop();

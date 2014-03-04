@@ -591,7 +591,7 @@ public class ABBOEServer {
                 }
                 log.info("Closing connection to client: {}", client);
                 String admin  = Biomine3000Utils.getUser();
-
+                               
                 BusinessObject closeNotification = BOB.newBuilder()
                         .payload(new PlainTextPayload("ABBOE IS GOING TO CLOSE THIS CONNECTION NOW (as requested by the ABBOE adminstrator, "+admin+")"))
                         .event(ABBOE_CLOSE_NOTIFY).build();
@@ -962,7 +962,10 @@ public class ABBOEServer {
     }
 
     public static void main(String[] pArgs) throws Exception {
+    	
+    	
         Logger log = LoggerFactory.getLogger(ABBOEServer.class);
+        log.debug("ABBOE!");
 
         CmdLineArgs2 args = new CmdLineArgs2(pArgs);
 

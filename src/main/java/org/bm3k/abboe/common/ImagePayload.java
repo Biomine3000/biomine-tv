@@ -5,6 +5,8 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import javax.imageio.ImageIO;
 
+import com.google.common.net.MediaType;
+
 /* duplicates image as BufferedImage on demand. Superclass byte buffer still always used to store toBytes. */
 public class ImagePayload extends Payload {
     
@@ -14,12 +16,12 @@ public class ImagePayload extends Payload {
     /** Exception caught during decoding image, if any. Not raised, but instead stored for later reference */
     private IOException imageDecodingException;
     
-    public ImagePayload() {
-        super(null);
+    public ImagePayload(MediaType type) {
+        super(type, null);
     }
     
-    public ImagePayload(byte[] payload) {
-        super(payload);
+    public ImagePayload(MediaType type, byte[] payload) {
+        super(type, payload);
     }
                                           
     private void decodeImage() throws IOException {        

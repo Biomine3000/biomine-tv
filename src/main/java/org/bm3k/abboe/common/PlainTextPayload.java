@@ -11,11 +11,11 @@ public class PlainTextPayload extends Payload {
      * Create unitialized instance (used by reflective factorization of objects based on their type).
      */
     public PlainTextPayload() {
-        super(null);     
+        super(BusinessMediaType.PLAINTEXT, null);     
     }
 
     public PlainTextPayload(byte[] payload) {
-    	super(null);
+    	super(BusinessMediaType.PLAINTEXT, null);
     	setBytes(payload);    	
     }
 
@@ -23,7 +23,7 @@ public class PlainTextPayload extends Payload {
      * Create a plain text business object with mimetype text/plain. 
      */
     public PlainTextPayload(String text) {
-    	super(null);
+    	super(BusinessMediaType.PLAINTEXT, null);
         this.text = text;
     }
       

@@ -22,6 +22,8 @@ import util.StringUtils;
  */ 
 @Deprecated
 public class ImageObject extends LegacyBusinessObject {
+	MediaType type;
+	
     /** Created on demand */
     private BufferedImage image;
     
@@ -29,13 +31,18 @@ public class ImageObject extends LegacyBusinessObject {
     private IOException imageDecodingException;
     
     /** Create unitialized instance. */
-    public ImageObject() {
-        super();
+//    public ImageObject() {
+//        super();
+//    }
+    /** Create unitialized instance. */
+    public ImageObject(MediaType type) {
+    	this.type = type;
     }
-                       
+    
     /** Create a new business object to be sent; payload length will be set to metadata automatically */
     public ImageObject(MediaType type, byte[] payload) {
-        super(type, payload);
+        super(type,payload);
+        this.type = type;
     }
     
     /** Create a new business object to be sent; payload length will be set to metadata automatically */
@@ -67,7 +74,7 @@ public class ImageObject extends LegacyBusinessObject {
 
     @Override
     public Payload getPayload() {
-        return new ImagePayload(super.getBytePayload());
+        return new ImagePayload(type, super.getBytePayload());
     }
     
     /**

@@ -12,10 +12,6 @@ import java.util.Arrays;
 import java.util.Calendar;
 
 import org.bm3k.abboe.objects.BusinessObject;
-import org.bm3k.abboe.objects.BusinessObjectEventType;
-import org.bm3k.abboe.objects.LegacyBusinessObject;
-import org.json.JSONException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.CmdLineArgs2;
@@ -128,11 +124,22 @@ public class Biomine3000Utils {
         String host = getHostName();
         if (host != null && host.equals("voodoomasiina")) { 
             return true;
-        }
+        }       
         else {
             return false;
         }        
     }
+    
+    public static boolean atLeronenBubuntu() {
+        String host = getHostName();
+        if (host != null && host.equals("leronen-bubuntu")) { 
+            return true;
+        }       
+        else {
+            return false;
+        }        
+    }
+    
     
     /**
      * Give a sensible port for a server, based on the host name.
@@ -140,10 +147,15 @@ public class Biomine3000Utils {
      * on some hosts. If no such port is defined for the present host, return null.    
      */
     public static Integer conjurePortByHostName() {
+    	log.debug("host: "+getHostName());
+    	System.err.println("FOO!");
         if (atLakka()) {
             return Biomine3000Constants.LERONEN_KAPSI_PORT_1;
         }
         else if (atVoodoomasiina()) {
+            return Biomine3000Constants.LERONEN_HIMA_PORT;
+        }
+        else if (atLeronenBubuntu()) {
             return Biomine3000Constants.LERONEN_HIMA_PORT;
         }
         else {

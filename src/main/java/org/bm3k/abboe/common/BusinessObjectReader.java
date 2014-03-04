@@ -11,7 +11,6 @@ import java.net.SocketException;
 import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
 import org.bm3k.abboe.objects.BusinessObjectUtils;
-import org.bm3k.abboe.objects.LegacyBusinessObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.collections.Pair;
@@ -65,7 +64,7 @@ public class BusinessObjectReader implements Runnable {
                 else {
                     bo = BOB.newBuilder()
                             .metadata(packet.getObj1())
-                            .payload(packet.getObj2())
+                            .payload(packet.getObj1().getOfficialType(), packet.getObj2())
                             .build();
                 }
                 

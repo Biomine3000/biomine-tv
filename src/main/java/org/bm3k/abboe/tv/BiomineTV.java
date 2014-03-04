@@ -73,6 +73,8 @@ public class BiomineTV extends JFrame {
     
     private void init()  {
 
+    	log.info("Starting tv.init()");   
+    	
         mp3Player = new BMTVMp3Player();
                                
 	    setTitle("Biomine TV®");
@@ -103,6 +105,7 @@ public class BiomineTV extends JFrame {
     } 
 
     private void startConnectionMonitorThread(List<IServerAddress> serverAddresses) {
+    	log.info("starting connectionmonitorthread");
         monitorThread = new ConnectionThread(serverAddresses);
         monitorThread.start();
     }
@@ -181,7 +184,7 @@ public class BiomineTV extends JFrame {
         } else
             serverAddresses = ServerAddress.LIST;
         
-        // will connect to the server, and keep trying every second until successful
+        // will connect to the server, and keep trying every second until successful        
         tv.startConnectionMonitorThread(serverAddresses);
     }
   
@@ -227,8 +230,7 @@ public class BiomineTV extends JFrame {
                 catch (InterruptedException e) {
                     // no action 
                 }
-            }
-            
+            }            
         }
     }
         

@@ -16,7 +16,7 @@ public class LegacyBusinessObjectFactory {
 
     public static LegacyBusinessObject make(MediaType type) throws IllegalAccessException, InstantiationException {
         if (type.is(MediaType.ANY_IMAGE_TYPE)) {
-            return new ImageObject();
+            return new ImageObject(type);
         }
 
         if (implementations.containsKey(type)) {

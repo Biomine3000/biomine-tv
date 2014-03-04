@@ -1,17 +1,9 @@
 package org.bm3k.abboe.objects;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
-import java.util.Arrays;
-
-import com.google.common.net.MediaType;
 import org.bm3k.abboe.common.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import util.IOUtils;
-import util.IOUtils.UnexpectedEndOfStreamException;
-import util.collections.Pair;
 
 
 /**
@@ -43,6 +35,7 @@ import util.collections.Pair;
  *  
  */
 public class BusinessObjectImpl implements BusinessObject {
+	@SuppressWarnings("unused")
     private static final Logger log = LoggerFactory.getLogger(BusinessObjectImpl.class);
     
    /**
@@ -76,11 +69,7 @@ public class BusinessObjectImpl implements BusinessObject {
         if (builder.payload != null) {
             this.payload = builder.payload;
             this.metadata.put("size", this.payload.getBytes().length);
-
-            // TODO: generify or push into builder's switch case
-            if (this.payload instanceof PlainTextPayload) {
-                this.metadata.put("type", BusinessMediaType.PLAINTEXT.toString());
-            }
+            this.metadata.setType(payload.getType());            
         }
     }
 
