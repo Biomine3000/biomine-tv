@@ -1,0 +1,11 @@
+#!/bin/bash
+
+BIOMINE_TV_BIN="$(dirname $0)"
+BIOMINE_TV_ROOT=$(readlink -f $BIOMINE_TV_BIN/..)
+
+cat $BIOMINE_TV_ROOT/.classpath \
+| grep .gradle/caches/ \
+| sed 's/ /\n/g' \
+| grep '^path=' \
+| sed 's/path="//' \
+| sed 's/"$//'
