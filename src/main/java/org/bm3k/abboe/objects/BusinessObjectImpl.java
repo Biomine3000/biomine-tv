@@ -34,8 +34,7 @@ import org.slf4j.LoggerFactory;
  *      will not have equals and hashcode, either.
  *  
  */
-public class BusinessObjectImpl implements BusinessObject {
-	@SuppressWarnings("unused")
+public class BusinessObjectImpl implements BusinessObject {	
     private static final Logger log = LoggerFactory.getLogger(BusinessObjectImpl.class);
     
    /**
@@ -52,14 +51,14 @@ public class BusinessObjectImpl implements BusinessObject {
      * @param builder
      */
     BusinessObjectImpl(BOB builder) {
-        if (builder.metadata != null) {
-            this.metadata = builder.metadata;
-        } else {
+        this.metadata = builder.metadata;
+
+        if (this.metadata == null) {
             this.metadata = new BusinessObjectMetadata();
         }
 
         if (builder.type != null) {
-            this.metadata.put("type", builder.type.toString());
+            this.metadata.setType(builder.type);
         }
 
         if (builder.event != null) {
@@ -68,8 +67,16 @@ public class BusinessObjectImpl implements BusinessObject {
 
         if (builder.payload != null) {
             this.payload = builder.payload;
-            this.metadata.put("size", this.payload.getBytes().length);
-            this.metadata.setType(payload.getType());            
+		    if (this.payload.getBytes() != null) {
+		    	this.metadata.put("size", this.payload.getBytes().length);
+		    } else {
+				// TODO: payload itself should be null, but it isn't.  This should be fixed at the source!
+				log.warn("object with non-null Payload object but no bytes");
+				this.metadata.put("size", 0);
+				this.payload = null;
+			}		
+
+            this.metadata.setType(payload.getType());                        
         }
     }
 

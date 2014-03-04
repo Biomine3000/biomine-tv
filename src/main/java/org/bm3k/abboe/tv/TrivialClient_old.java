@@ -4,9 +4,9 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
-import org.bm3k.abboe.common.BusinessObjectFactory;
 import org.bm3k.abboe.common.BusinessObjectMetadata;
 import org.bm3k.abboe.common.InvalidBusinessObjectException;
+import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
 import org.bm3k.abboe.objects.BusinessObjectUtils;
 import org.slf4j.Logger;
@@ -59,8 +59,7 @@ public class TrivialClient_old {
     /** Return null when no more business objects available */
     public BusinessObject receive() throws IOException, InvalidBusinessObjectException {
         Pair<BusinessObjectMetadata, byte[]> packet = BusinessObjectUtils.readPacket(socket.getInputStream());
-        BusinessObject bo = new BusinessObjectFactory().makeObject(packet);
-        return bo;
+        return BOB.newBuilder().metadata(packet.getObj1()).payload(packet.getObj2()).build();
     }
         
     private synchronized void closeSocketIfNeeded() {

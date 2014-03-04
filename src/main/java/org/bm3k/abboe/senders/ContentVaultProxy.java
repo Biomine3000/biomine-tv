@@ -8,8 +8,10 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.*;
 
+import org.bm3k.abboe.common.BusinessObjectMetadata;
+import org.bm3k.abboe.common.ImagePayload;
+import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
-import org.bm3k.abboe.objects.ImageObject;
 import org.bm3k.abboe.common.UnknownImageTypeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,8 +32,8 @@ public class ContentVaultProxy {
     /** only contains successfully loaded images */
     private State state;
     private List<String> urls; 
-    private Map<String, ImageObject> loadedImagesByURL;
-    private List<ContentVaultListener> listeners;
+    private Map<String, BusinessObject> loadedImagesByURL = new TreeMap<>();
+    private List<ContentVaultListener> listeners = new ArrayList<>();
     
     /**
      * Create and uninitialized vault proxy with no images. Do not start loading images yet
@@ -40,9 +42,6 @@ public class ContentVaultProxy {
      */
     public ContentVaultProxy() {        
         state = State.UNINITIALIZED;
-        // loadedImagesByURL = new TreeMap<String,BufferedImage>();
-        loadedImagesByURL = new TreeMap<String,ImageObject>();
-        listeners = new ArrayList<ContentVaultListener>();
     }
         
     public int getNumLoadedObjects() {
@@ -80,9 +79,9 @@ public class ContentVaultProxy {
             }
             
             String url = RandUtils.sampleOne(loadedImagesByURL.keySet());
-            ImageObject image = loadedImagesByURL.get(url);
-            return image;
-        }            
+
+            return loadedImagesByURL.get(url);
+        }
     }
     
     /** Load list of available images from a remote file. */
@@ -140,9 +139,15 @@ public class ContentVaultProxy {
                 try {
                    
                     InputStream is = new URL(url).openStream();
-                    byte[] bytes = IOUtils.readBytes(is);                    
-                    ImageObject img = new ImageObject(bytes, url);
-                    
+                    byte[] bytes = IOUtils.readBytes(is);
+
+                    BusinessObjectMetadata metadata = new BusinessObjectMetadata();
+                    metadata.put("name", url);
+                    BusinessObject img = BOB.newBuilder()
+                            .metadata(metadata)
+                            .payload(new ImagePayload(bytes))
+                            .build();
+
                     logger.info("Loaded image: {}", url);
                     synchronized(loadedImagesByURL) {                    
                         loadedImagesByURL.put(url,  img);
@@ -157,9 +162,6 @@ public class ContentVaultProxy {
                 catch (IOException e) {
                     logger.warn("Failed loading image: " + url, e);
                 }
-                catch (UnknownImageTypeException e) {
-                    logger.warn("Failed loading image: " + url, e);
-                }   
             }
                                                   
             if (loadedImagesByURL.size() == 0) {

@@ -19,6 +19,10 @@ public class BOB {
     }
 
     public BusinessObject build() {
+        if (this.metadata == null) {
+            this.metadata = new BusinessObjectMetadata();
+        }
+
         return new BusinessObjectImpl(this);
     }
 
@@ -50,7 +54,7 @@ public class BOB {
         this.payload = payload;
         return this;
     }
-    
+
     public BOB payload(String payload) {
         this.payload = new PlainTextPayload(payload);
         return this;

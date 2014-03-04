@@ -17,7 +17,6 @@ import org.bm3k.abboe.common.*;
 import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
 import org.bm3k.abboe.objects.BusinessObjectEventType;
-import org.bm3k.abboe.objects.PlainTextObject;
 import org.bm3k.abboe.senders.ContentVaultProxy;
 import org.bm3k.abboe.senders.ContentVaultProxy.InvalidStateException;
 
@@ -266,7 +265,7 @@ public class ABBOEServer {
 
         private void send(String text) {
             log("Sending plain text to client "+this+": "+text);
-            BusinessObject reply = new BusinessObjectFactory().makePlainTextObject(text);
+            BusinessObject reply = BOB.newBuilder().payload(text).build();
             send(reply);
         }
 
@@ -753,8 +752,10 @@ public class ABBOEServer {
         BusinessObject clientReport;
 
         synchronized(ABBOEServer.this) {
-            clientReport = new PlainTextObject(StringUtils.colToStr(clientReport(requestingClient), "\n"));
-            List<String> clientNames = new ArrayList<String>();
+            clientReport = BOB.newBuilder()
+                    .payload(new PlainTextPayload(StringUtils.colToStr(clientReport(requestingClient), "\n")))
+                    .build();
+            List<String> clientNames = new ArrayList<>();
             for (Client client: clients) {
                 if (client != requestingClient) {
                     clientNames.add(client.name);
@@ -949,9 +950,8 @@ public class ABBOEServer {
     }
 
     private void sendErrorReply(Client client, String error) {
-        PlainTextObject reply = new PlainTextObject();
-        reply.getMetadata().setEvent(ERROR);
-        reply.setText(error);
+        BusinessObject reply =
+                BOB.newBuilder().payload(new PlainTextPayload(error)).event(ERROR).build();
         log.info("Sending error reply to client {}: {}", client, error);
         client.send(reply);
     }

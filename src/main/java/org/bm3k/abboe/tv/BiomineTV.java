@@ -336,11 +336,7 @@ public class BiomineTV extends JFrame {
                     // unknown event
                     message("UNKNOWN_EVENT: "+Biomine3000Utils.formatBusinessObject(bo));
                 }
-            }
-            else if (bo instanceof BusinessObjectImpl){
-            	// NOTICE (of retraction): very horribly indeed examine implementation class type
-            	// to make things work during the transition period from LegacyBusinessObject to BusinessObjectImpl
-            	            	            	            	
+            } else {
             	BusinessObjectImpl bo2 = (BusinessObjectImpl)bo;
             	Payload payload = bo2.getPayload();
             	if (payload instanceof ImagePayload) {
@@ -357,35 +353,8 @@ public class BiomineTV extends JFrame {
 	                playMP3(bo);
 	            }        
 	            else {
-	                // plain object with no or unsupported type 
-	                message("Unable to display payload for non-event object:" +bo2);            
+	                message("Unable to display payload for non-event object:" +bo2);
 	            }
-            	
-            }
-            else if (bo instanceof LegacyBusinessObject) {
-            	// support legacy business objects
-            	// TODO: this branch to be removed once LegacyBusinessObject no longer needed
-	            if (bo instanceof ImageObject) {
-	                imagePanel.setImage(((ImageObject)bo).getImage());
-	                String oldMsg = imagePanel.getMessage();
-	                if (oldMsg != null && oldMsg.equals("Awaiting content from server...")) {
-	                    imagePanel.setMessage(null);
-	                }
-	            }
-	            else if (bo instanceof PlainTextObject) {
-	//                PlainTextObject to = (PlainTextObject)bo;
-	                logPanel.appendText(Biomine3000Utils.formatBusinessObject(bo)+"\n");
-	            }
-	            else if (bo.getMetadata().getOfficialType() == BusinessMediaType.MP3) {
-	                playMP3(bo);
-	            }        
-	            else {
-	                // plain object with no or unsupported official type 
-	                message("Unable to display content:" +bo);            
-	            }
-            }
-            else {
-            	message("Unable to display content; unknown BusinessObject implementation: "+bo);
             }
         }
 

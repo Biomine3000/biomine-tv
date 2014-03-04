@@ -2,9 +2,9 @@ package org.bm3k.abboe.senders;
 
 
 import org.bm3k.abboe.common.*;
+import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
 import org.bm3k.abboe.objects.BusinessObjectEventType;
-import org.bm3k.abboe.objects.PlainTextObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.ExceptionUtils;
@@ -56,9 +56,11 @@ public class ContentVaultAdapter {
     /** Sends event text as a PlainText "service/state-changed" event */
     private void sendEvent(String msg) {
         logger.info("Sending message: {}", msg);
-        PlainTextObject obj = new PlainTextObject(msg);
-        obj.getMetadata().setEvent(BusinessObjectEventType.SERVICES_STATE_CHANGED);
-        handler.handleObject(obj);               
+        BusinessObject obj = BOB.newBuilder()
+                .event(BusinessObjectEventType.SERVICES_STATE_CHANGED)
+                .payload(new PlainTextPayload(msg))
+                .build();
+        handler.handleObject(obj);
     }       
     
     private class ContentListener implements ContentVaultProxy.ContentVaultListener {
@@ -106,7 +108,9 @@ public class ContentVaultAdapter {
                     Thread.sleep(sendInterval);
                 }
                 catch (ContentVaultProxy.InvalidStateException e) {
-                    handler.handleObject(new BusinessObjectFactory().makePlainTextObject(ExceptionUtils.format(e, "; "), BusinessObjectEventType.ERROR));
+                    handler.handleObject(BOB.newBuilder()
+                            .type(BusinessMediaType.PLAINTEXT)
+                            .payload(ExceptionUtils.format(e, "; ")).build());
                     try {
                         Thread.sleep(sendInterval);
                     }
