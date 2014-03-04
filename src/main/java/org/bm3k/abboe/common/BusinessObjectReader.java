@@ -61,7 +61,7 @@ public class BusinessObjectReader implements Runnable {
                 if (constructDedicatedImplementations) {
                     bo = BOB.newBuilder()
                             .metadata(packet.getObj1())
-                            .payload(packet.getObj2())
+                            .payload(packet.getObj1().getOfficialType(), packet.getObj2())
                             .build();
                 }
                 else {

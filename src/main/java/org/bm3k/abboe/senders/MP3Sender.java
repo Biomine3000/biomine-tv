@@ -33,7 +33,7 @@ public class MP3Sender {
         byte[] payload = IOUtils.readBytes(bis);
         bis.close();
 
-        BusinessObject bo = BOB.newBuilder().type(BusinessMediaType.MP3).payload(payload).build();
+        BusinessObject bo = BOB.newBuilder().type(BusinessMediaType.MP3).payload(BusinessMediaType.MP3, payload).build();
         bo.getMetadata().put("name", file.getName());
         if (channel != null) {
             bo.getMetadata().put("channel", channel);

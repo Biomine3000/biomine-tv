@@ -8,15 +8,19 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.*;
 
+import org.bm3k.abboe.common.BusinessMediaType;
 import org.bm3k.abboe.common.BusinessObjectMetadata;
 import org.bm3k.abboe.common.ImagePayload;
 import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
-import org.bm3k.abboe.common.UnknownImageTypeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.net.MediaType;
+
 import util.IOUtils;
 import util.RandUtils;
+import util.StringUtils;
 
 
 /**
@@ -139,13 +143,21 @@ public class ContentVaultProxy {
                 try {
                    
                     InputStream is = new URL(url).openStream();
-                    byte[] bytes = IOUtils.readBytes(is);
-
+                    byte[] bytes = IOUtils.readBytes(is);                    
+                    
                     BusinessObjectMetadata metadata = new BusinessObjectMetadata();
                     metadata.put("name", url);
+                    String extension = StringUtils.getExtension(url);
+                    MediaType type = BusinessMediaType.getByExtension(extension);
+                    
+                    if (type == null) {
+                    	logger.warn("File with unknown extension in content vault proxy: "+url);
+                    	continue;
+                    }
+                                        
                     BusinessObject img = BOB.newBuilder()
                             .metadata(metadata)
-                            .payload(new ImagePayload(bytes))
+                            .payload(new ImagePayload(type, bytes))
                             .build();
 
                     logger.info("Loaded image: {}", url);
