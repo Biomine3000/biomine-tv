@@ -80,8 +80,7 @@ public class TrivialClient {
                 connection.sendClientListRequest();
             }
             else {
-                BusinessObject sendObj = BOB.newBuilder()
-                        .payload(new PlainTextPayload(line)).build();
+                BusinessObject sendObj = BOB.newBuilder().payload(line).build();
                 connection.send(sendObj);
             }
             line = br.readLine();

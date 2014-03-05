@@ -61,28 +61,16 @@ public class BusinessObjectReader implements Runnable {
         
             while (packet != null) {                                
                 BusinessObjectMetadata meta = packet.getObj1();
-                Payload payload;                        
+                byte[] payload;
                 
                 if (meta.hasPayload()) {
                 	MediaType type = meta.getOfficialType();
                 	byte[] data = packet.getObj2();
-                    if (type != null) {                                            	                    	                    	
-                    	if (constructDedicatedImplementations) {                    		
-                    		try {
-                    			payload = PayloadFactory.make(type);
-                    			payload.setBytes(data);
-                    		}
-                    		catch (IllegalAccessException|InstantiationException e) {
-                    			log.warn("Cannot create dedicated payload implementation", e);
-                    			payload = new Payload(type, data);
-                    		}                        	
-                    	}
-                    	else {
-                    		payload = new Payload(type, data);
-                    	}
+                    if (type != null) {
+                        payload = data;
                     }
                     else { 
-                    	log.warn("Cannot process payload: unofficial payload type. Metadata: "+meta);
+                    	log.warn("Cannot process payload. Metadata: "+meta);
                     	payload = null;
                     }                                       
                 }

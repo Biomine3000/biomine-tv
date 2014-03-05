@@ -61,7 +61,7 @@ public class BusinessObjectMetadata {
     }
 
     public boolean hasPayload() {
-        return getType() != null; 
+        return getType() != null;
     }
     
     /** 
@@ -74,10 +74,14 @@ public class BusinessObjectMetadata {
     
     private BusinessObjectMetadata(JSONObject json) {                          
         this.json = json;                              
-    }          
-    
+    }
+
     public void setType(String type) {
-        put("type", type);
+        setType(MediaType.parse(type));
+    }
+
+    public void setType(MediaType type) {
+        put("type", type.toString());
     }
     
     /** null if no subscriptions defined. */
@@ -99,11 +103,6 @@ public class BusinessObjectMetadata {
     public void setSubsciptions(Subscriptions subscriptions) throws JSONException {             
         json.put("subscriptions", subscriptions.toJSON());
     }
-    
-    public void setType(MediaType type) {
-        put("type", type.toString());
-    }
-
     
     /**
      * Minimal metadata with only (mime)type and size of payload. Actually, even size might be null, if it is
@@ -339,7 +338,7 @@ public class BusinessObjectMetadata {
      */
     public Integer getSize() {
         if (obj != null) {
-            return obj.getPayload().getBytes().length;
+            return obj.getPayload().length;
         }
         else {             
             return getInteger("size");                       
@@ -357,7 +356,7 @@ public class BusinessObjectMetadata {
         if (hasPayload()) {            
             JSONObject json = JSONUtils.clone(this.json);
             try {
-                json.put("size", obj.getPayload().getBytes().length);
+                json.put("size", obj.getPayload().length);
             }
             catch (JSONException e) {
                 // should not be possible

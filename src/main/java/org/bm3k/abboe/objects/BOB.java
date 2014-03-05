@@ -1,9 +1,11 @@
 package org.bm3k.abboe.objects;
 
 import com.google.common.net.MediaType;
+import org.bm3k.abboe.common.BusinessMediaType;
 import org.bm3k.abboe.common.BusinessObjectMetadata;
-import org.bm3k.abboe.common.Payload;
-import org.bm3k.abboe.common.PlainTextPayload;
+import org.bm3k.abboe.common.InvalidBusinessObjectException;
+
+import java.io.UnsupportedEncodingException;
 
 /**
  * BOB is the builder class for BusinessObjectImpl.  Short for BusinessObjectBuilder since they are
@@ -12,7 +14,7 @@ import org.bm3k.abboe.common.PlainTextPayload;
 public class BOB {
     BusinessObjectEventType event;
     MediaType type;
-    Payload payload;
+    byte[] payload;
     BusinessObjectMetadata metadata;
 
     private BOB() {
@@ -21,6 +23,10 @@ public class BOB {
     public BusinessObject build() {
         if (this.metadata == null) {
             this.metadata = new BusinessObjectMetadata();
+        }
+
+        if (payload != null && metadata.getType() == null) {
+            throw new RuntimeException("Payload without a type");
         }
 
         return new BusinessObjectImpl(this);
@@ -40,8 +46,8 @@ public class BOB {
         return this;
     }
 
-    public BOB payload(MediaType type, byte[] payload) {
-        this.payload = new Payload(type, payload);
+    public BOB payload(byte[] payload) {
+        this.payload = payload;
         return this;
     }
 
@@ -50,13 +56,13 @@ public class BOB {
         return this;
     }
 
-    public BOB payload(Payload payload) {
-        this.payload = payload;
-        return this;
-    }
-
     public BOB payload(String payload) {
-        this.payload = new PlainTextPayload(payload);
+        try {
+            this.payload = payload.getBytes("UTF-8");
+            this.type(BusinessMediaType.PLAINTEXT);
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException("Unexpected encoding exception", e);
+        }
         return this;
     }
 }

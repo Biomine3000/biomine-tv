@@ -34,7 +34,7 @@ public class MP3Sender {
         bis.close();
 
         log.info("Read payload of "+payload.length+" bytes");
-        BusinessObject bo = BOB.newBuilder().type(BusinessMediaType.MP3).payload(BusinessMediaType.MP3, payload).build();
+        BusinessObject bo = BOB.newBuilder().type(BusinessMediaType.MP3).payload(payload).build();
         bo.getMetadata().put("name", file.getName());
         if (channel != null) {
             bo.getMetadata().put("channel", channel);

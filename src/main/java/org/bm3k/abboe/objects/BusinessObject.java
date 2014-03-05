@@ -1,15 +1,16 @@
 package org.bm3k.abboe.objects;
 
+import com.google.common.net.MediaType;
 import org.bm3k.abboe.common.BusinessObjectMetadata;
-import org.bm3k.abboe.common.Payload;
 
 public interface BusinessObject {
 	BusinessObjectMetadata getMetadata();
 
 	byte[] toBytes();
 
-	boolean hasPayload();
-    Payload getPayload();
+    byte[] getPayload();
 
     boolean isEvent();
+
+    MediaType getType();
 }

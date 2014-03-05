@@ -13,6 +13,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.net.MediaType;
 import org.bm3k.abboe.common.*;
 import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
@@ -364,8 +365,9 @@ public class ABBOEServer {
             // TODO: should send routing/disconnect and proper routing/announcement
             sendToAllClients(this,
                     BOB.newBuilder()
-                    .payload(new PlainTextPayload("Client " + this + " disconnected"))
-                    .event(CLIENTS_PART_NOTIFY).build());
+                            .payload("Client " + this + " disconnected")
+                            .event(CLIENTS_PART_NOTIFY).build()
+            );
         }
 
         /**
@@ -406,7 +408,7 @@ public class ABBOEServer {
 
             sendToAllClients(this,
                     BOB.newBuilder()
-                            .payload(new PlainTextPayload("Client " + this + " disconnected"))
+                            .payload("Client " + this + " disconnected")
                             .event(CLIENTS_PART_NOTIFY)
                             .build()
             );
@@ -592,7 +594,7 @@ public class ABBOEServer {
                 String admin  = Biomine3000Utils.getUser();
                                
                 BusinessObject closeNotification = BOB.newBuilder()
-                        .payload(new PlainTextPayload("ABBOE IS GOING TO CLOSE THIS CONNECTION NOW (as requested by the ABBOE adminstrator, "+admin+")"))
+                        .payload("ABBOE IS GOING TO CLOSE THIS CONNECTION NOW (as requested by the ABBOE adminstrator, "+admin+")")
                         .event(ABBOE_CLOSE_NOTIFY).build();
                 client.initiateClosingSequence(closeNotification);
 
@@ -602,7 +604,7 @@ public class ABBOEServer {
             }
             else {
                 // just a message to be broadcast
-                sendToAllClients(null, BOB.newBuilder().payload(new PlainTextPayload(line)).build());
+                sendToAllClients(null, BOB.newBuilder().payload(line).build());
             }
             line = br.readLine();
         }
@@ -629,7 +631,7 @@ public class ABBOEServer {
         if (clients.size() > 0) {
             for (Client client: clients) {
                 BusinessObject shutdownNotification = BOB.newBuilder()
-                        .payload(new PlainTextPayload("ABBOE IS GOING TO SHUTDOWN in 5 seconds"))
+                        .payload("ABBOE IS GOING TO SHUTDOWN in 5 seconds")
                         .event(ABBOE_SHUTDOWN_NOTIFY).build();
                 client.initiateClosingSequence(shutdownNotification);
             }
@@ -753,7 +755,7 @@ public class ABBOEServer {
 
         synchronized(ABBOEServer.this) {
             clientReport = BOB.newBuilder()
-                    .payload(new PlainTextPayload(StringUtils.colToStr(clientReport(requestingClient), "\n")))
+                    .payload(StringUtils.colToStr(clientReport(requestingClient), "\n"))
                     .build();
             List<String> clientNames = new ArrayList<>();
             for (Client client: clients) {
@@ -820,8 +822,7 @@ public class ABBOEServer {
             msg+=" You did not specify subscriptions; using the default: "+client.subscriptions;
         }
 
-        BusinessObject replyObj = BOB.newBuilder().payload(new PlainTextPayload(msg))
-                .event(CLIENTS_LIST_REPLY).build();
+        BusinessObject replyObj = BOB.newBuilder().payload(msg).event(CLIENTS_LIST_REPLY).build();
         client.send(replyObj);
 
         // only set after sending the plain text reply                        
@@ -833,7 +834,7 @@ public class ABBOEServer {
         // TODO: send routing/subscribe/notification
         sendToAllClients(client,
                 BOB.newBuilder()
-                        .payload(new PlainTextPayload("Client " + client + " registered"))
+                        .payload("Client " + client + " registered")
                         .event(CLIENTS_REGISTER_NOTIFY)
                         .build()
         );
@@ -892,7 +893,7 @@ public class ABBOEServer {
             else {
                 // not an event, assume mythical "content"
 
-                if (bo.hasPayload() &&
+                if (bo.getPayload() != null &&
                         bo.getMetadata().getType() == BusinessMediaType.PLAINTEXT.withoutParameters().toString()) {
                     BusinessObject pto = BOB.newBuilder()
                             .payload(bo.getPayload())
@@ -951,7 +952,7 @@ public class ABBOEServer {
 
     private void sendErrorReply(Client client, String error) {
         BusinessObject reply =
-                BOB.newBuilder().payload(new PlainTextPayload(error)).event(ERROR).build();
+                BOB.newBuilder().payload(error).event(ERROR).build();
         log.info("Sending error reply to client {}: {}", client, error);
         client.send(reply);
     }

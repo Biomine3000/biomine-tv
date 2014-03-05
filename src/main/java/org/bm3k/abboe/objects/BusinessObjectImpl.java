@@ -1,6 +1,8 @@
 package org.bm3k.abboe.objects;
 
 import java.io.UnsupportedEncodingException;
+
+import com.google.common.net.MediaType;
 import org.bm3k.abboe.common.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +45,7 @@ public class BusinessObjectImpl implements BusinessObject {
     */
     private BusinessObjectMetadata metadata;
     
-    private Payload payload;
+    private byte[] payload;
               
     /**
      * Builder constructor, the main constructor.
@@ -69,32 +71,30 @@ public class BusinessObjectImpl implements BusinessObject {
 
         if (builder.payload != null) {
             this.payload = builder.payload;
-		    if (this.payload.getBytes() != null) {
-		    	this.metadata.put("size", this.payload.getBytes().length);
+		    if (this.payload != null) {
+		    	this.metadata.put("size", this.getPayload().length);
 		    } else {
 				// TODO: payload itself should be null, but it isn't.  This should be fixed at the source!
 				log.warn("object with non-null Payload object but no bytes. Metadata: "+metadata);
 				this.metadata.put("size", 0);
 				this.payload = null;
 			}		
-
-            this.metadata.setType(payload.getType());                        
         }
-    }
-
-    @Override
-    public boolean hasPayload() {
-        return metadata.hasPayload();
     }
 
     @Override
     public boolean isEvent() {
         return metadata.isEvent();
     }
-    
 
-	@Override
-	public Payload getPayload() {
+    @Override
+    public MediaType getType() {
+        return metadata.getOfficialType();
+    }
+
+
+    @Override
+	public byte[] getPayload() {
 		return this.payload;
 	}
 
@@ -125,9 +125,6 @@ public class BusinessObjectImpl implements BusinessObject {
 	    
 	    byte[] bytes;
 	    if (metadata.hasPayload()) {
-    	    // ensure that payload size matches size in metadata at this point...
-    	    byte[] payload = this.payload.getBytes();
-    	    
     	    // form packet
     	    bytes = new byte[jsonBytes.length+1+payload.length];
     	    System.arraycopy(jsonBytes, 0, bytes, 0, jsonBytes.length);
@@ -145,7 +142,7 @@ public class BusinessObjectImpl implements BusinessObject {
 	
 	public String toString() {
 	    String payloadStr = metadata.hasPayload() 
-	                      ? "<payload of "+ this.payload.getBytes().length+" bytes>"
+	                      ? "<payload of "+ this.payload.length+" bytes>"
 	                      : (isEvent() ? "" : "<no payload>");
 	    return "BusinessObjectImpl <metadata: "+metadata.toString()+"> "+payloadStr;
 	}

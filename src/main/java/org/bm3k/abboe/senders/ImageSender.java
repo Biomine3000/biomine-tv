@@ -39,7 +39,7 @@ public class ImageSender {
             throw new UnsuitableFiletypeException(StringUtils.getExtension(file));
         }        
         
-        BusinessObject bo = BOB.newBuilder().type(type).payload(type,payload).build();
+        BusinessObject bo = BOB.newBuilder().type(type).payload(payload).build();
         bo.getMetadata().put("name", file.getName());       
         if (channel != null) {
             bo.getMetadata().put("channel", channel);

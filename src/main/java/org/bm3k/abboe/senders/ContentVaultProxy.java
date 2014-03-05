@@ -10,7 +10,6 @@ import java.util.*;
 
 import org.bm3k.abboe.common.BusinessMediaType;
 import org.bm3k.abboe.common.BusinessObjectMetadata;
-import org.bm3k.abboe.common.ImagePayload;
 import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
 import org.slf4j.Logger;
@@ -157,7 +156,8 @@ public class ContentVaultProxy {
                                         
                     BusinessObject img = BOB.newBuilder()
                             .metadata(metadata)
-                            .payload(new ImagePayload(type, bytes))
+                            .type(type)
+                            .payload(bytes)
                             .build();
 
                     logger.info("Loaded image: {}", url);

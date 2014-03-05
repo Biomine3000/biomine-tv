@@ -1,8 +1,6 @@
 package org.bm3k.abboe.tv;
 
-import java.awt.BorderLayout;
-import java.awt.Dimension;
-import java.awt.GridLayout;
+import java.awt.*;
 
 
 import java.awt.event.KeyEvent;
@@ -10,13 +8,18 @@ import java.awt.event.KeyListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.util.*;
+import java.util.List;
 
+import com.google.common.net.MediaType;
 import org.bm3k.abboe.common.*;
 
 import org.bm3k.abboe.objects.*;
@@ -68,7 +71,7 @@ public class BiomineTV extends JFrame {
     /** TODO: support playing in a streaming fashion */     
     private void playMP3(BusinessObject bo) {
         message("Playing: "+bo.getMetadata().get("name"));
-        mp3Player.play(bo.getPayload().getBytes());
+        mp3Player.play(bo.getPayload());
     }
     
     private void init()  {
@@ -337,23 +340,33 @@ public class BiomineTV extends JFrame {
                     message("UNKNOWN_EVENT: "+Biomine3000Utils.formatBusinessObject(bo));
                 }
             } else {
-            	BusinessObjectImpl bo2 = (BusinessObjectImpl)bo;
-            	Payload payload = bo2.getPayload();
-            	if (payload instanceof ImagePayload) {
-            		imagePanel.setImage(((ImagePayload)payload).getImage());
-	                String oldMsg = imagePanel.getMessage();
-	                if (oldMsg != null && oldMsg.equals("Awaiting content from server...")) {
-	                    imagePanel.setMessage(null);
-	                }
-            	}
-            	else if (payload instanceof PlainTextPayload) {
+                MediaType type = bo.getType();
+                if (type.is(MediaType.ANY_IMAGE_TYPE)) {
+                    ByteArrayInputStream is = null;
+                    try {
+                        is = new ByteArrayInputStream(bo.getPayload());
+                        BufferedImage image = ImageIO.read(is);
+                        imagePanel.setImage(image);
+                        String oldMsg = imagePanel.getMessage();
+                        if (oldMsg != null && oldMsg.equals("Awaiting content from server...")) {
+                            imagePanel.setMessage(null);
+                        }
+                    } catch (IOException e) {
+                        log.warn("Couldn't read image", e);
+                    } finally {
+                        try {
+                            is.close();
+                        } catch (Exception e) {
+                        }
+                    }
+
+
+                } else if (type.is(MediaType.ANY_TEXT_TYPE)) {
 	                logPanel.appendText(Biomine3000Utils.formatBusinessObject(bo)+"\n");
-	            }
-	            else if (payload instanceof MP3Payload) {
+	            } else if (type.equals(BusinessMediaType.MP3)) {
 	                playMP3(bo);
-	            }        
-	            else {
-	                message("Unable to display payload for non-event object:" +bo2);
+	            } else {
+	                message("Unable to display payload for non-event object:" + bo);
 	            }
             }
         }
@@ -372,7 +385,7 @@ public class BiomineTV extends JFrame {
     }
 
     private static List<IServerAddress> getServerAddressList(final String host, final int port) {
-        List<IServerAddress> ret = new ArrayList<IServerAddress>(1);
+        List<IServerAddress> ret = new ArrayList<>(1);
 
         ret.add(new IServerAddress() {
             @Override

@@ -58,8 +58,7 @@ public class ContentVaultAdapter {
         logger.info("Sending message: {}", msg);
         BusinessObject obj = BOB.newBuilder()
                 .event(BusinessObjectEventType.SERVICES_STATE_CHANGED)
-                .payload(new PlainTextPayload(msg))
-                .build();
+                .payload(msg).build();
         handler.handleObject(obj);
     }       
     
