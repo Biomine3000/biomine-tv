@@ -54,8 +54,10 @@ public class BusinessObjectImpl implements BusinessObject {
         this.metadata = builder.metadata;
 
         if (this.metadata == null) {
-            this.metadata = new BusinessObjectMetadata();
+            this.metadata = new BusinessObjectMetadata();            
         }
+        
+        metadata.setObject(this);
 
         if (builder.type != null) {
             this.metadata.setType(builder.type);
@@ -71,7 +73,7 @@ public class BusinessObjectImpl implements BusinessObject {
 		    	this.metadata.put("size", this.payload.getBytes().length);
 		    } else {
 				// TODO: payload itself should be null, but it isn't.  This should be fixed at the source!
-				log.warn("object with non-null Payload object but no bytes");
+				log.warn("object with non-null Payload object but no bytes. Metadata: "+metadata);
 				this.metadata.put("size", 0);
 				this.payload = null;
 			}		

@@ -4,19 +4,19 @@ import java.io.UnsupportedEncodingException;
 
 public class PlainTextPayload extends Payload {
 
-	/** Do not store payload as in the superclass payload; instead, wrap it as a string for nicer interfacing. */ 	 
+	/** String representation. text != null IFF bytes != null, for now. */ 	 
 	private String text;
 
     /**
      * Create unitialized instance (used by reflective factorization of objects based on their type).
      */
     public PlainTextPayload() {
-        super(BusinessMediaType.PLAINTEXT, null);     
+        super(BusinessMediaType.PLAINTEXT, null);
     }
 
     public PlainTextPayload(byte[] payload) {
     	super(BusinessMediaType.PLAINTEXT, null);
-    	setBytes(payload);    	
+    	setBytes(payload, false);    	
     }
 
     /**
@@ -24,7 +24,14 @@ public class PlainTextPayload extends Payload {
      */
     public PlainTextPayload(String text) {
     	super(BusinessMediaType.PLAINTEXT, null);
-        this.text = text;
+    	try {
+    		byte[] bytes = text.getBytes("UTF-8");
+    		setBytes(bytes, false);
+    	}
+    	catch (UnsupportedEncodingException e) {
+    		// the unthinkable has occurred; UTF-8 not supported by this very java virtual machine instance
+    		throw new RuntimeException("Arkku implements ABBOE client using factories");
+    	}    
     }
       
     public String getText() {
@@ -57,11 +64,12 @@ public class PlainTextPayload extends Payload {
 
     /** Override superclass payload storage mechanism and store as String instead */
     @Override
-    public void setBytes(byte[] payload) {
-        try {
-            this.text = new String(payload, "UTF-8");
-            super.setBytes(null);            
-        } catch (UnsupportedEncodingException e) {
+    public void bytesSet() {
+        try {        	
+        	if (bytes == null) { throw new RuntimeException("WHATWHATWHAT payload is null"); }
+            this.text = new String(bytes, "UTF-8");                       
+        }
+        catch (UnsupportedEncodingException e) {
         	// the unthinkable has occurred; UTF-8 not supported by this very java virtual machine instance
             throw new RuntimeException("leronen has joined facebook");
         }

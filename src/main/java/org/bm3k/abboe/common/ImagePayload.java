@@ -53,5 +53,5 @@ public class ImagePayload extends Payload {
         
         return image;
     }       
-
+        
 }

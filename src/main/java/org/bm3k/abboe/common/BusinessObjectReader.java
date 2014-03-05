@@ -13,6 +13,9 @@ import org.bm3k.abboe.objects.BusinessObject;
 import org.bm3k.abboe.objects.BusinessObjectUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.net.MediaType;
+
 import util.collections.Pair;
 
 /**
@@ -56,21 +59,43 @@ public class BusinessObjectReader implements Runnable {
             this.state = State.READING_PACKET;
             Pair<BusinessObjectMetadata, byte[]> packet = BusinessObjectUtils.readPacket(is);
         
-            while (packet != null) {                
-                BusinessObject bo;
-                if (constructDedicatedImplementations) {
-                    bo = BOB.newBuilder()
-                            .metadata(packet.getObj1())
-                            .payload(packet.getObj1().getOfficialType(), packet.getObj2())
-                            .build();
+            while (packet != null) {                                
+                BusinessObjectMetadata meta = packet.getObj1();
+                Payload payload;                        
+                
+                if (meta.hasPayload()) {
+                	MediaType type = meta.getOfficialType();
+                	byte[] data = packet.getObj2();
+                    if (type != null) {                                            	                    	                    	
+                    	if (constructDedicatedImplementations) {                    		
+                    		try {
+                    			payload = PayloadFactory.make(type);
+                    			payload.setBytes(data);
+                    		}
+                    		catch (IllegalAccessException|InstantiationException e) {
+                    			log.warn("Cannot create dedicated payload implementation", e);
+                    			payload = new Payload(type, data);
+                    		}                        	
+                    	}
+                    	else {
+                    		payload = new Payload(type, data);
+                    	}
+                    }
+                    else { 
+                    	log.warn("Cannot process payload: unofficial payload type. Metadata: "+meta);
+                    	payload = null;
+                    }                                       
                 }
                 else {
-                    bo = BOB.newBuilder()
-                            .metadata(packet.getObj1())
-                            .payload(packet.getObj1().getOfficialType(), packet.getObj2())
-                            .build();
+                	// no payload
+                	payload = null;
                 }
-                
+                                               
+                BusinessObject bo = BOB.newBuilder()
+                    .metadata(meta)
+                    .payload(payload)
+                    .build();
+                                               
                 this.state = State.EXECUTING_LISTENER_OBJECT_RECEIVED;
                 listener.objectReceived(bo);                                        
                 
@@ -84,7 +109,8 @@ public class BusinessObjectReader implements Runnable {
         catch (SocketException e) {
             log.warn("Got SocketException {}", e);
             if (e.getMessage().equals("Connection reset")) {
-                // message hardcoded in ORACLE java's SocketInputStream read method...
+                // message hardcoded in ORACLE java's SocketInputStream read method... TODO: check that this works in other
+            	// virtual machines as well...
                 listener.connectionReset();
             }
             else {
@@ -92,8 +118,8 @@ public class BusinessObjectReader implements Runnable {
                 listener.handle(e);
             }
         }
-        catch (IOException e) {
-            log.warn("Got IOException {}", e);
+        catch (IOException e) {        	        
+            log.warn("Got IOException", e);
             listener.handle(e);
         }
         catch (InvalidBusinessObjectException e) {

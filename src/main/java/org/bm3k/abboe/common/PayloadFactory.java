@@ -18,11 +18,17 @@ public class PayloadFactory  {
             return new ImagePayload(type);            
         }
 
+        Payload payload = null;
         if (implementations.containsKey(type)) {
-            return implementations.get(type).newInstance();
-        } else {
-            return Payload.class.newInstance();
+        	payload = implementations.get(type).newInstance();
         }
+        else {
+            payload = Payload.class.newInstance();
+        }
+        
+        payload.setType(type);        
+        
+        return payload;
     }
 }
 

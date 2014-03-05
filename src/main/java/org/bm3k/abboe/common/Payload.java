@@ -11,17 +11,35 @@ import com.google.common.net.MediaType;
  */
 public class Payload {
 			
-	MediaType type;
+	protected MediaType type;
 	
 	/**
-     * Might be null when subclass is implementing its own payload storage protocol. Should always be accessed through
-     * {@link #getBytes()} and {@link #setPayload()} , never directly, even within this very class.
-     * */
-    private byte[] bytes;
-                
-    public Payload(MediaType type, byte[] data) {
+     * Always non-null (except for uninitalized instances...)
+     * 
+     * Previously it was possible to have this null when used its own impl for caching decoded data,
+     * from where said bytes could be restored. This was dropped in favor of cleaner code, at least for the time being.
+     */
+    protected byte[] bytes;
+    
+    /**
+     * Uninitialized and unusable instance. Must be completed later by setting bytes and type.
+     * Needed to enable creating by type (no-op constructor needed).
+     */
+    public Payload() {
+    	type = null;
+    	bytes = null;
+    }
+        
+    public Payload(MediaType type, byte[] data) {    
     	this.type = type;
-    	setBytes(data);
+    	if (data != null) {
+    		setBytes(data);
+    	}
+    }
+    
+    public void setType(MediaType type) {
+    	this.type = type;
+    	bytes = null;
     }
     
     /**
@@ -30,7 +48,7 @@ public class Payload {
 	 * raw toBytes should override this.
 	 */	 
 	public byte[] getBytes() {
-	    return this.bytes;
+	    return bytes;
 	}
 	
 	public MediaType getType() {
@@ -42,8 +60,21 @@ public class Payload {
      * toBytes provided; subclasses desiring to implement storing of payload in some other manner than raw
      * toBytes should override this.
      */  
-	public void setBytes(byte[] payload) {
-	    this.bytes = payload; 
+	public void setBytes(byte[] bytes) {
+	    setBytes(bytes, true);
 	}	
+	
+	/** uff. subclasses to be nuked... */
+	public void setBytes(byte[] bytes, boolean notifySubclass) {
+	    this.bytes = bytes;
+	    if (notifySubclass) {
+	    	bytesSet();
+	    }
+	}
+	
+	/** can be implemented by subclasses to create/update decoded repsentation */  
+	public void bytesSet() {
+		//
+	}
     
 }
