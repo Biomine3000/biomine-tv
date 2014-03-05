@@ -52,6 +52,13 @@ public class MP3Sender {
             log.info("Writing {} bytes", StringUtils.formatSize(bytes.length));
             IOUtils.write(bo.toBytes(), os);
             log.info("Sent object.");
+
+            try {
+                log.info("Sleeping for 1 second to not get the object dropped by buggy Objectoplex");
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
                         

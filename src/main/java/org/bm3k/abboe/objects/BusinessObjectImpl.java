@@ -104,15 +104,14 @@ public class BusinessObjectImpl implements BusinessObject {
         }
 	    
 	    byte[] bytes;
-	    if (metadata.hasPayload()) {
-    	    // form packet
-    	    bytes = new byte[jsonBytes.length+1+payload.length];
+	    if (payload != null && metadata.getType() != null) {
+    	    bytes = new byte[jsonBytes.length + 1 + payload.length];
     	    System.arraycopy(jsonBytes, 0, bytes, 0, jsonBytes.length);
             bytes[jsonBytes.length] = '\0';
-            System.arraycopy(payload, 0, bytes, jsonBytes.length+1, payload.length);
+            System.arraycopy(payload, 0, bytes, jsonBytes.length + 1, payload.length);
 	    }
 	    else {
-	        bytes = new byte[jsonBytes.length+1];
+	        bytes = new byte[jsonBytes.length + 1];
 	        System.arraycopy(jsonBytes, 0, bytes, 0, jsonBytes.length);
 	        bytes[jsonBytes.length] = '\0';
 	    }
