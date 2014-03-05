@@ -6,14 +6,16 @@ import util.CmdLineArgs2;
 
 public class Biomine3000Args extends CmdLineArgs2 {
     
+	private static String[] FLAGS = { "no-servers-file" }; 
+	
     /** Logging configured automatically by this constructor, based on args! */
     public Biomine3000Args(String[] args) throws IllegalArgumentsException {
-        super(args);
+        super(args, FLAGS);
     }
     
     /** @param configureLogging configure logging automatically? */     
     public Biomine3000Args(String[] args, boolean configureLogging) throws IllegalArgumentsException, IOException {
-        super(args);
+        super(args, FLAGS);
         if (configureLogging) {
             Biomine3000Utils.configureLogging(this);
         }
@@ -22,6 +24,10 @@ public class Biomine3000Args extends CmdLineArgs2 {
     /** -channel */
     public String getChannel() {
         return get("channel");
+    }
+    
+    public boolean noServersFile() {
+    	return hasFlag("no-servers-file");    			
     }
     
     /** opt -user, or env var "USER", or "anonymos"*/  
@@ -63,6 +69,19 @@ public class Biomine3000Args extends CmdLineArgs2 {
         return port;
     }
     
+    /** @return null if host == || port == null */
+    public ServerAddress getServerAddress() {
+    	String host = getHost();
+    	Integer port = getPort();
+    	if (host != null && port != null) {
+    		return new ServerAddress(host, port, host+":"+port, null);
+    	}
+    	else {
+    		return null;
+    	}
+    			
+    }
     
 
 }
+

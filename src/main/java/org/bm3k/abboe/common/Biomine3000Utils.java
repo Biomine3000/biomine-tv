@@ -3,20 +3,25 @@ package org.bm3k.abboe.common;
 import static org.bm3k.abboe.common.Biomine3000Constants.*;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.List;
 
 import org.bm3k.abboe.objects.BusinessObject;
+import org.json.JSONArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import util.CmdLineArgs2;
 import util.CmdLineArgs2.IllegalArgumentsException;
+import util.IOUtils;
 import util.RandUtils;
 
 public class Biomine3000Utils {
@@ -32,6 +37,25 @@ public class Biomine3000Utils {
         }
     }
 
+    /**
+     * Read known servers from file pointed by env variable ABBOE_SERVERS_FILE. If no such env var, return empty list.
+     * If var exist, but does not point to an readable file, throw IOException.
+     */
+    public static List<ServerAddress> readServersFromConfigFile() throws IOException {
+    	List<ServerAddress> servers = new ArrayList<ServerAddress>();
+    	String configFileName = System.getenv(Biomine3000Constants.ENV_VAR_ABBOE_SERVERS_FILE);
+    	if (configFileName != null) {     		
+    		FileInputStream is = new FileInputStream(configFileName);
+    		String data = IOUtils.readStream(is);
+    		JSONArray jsonArr = new JSONArray(data);
+    		for (int i=0; i<jsonArr.length(); i++) {
+    			ServerAddress address = new ServerAddress(jsonArr.getJSONObject(i));
+    			servers.add(address);
+    		}
+    	}
+    	return servers;
+    }
+    
     /**
      * Format a business object in an IRC-like fashion
      *
@@ -69,6 +93,7 @@ public class Biomine3000Utils {
     
     public static boolean atLakka() {
         String host = getHostName();
+        
         if (host != null && host.startsWith("lakka")) {
             return true;
         }
@@ -140,28 +165,25 @@ public class Biomine3000Utils {
             return false;
         }        
     }
-    
-    
+        
     /**
-     * Give a sensible port for a server, based on the host name.
-     * Does not do any managering of ports, just assume there is one specific reserved port
-     * on some hosts. If no such port is defined for the present host, return null.    
+     * Read host info from the ABBOE_SERVERS_FILE and use that to tell what port is used on which host.
+     * If no such file, or server on no such host, or multiple servers defined for host, return null.
      */
-    public static Integer conjurePortByHostName() {
-    	log.debug("host: "+getHostName());
-    	System.err.println("FOO!");
-        if (atLakka()) {
-            return Biomine3000Constants.LERONEN_KAPSI_PORT_1;
-        }
-        else if (atVoodoomasiina()) {
-            return Biomine3000Constants.LERONEN_HIMA_PORT;
-        }
-        else if (atLeronenBubuntu()) {
-            return Biomine3000Constants.LERONEN_HIMA_PORT;
-        }
-        else {
-            return null;
-        }
+    public static Integer conjurePortByHostName() throws IOException {
+    	String host = getHostName();
+    	if (host == null) {
+    		return null;
+    	}
+    	log.info("Conjuring port by host name @: "+host);    	
+    	List<ServerAddress> servers =  Biomine3000Utils.readServersFromConfigFile();
+    	for (ServerAddress server: servers) {
+    		if  (server.getHost().startsWith(host)) {
+    			return server.getPort();
+    		}
+    	}
+    	
+    	return null;
     }
     
     private static Socket connect(InetSocketAddress addr) throws IOException {
@@ -171,12 +193,30 @@ public class Biomine3000Utils {
     }
     
     /** 
-     * On failure, just throw an IOException corresponding to the failure to 
+     * Connect to first available server of servers read from a configuration file ABBOE_SERVERS_FILE.
+     * 
+     * If no such configuration file, connect to server on localhost using default ABBOE port 
+     * 
+     * If no server available, just throw an IOException corresponding to the failure to 
      * connect to the last of the tried addresses.
      */
-    public static Socket connectToBestAvailableServer() throws IOException {
+    public static Socket connectToFirstAvailableServer() throws IOException {
+    	List<ServerAddress> servers = readServersFromConfigFile();
+    	if (servers.size() == 0) {
+    		servers.add(ServerAddress.DEFAULT_SERVER);
+    	}
+    	
+    	return connectToFirstAvailableServer(servers);
+    	
+    }
+    
+    /** 
+     * If no server available, just throw an IOException corresponding to the failure to 
+     * connect to the last of the tried addresses.
+     */
+    public static Socket connectToFirstAvailableServer(List<ServerAddress> servers) throws IOException {
         IOException lastEx = null;
-        for (ServerAddress addr: ServerAddress.values()) {
+        for (ServerAddress addr: servers) {
             try {
                 log.info("Connecting to server: "+addr);
                 Socket socket = connectToServer(addr.getHost(), addr.getPort());
@@ -260,7 +300,7 @@ public class Biomine3000Utils {
         }
         else if (host == null && port == null) {
             // no port or host, try default servers.
-            return connectToBestAvailableServer();
+            return connectToFirstAvailableServer();
         }
         else if (host == null) {
             throw new IOException("Cannot connect: host is null");
@@ -282,6 +322,7 @@ public class Biomine3000Utils {
     
     public static void main(String[] args) {
         System.out.println("at host: "+getHostName());
+        System.out.println("available servers: "+getHostName());
     }
     
     public static File randomFile(String dirName) throws IOException {

@@ -3,8 +3,12 @@ package org.bm3k.abboe.tv;
 import java.awt.*;
 
 
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
@@ -43,6 +47,7 @@ public class BiomineTV extends JFrame {
 	private JLabel zombiLabel;
 	private LogPanel logPanel;
 	private JTextArea logArea;
+//	private JButton testButton;
 	private JPanel contentPanels;
 	/** Only non-null when no connections */
 	private JLabel notConnectedLabel;
@@ -74,6 +79,34 @@ public class BiomineTV extends JFrame {
         mp3Player.play(bo.getPayload());
     }
     
+    private void tryToListenKeys(List<? extends Component> components) {
+    	BMTVKeyListener keyListener = new BMTVKeyListener();
+    	for (Component c: components) {
+    		c.setFocusable(true);
+    		c.addKeyListener(keyListener);    	
+		    logArea.addFocusListener(new FocusListener() {
+				
+				@Override			
+		        public void focusGained(FocusEvent e) { 
+		        	log.info("focusGained: "+e.getComponent());
+		        }
+				@Override
+		        public void focusLost(FocusEvent e) {
+					log.info("focusLost"+e.getComponent() );
+		        }
+		    });
+		    
+		    c.addMouseListener(new MouseAdapter() {
+		    	 public void mouseClicked(MouseEvent e) {
+		    		 log.info("Mouse clicked, requesting focus:  "+e.getSource());
+		    		 if (e.getSource() instanceof JComponent) {
+		    			 ((JComponent)e.getSource()).requestFocusInWindow();
+		    		 }
+		    	 }
+		    });
+    	}
+    }
+    
     private void init()  {
 
     	log.info("Starting tv.init()");   
@@ -93,12 +126,33 @@ public class BiomineTV extends JFrame {
 	    logLines = new LinkedList<String>();	    
 	    setLayout(new BorderLayout());
 	    add(zombiLabel, BorderLayout.NORTH);
+	    logArea.addMouseListener(new MouseAdapter() {
+	    	 public void mouseClicked(MouseEvent e) {
+	    		 log.info("Mouse clicked.");
+	    	 }
+	    });
 	    add(logArea, BorderLayout.EAST);
 	    add(contentPanels, BorderLayout.CENTER);
 	    add(logPanel, BorderLayout.SOUTH);
+	    contentPanels.requestFocusInWindow();
+	    		    
+	    logArea.addFocusListener(new FocusListener() {
+			
+			@Override			
+	        public void focusGained(FocusEvent e) { 
+	        	log.info("focusGained");
+	        }
+			@Override
+	        public void focusLost(FocusEvent e) {
+				log.info("focusLost");
+	        }
+	    });
 	    
-	    logArea.setFocusable(false);
-	    addKeyListener(new BMTVKeyListener());
+	    // EI TOIMI:
+//	    logArea.setFocusable(false);
+//	    logPanel.setFocusable(false);
+	    
+	    tryToListenKeys(Arrays.asList(getContentPane()));	    
 	    
 	    addWindowListener(new WindowAdapter() {
 	 	  	public void windowClosing(WindowEvent e) {
@@ -107,8 +161,8 @@ public class BiomineTV extends JFrame {
 	 	});	    	    	    	    	    
     } 
 
-    private void startConnectionMonitorThread(List<IServerAddress> serverAddresses) {
-    	log.info("starting connectionmonitorthread");
+    private void startConnectionMonitorThread(List<? extends IServerAddress> serverAddresses) {
+    	log.info("starting connectionmonitorthread with servers: " + StringUtils.listToString(serverAddresses));
         monitorThread = new ConnectionThread(serverAddresses);
         monitorThread.start();
     }
@@ -178,15 +232,19 @@ public class BiomineTV extends JFrame {
         tv.setVisible(true);
 
         // Handle possible command line arguments
-        List<IServerAddress> serverAddresses;
-        if (args.getHost() != null) {
-            if (args.getPort() == null)
-                serverAddresses = getServerAddressList(args.getHost(), Biomine3000Constants.DEFAULT_ABBOE_PORT);
-            else
-                serverAddresses = getServerAddressList(args.getHost(), args.getPort());
-        } else
-            serverAddresses = ServerAddress.LIST;
         
+        List<IServerAddress> serverAddresses = new ArrayList<IServerAddress>();
+        ServerAddress serverFromArgs = args.getServerAddress();
+    	if (serverFromArgs != null) {
+    		serverAddresses.add(serverFromArgs);
+    	}
+        
+        if (!(args.noServersFile())) {
+        	List<? extends IServerAddress> serversFromConfigFile = Biomine3000Utils.readServersFromConfigFile();        
+
+        	serverAddresses.addAll(serversFromConfigFile);
+        }
+                                 
         // will connect to the server, and keep trying every second until successful        
         tv.startConnectionMonitorThread(serverAddresses);
     }
@@ -208,7 +266,7 @@ public class BiomineTV extends JFrame {
                 }
                 IServerAddress address = addresses.get(i++);                
                 try {                                        
-                    synchronized(BiomineTV.this) {                        
+                    synchronized(BiomineTV.this) {
                         if  (!(connectionsByAddress.containsSrcKey(address))) {
                             // not connected to server at this particular address
                             try {
@@ -383,25 +441,7 @@ public class BiomineTV extends JFrame {
         }
         
     }
-
-    private static List<IServerAddress> getServerAddressList(final String host, final int port) {
-        List<IServerAddress> ret = new ArrayList<>(1);
-
-        ret.add(new IServerAddress() {
-            @Override
-            public int getPort() {
-                return port;
-            }
-
-            @Override
-            public String getHost() {
-                return host;
-            }
-        });
-
-        return ret;
-    }
-
+    
     /**
      * For now, the sole purpose of this listener is to enable closing the 
      * tv using ctrl+q instead of the abodominable ALT+F4.

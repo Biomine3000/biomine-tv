@@ -37,7 +37,8 @@ import org.slf4j.LoggerFactory;
  *  
  */
 public class BusinessObjectImpl implements BusinessObject {	
-    private static final Logger log = LoggerFactory.getLogger(BusinessObjectImpl.class);
+    @SuppressWarnings("unused")
+	private static final Logger log = LoggerFactory.getLogger(BusinessObjectImpl.class);
     
    /**
     * Implementation note: this should never be set directly, but always using setMetadata.

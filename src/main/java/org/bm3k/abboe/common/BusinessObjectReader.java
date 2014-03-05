@@ -1,7 +1,5 @@
 package org.bm3k.abboe.common;
 
-import static org.bm3k.abboe.common.Biomine3000Constants.*;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
@@ -35,15 +33,13 @@ public class BusinessObjectReader implements Runnable {
     
     private InputStream is;
     private Listener listener;
-    private String name;
-    private boolean constructDedicatedImplementations;
+    private String name;    
     
-    public BusinessObjectReader(InputStream is, Listener listener, String name, boolean constructDedicatedImplementations) {
+    public BusinessObjectReader(InputStream is, Listener listener, String name) {
         this.state = State.NOT_STARTED; 
         this.is = is;
         this.listener = listener;
-        this.name = name;
-        this.constructDedicatedImplementations = constructDedicatedImplementations;
+        this.name = name;        
     }
             
     public void setName(String name) {
@@ -134,11 +130,10 @@ public class BusinessObjectReader implements Runnable {
         log.debug(name+": "+msg);
     }    
     
-    /** Test by connecting to the server and reading everything. */
-    public static void main(String[] args) throws Exception {
-        @SuppressWarnings("resource")
-		Socket socket = new Socket("localhost", LERONEN_HIMA_PORT);
-        BusinessObjectReader readerRunnable = new BusinessObjectReader(socket.getInputStream(), new DefaultListener(), "dummy reader", true);
+    /** Test by connecting to first available server and reading everything. */
+    public static void main(String[] args) throws Exception {        
+		Socket socket = Biomine3000Utils.connectToFirstAvailableServer();
+        BusinessObjectReader readerRunnable = new BusinessObjectReader(socket.getInputStream(), new DefaultListener(), "dummy reader");
         Thread readerThread = new Thread(readerRunnable);
         readerThread.start();
     }

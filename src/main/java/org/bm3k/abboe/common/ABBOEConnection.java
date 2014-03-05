@@ -196,7 +196,7 @@ public class ABBOEConnection {
             throw new RuntimeException("No readerListener");
         }
         reader = new BusinessObjectReader(socket.getInputStream(), readerListener,
-                "reader-" + socket.getRemoteSocketAddress().toString(), true);
+                "reader-" + socket.getRemoteSocketAddress().toString());
 
         Thread readerThread = new Thread(reader);
         readerThread.start();

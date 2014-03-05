@@ -100,6 +100,26 @@ public class BusinessObjectMetadata {
         }
     }
     
+    /** @return empty list if no natures */
+    public List<String> getNatures() {
+    	JSONArray arr = json.optJSONArray("nature");
+    	if (arr == null) {
+    		arr = json.optJSONArray("natures");
+    	}
+    	
+    	if (arr != null) {
+    		ArrayList<String> result = new ArrayList<>(arr.length());
+    		for (int i=0; i<arr.length(); i++) {
+    			result.add(arr.getString(i));
+    		}
+    		return result;
+    	}
+    	else {
+    		return Collections.emptyList();
+    	}    		    	
+    }
+        
+    
     public void setSubsciptions(Subscriptions subscriptions) throws JSONException {             
         json.put("subscriptions", subscriptions.toJSON());
     }
@@ -118,26 +138,16 @@ public class BusinessObjectMetadata {
      * Put a simple string value. For more complex values, use the wrapped json object directly
      * (reference obtainable via {@link #asJSON()})
      */ 
-    public void put(String key, String value) {
-        try {            
-            json.put(key, value);            
-        }
-        catch (JSONException e) {
-            throw new RuntimeException(e);
-        }
+    public void put(String key, String value) {                    
+        json.put(key, value);                    
     }
     
     /**
      * Put a simple integer value. For more complex values, use the wrapped json object directly
      * (reference obtainable via {@link #asJSON()})
      */ 
-    public void put(String key, int value) {
-        try {            
-            json.put(key, value);            
-        }
-        catch (JSONException e) {
-            throw new RuntimeException(e);
-        }
+    public void put(String key, int value) {        
+        json.put(key, value);
     }
     
     @SuppressWarnings("unchecked")
@@ -186,13 +196,9 @@ public class BusinessObjectMetadata {
         for (String s: values) {
             arr.put(s);
         }
-        try {
-            json.put(key, arr);
-        }
-        catch (JSONException e) {
-            // should not be possible
-            throw new RuntimeException(e);
-        }
+        
+        json.put(key, arr);        
+        
     }
     
     /** Return single strings as a singleton list */ 
@@ -354,14 +360,8 @@ public class BusinessObjectMetadata {
     /** Return JSONObject with field "size" derived from the business object */ 
     private JSONObject jsonObjectWithSize() {        
         if (hasPayload()) {            
-            JSONObject json = JSONUtils.clone(this.json);
-            try {
-                json.put("size", obj.getPayload().length);
-            }
-            catch (JSONException e) {
-                // should not be possible
-                throw new RuntimeException("JSON Implementation meltdown", e);
-            }               
+            JSONObject json = JSONUtils.clone(this.json);            
+            json.put("size", obj.getPayload().length);                           
             return json;
         }
         else {            
@@ -385,15 +385,8 @@ public class BusinessObjectMetadata {
     
     
     public String toString(int indentFactor) {        
-        JSONObject json = jsonObjectWithSize();
-        try {
-            return json.toString(indentFactor);
-        }
-        catch (JSONException e) {
-            // should not be possible
-            throw new RuntimeException("JSON implementation meltdown");
-        }  
-                
+        JSONObject json = jsonObjectWithSize();        
+        return json.toString(indentFactor);                         
     }
 
     public String formatWithoutPayload() {

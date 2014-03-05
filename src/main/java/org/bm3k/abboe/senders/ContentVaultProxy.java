@@ -138,7 +138,7 @@ public class ContentVaultProxy {
             }
             
             for (String url: urls) {
-                logger.info("Loading image: {}", url);
+                logger.debug("Loading image: {}", url);
                 try {
                    
                     InputStream is = new URL(url).openStream();
@@ -160,7 +160,7 @@ public class ContentVaultProxy {
                             .payload(bytes)
                             .build();
 
-                    logger.info("Loaded image: {}", url);
+                    logger.debug("Loaded image: {}", url);
                     synchronized(loadedImagesByURL) {                    
                         loadedImagesByURL.put(url,  img);
                     }

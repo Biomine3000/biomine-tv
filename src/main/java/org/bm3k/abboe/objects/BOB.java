@@ -3,7 +3,6 @@ package org.bm3k.abboe.objects;
 import com.google.common.net.MediaType;
 import org.bm3k.abboe.common.BusinessMediaType;
 import org.bm3k.abboe.common.BusinessObjectMetadata;
-import org.bm3k.abboe.common.InvalidBusinessObjectException;
 
 import java.io.UnsupportedEncodingException;
 

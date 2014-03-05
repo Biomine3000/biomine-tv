@@ -13,7 +13,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.net.MediaType;
 import org.bm3k.abboe.common.*;
 import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
@@ -328,7 +327,7 @@ public class ABBOEServer {
         }
 
         private void startReaderThread() {
-            reader = new BusinessObjectReader(is, readerListener, name, false);
+            reader = new BusinessObjectReader(is, readerListener, name);
             Thread readerThread = new Thread(reader);
             readerThread.start();
         }
@@ -973,8 +972,10 @@ public class ABBOEServer {
         Integer port = args.getInt("port");
 
         if (port == null) {
-            port = Biomine3000Utils.conjurePortByHostName();
+            port = Biomine3000Utils.conjurePortByHostName();            
         }
+        
+        log.info("Using port: "+port);
 
         if (port == null) {
             log.error("No -port");

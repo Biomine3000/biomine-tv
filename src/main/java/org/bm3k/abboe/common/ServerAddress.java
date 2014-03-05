@@ -1,51 +1,61 @@
 package org.bm3k.abboe.common;
 
-import java.util.ArrayList;
-import java.util.List;
+import org.json.JSONObject;
 
-public enum ServerAddress implements IServerAddress {
-    
-    LERONEN_HIMA("localhost", Biomine3000Constants.LERONEN_HIMA_PORT),
-    LERONEN_KAPSI("lakka.kapsi.fi", Biomine3000Constants.LERONEN_KAPSI_PORT_1);
+public class ServerAddress implements IServerAddress {
+        
+	public static final ServerAddress DEFAULT_SERVER = 
+			new ServerAddress("localhost", Biomine3000Constants.DEFAULT_ABBOE_PORT, "localhost-abboe", null);	
 
-    public static List<IServerAddress> LIST;
-    static {
-        LIST = new ArrayList<IServerAddress>(values().length);
-        LIST.add(LERONEN_HIMA);
-        LIST.add(LERONEN_KAPSI);
-
-    }
-
+	private final String name; 
     private final String host;
     private final int port;
+    private final String impl;    
     
     public int getPort() {
         return port;
     }
     
-    public String getHost() {
-    	if (this == LERONEN_KAPSI && Biomine3000Utils.atBC()) {
-    		// tunnel
-    		return "localhost";
-    	}
-        else if (this == LERONEN_KAPSI && Biomine3000Utils.atWel120()) {
-    		// tunnel
-    		return "localhost";
-    	}
-    	else {
-    		return host;
-    	}
+    public String getHost() {    	
+    	return host;    	
+    }
+    
+    /** just a name; no function */
+    public String getName() {
+    	return name;
+    }
+    
+    /** Why not? */
+    public String getImpl() {
+    	return impl;
     }
     
     @Override
     public String toString() {
-        return name()+" ("+getHost()+":"+getPort()+")";
+        return getName()+" ("+getHost()+":"+getPort()+")";
     }
         
     
-    private ServerAddress(String host,int port) {
+    public ServerAddress(String host,int port, String name, String impl) {
         this.host = host;
         this.port = port;
+        this.name = name;
+        this.impl = impl;
+    }
+    
+    public ServerAddress(JSONObject data) {
+        this(data.getString("host"), data.getInt("port"), data.getString("name"), data.optString("impl", null));    	    	
+    }
+    
+    public JSONObject toJSON() {
+    	JSONObject json = new JSONObject();
+    	json.put("host",  host);
+    	json.put("port",  port);    	
+    	json.put("name",  name);
+    	if (impl != null) {
+    		json.put("impl", impl);
+    	}
+    	return json;
     }
         
     
