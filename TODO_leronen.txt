@@ -1,6 +1,15 @@
+MISC
+-------------
+Add configuration file for specifying ABBOE servers
+
+Add some manager for performing test runs (it could e.g. run all abboe components
+within a single virtual machine! ; no static stuff allowed then!
+
 
 OBJECT SYSTEM
 -------------
+- introduce class BusinessObjectPacket to represent packets read from a stream
+  • actually, such a class would already be very similar to the ones built by BOB
 - generic abstract Client class to minimize nuisance of implementing new clients
   • in progress 
 - streaming of objects
@@ -14,7 +23,7 @@ SERVER
   • in progress
 - subscribe functionality
   • need possibility to limit received content types
-    * packets might still be received, but without the actual content (as it will not be handled anyway!) 
+    ° packets might still be received, but without the actual content (as it will not be handled anyway!) 
 - routing SERVICE requests/replies
 - generating client id:s (ip:port suffices...)
 - generating message id:s
