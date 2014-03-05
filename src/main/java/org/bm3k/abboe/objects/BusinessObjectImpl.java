@@ -53,32 +53,12 @@ public class BusinessObjectImpl implements BusinessObject {
      * @param builder
      */
     BusinessObjectImpl(BOB builder) {
-        this.metadata = builder.metadata;
-
-        if (this.metadata == null) {
-            this.metadata = new BusinessObjectMetadata();            
-        }
-        
+        metadata = builder.metadata;
         metadata.setObject(this);
 
-        if (builder.type != null) {
-            this.metadata.setType(builder.type);
-        }
-
-        if (builder.event != null) {
-            this.metadata.setEvent(builder.event);
-        }
-
         if (builder.payload != null) {
-            this.payload = builder.payload;
-		    if (this.payload != null) {
-		    	this.metadata.put("size", this.getPayload().length);
-		    } else {
-				// TODO: payload itself should be null, but it isn't.  This should be fixed at the source!
-				log.warn("object with non-null Payload object but no bytes. Metadata: "+metadata);
-				this.metadata.put("size", 0);
-				this.payload = null;
-			}		
+            payload = builder.payload;
+            metadata.put("size", payload.length);
         }
     }
 

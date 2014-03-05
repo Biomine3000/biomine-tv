@@ -1,18 +1,15 @@
 package org.bm3k.abboe.senders;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.Socket;
 
-
+import com.google.common.io.Files;
+import org.apache.commons.io.IOUtils;
 import org.bm3k.abboe.common.*;
 import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import util.IOUtils;
 import util.StringUtils;
 
 public class MP3Sender {
@@ -25,15 +22,11 @@ public class MP3Sender {
     }
           
     /** Channel and user may be null, file may not. */
-    public void send(java.io.File file, String channel, String user) throws IOException {
-        
-        // read file.
-        log.info("Reading file: "+file);
-        BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
-        byte[] payload = IOUtils.readBytes(bis);
-        bis.close();
+    public void send(File file, String channel, String user) throws IOException {
+        log.info("Reading file {}", file);
+        byte[] payload = Files.toByteArray(file);
+        log.info("Read payload of {} bytes", payload.length);
 
-        log.info("Read payload of "+payload.length+" bytes");
         BusinessObject bo = BOB.newBuilder().type(BusinessMediaType.MP3).payload(payload).build();
         bo.getMetadata().put("name", file.getName());
         if (channel != null) {
@@ -43,21 +36,23 @@ public class MP3Sender {
             bo.getMetadata().put("user", user);
         }
         
-        // Subscribe & registr
-        BusinessObject subscription = ClientUtils.makeSubscriptionObject(ClientReceiveMode.NONE,
-                Subscriptions.NONE);
-        log.info("Writing subscription object: {}", subscription);
-        IOUtils.writeBytes(socket.getOutputStream(), subscription.toBytes());
+        try (OutputStream os = socket.getOutputStream()) {
+            // Subscribe & register
+            BusinessObject subscription = ClientUtils.makeSubscriptionObject(ClientReceiveMode.NONE,
+                    Subscriptions.NONE);
+            log.info("Writing subscription object: {}", subscription);
+            IOUtils.write(subscription.toBytes(), os);
 
-        BusinessObject registration = ClientUtils.makeRegistrationObject("MP3Sender");
-        log.info("Writing register object: {}", registration);
-        IOUtils.writeBytes(socket.getOutputStream(), registration.toBytes());
-        
-        // write actual mp3
-        byte[] bytes = bo.toBytes();
-        log.info("Writing "+StringUtils.formatSize(bytes.length)+" bytes");
-        IOUtils.writeBytes(socket.getOutputStream(), bo.toBytes());
-        log.info("Sent packet");                
+            BusinessObject registration = ClientUtils.makeRegistrationObject("MP3Sender");
+            log.info("Writing register object: {}", registration);
+            IOUtils.write(registration.toBytes(), os);
+
+            // Write actual MP3 object
+            byte[] bytes = bo.toBytes();
+            log.info("Writing {} bytes", StringUtils.formatSize(bytes.length));
+            IOUtils.write(bo.toBytes(), os);
+            log.info("Sent object.");
+        }
     }
                         
     public static void main(String[] pArgs) throws Exception {

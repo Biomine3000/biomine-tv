@@ -25,6 +25,14 @@ public class BOB {
             this.metadata = new BusinessObjectMetadata();
         }
 
+        if (type != null) {
+            metadata.setType(type);
+        }
+
+        if (event != null) {
+            metadata.setEvent(event);
+        }
+
         if (payload != null && metadata.getType() == null) {
             throw new RuntimeException("Payload without a type");
         }
