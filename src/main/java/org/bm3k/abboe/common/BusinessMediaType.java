@@ -30,8 +30,11 @@ public class BusinessMediaType {
 	public static final MediaType BIOMINE3000_SOFTWARE_AVAILABILITY_ANNOUNCEMENT =
             MediaType.create("application", "biomine3000-software-availability-announcement");
 
-	/** URL to an already existing image in the familiar INTERNET */
+	/** URL to an already existing image in the familiar INTERNET. TODO: surely there can exist URLs in the familiar 
+	 * INTERNET that do not point to images. */
     public static final MediaType URL = MediaType.create("text", "url");
+    
+    public static final MediaType BIOMINE_URL = MediaType.create("text", "biomine-url");
 
     /** Mielivaltaista kontenttia */
 	public static final MediaType ARBITRARY = MediaType.create("application", "arbitrary");

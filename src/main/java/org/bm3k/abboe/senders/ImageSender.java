@@ -18,11 +18,11 @@ import util.StringUtils;
 
 public class ImageSender {
     private final Logger log = LoggerFactory.getLogger(ImageSender.class);
-
-    private Socket socket = null;
-    
-    public ImageSender(Socket socket) {
-        this.socket = socket;
+    private Biomine3000Args args;
+    private Socket socket = null;    
+       
+    private ImageSender(Biomine3000Args args) {
+    	this.args = args;    	
     }
           
     /** Channel and user may be null, file may not. */
@@ -62,25 +62,33 @@ public class ImageSender {
         byte[] bytes = bo.toBytes();
         log.info("Writing "+StringUtils.formatSize(bytes.length)+" bytes");
         IOUtils.writeBytes(socket.getOutputStream(), bo.toBytes());
-        log.info("Sent packet");                
+        log.info("Sent packet");
+                              
     }
-
-    public static void main(String[] pArgs) throws Exception {        
-        Biomine3000Args args = new Biomine3000Args(pArgs);
-        Socket socket = Biomine3000Utils.connectToServer(args);                
+    
+    private void run() throws Exception {
+    	socket = Biomine3000Utils.connectToServer(args);                
         String channel = args.getChannel();
         String user = args.getUser();
-        File file;
+        File file;        
         if (args.hasPositionalArgs()) {
-            file = new File(args.shift());
+        	while (args.hasPositionalArgs()) {
+        		file = new File(args.shift());
+        		log.info("sending: "+file);
+        		send(file, channel, user);
+        		if (args.hasPositionalArgs()) {
+        			Thread.sleep(3000);
+        		}
+        	}        	            
         }
-        else {
-            file = Biomine3000Utils.randomFile(".");
-        }
-        ImageSender sender = new ImageSender(socket);
-        sender.send(file, channel, user);
         
         socket.close();
+    }
+    
+    public static void main(String[] pArgs) throws Exception {        
+        Biomine3000Args args = new Biomine3000Args(pArgs);
+        ImageSender sender = new ImageSender(args);
+        sender.run();                       
     }
     
 }

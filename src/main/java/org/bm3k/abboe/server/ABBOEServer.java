@@ -263,9 +263,12 @@ public class ABBOEServer {
             send(obj.toBytes());
         }
 
-        private void send(String text) {
+        private void send(String text) {                       
+            BusinessObjectMetadata meta = new BusinessObjectMetadata();
+            meta.put("sender", "java-A.B.B.O.E.");
+            meta.setNatures("message");                              
             log("Sending plain text to client "+this+": "+text);
-            BusinessObject reply = BOB.newBuilder().payload(text).build();
+            BusinessObject reply = BOB.newBuilder().metadata(meta).payload(text).build();
             send(reply);
         }
 

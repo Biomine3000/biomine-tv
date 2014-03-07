@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.bm3k.abboe.common.*;
@@ -25,6 +26,7 @@ public class TrivialClient {
     private ABBOEConnection connection;
     private boolean stopYourStdinReading = false;    
     private SystemInReader systemInReader;    
+    private String user; 
     
     /** Note that superclasses also have their own state related to the connection to the server */
     private StdinReaderState stdinReaderState;
@@ -34,6 +36,7 @@ public class TrivialClient {
         this.stdinReaderState = StdinReaderState.NOT_YET_READING;
         ClientParameters clientParams = new ClientParameters(CLIENT_PARAMS);
         clientParams.client = user;
+        this.user = user;
         this.connection = new ABBOEConnection(clientParams, socket);
         this.connection.init(new ObjectHandler());
         this.connection.sendClientListRequest();
@@ -80,7 +83,20 @@ public class TrivialClient {
                 connection.sendClientListRequest();
             }
             else {
-                BusinessObject sendObj = BOB.newBuilder().payload(line).build();
+                
+                List<String> natures = new ArrayList<String>(); 
+                natures.add("message");
+                if (line.startsWith("http://")) {
+                    natures.add("url");
+                    natures.add("hyperlink");
+                }
+                else {
+                    log.info("line does not start with http://");
+                }
+                BusinessObjectMetadata meta = new BusinessObjectMetadata();
+                meta.putStringList("natures", natures);
+                meta.put("sender", user);
+                BusinessObject sendObj = BOB.newBuilder().metadata(meta).payload(line).build();
                 connection.send(sendObj);
             }
             line = br.readLine();
@@ -171,7 +187,8 @@ public class TrivialClient {
         
     }       
         
-    public static void main(String pArgs[]) throws Exception {
+    public static void main(String pArgs[]) throws Exception {        
+        
         Biomine3000Args args = new Biomine3000Args(pArgs, true);
         Socket socket = Biomine3000Utils.connectToServer(args);        
         String user = args.getUser();

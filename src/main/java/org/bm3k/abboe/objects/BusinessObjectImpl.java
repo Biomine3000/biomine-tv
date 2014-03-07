@@ -121,9 +121,20 @@ public class BusinessObjectImpl implements BusinessObject {
 	}				
 	
 	public String toString() {
-	    String payloadStr = metadata.hasPayload() 
-	                      ? "<payload of "+ this.payload.length+" bytes>"
-	                      : (isEvent() ? "" : "<no payload>");
-	    return "BusinessObjectImpl <metadata: "+metadata.toString()+"> "+payloadStr;
+	    String payloadStr;
+	    if (metadata.hasPlainTextPayload()) {
+	        payloadStr = "<" + Biomine3000Utils.plainTextPayload(this) + ">";
+	    }
+	    else if (metadata.hasPayload()) {
+	        payloadStr = "<payload of "+ this.payload.length+" bytes>";
+	    }
+	    else if (isEvent()) {
+	        payloadStr = "";	    
+	    }
+	    else {
+	        payloadStr = "<no payload>";
+	    }
+	                	                	                    
+	    return "BusinessObject <"+metadata.toString()+"> "+payloadStr;
 	}
 }

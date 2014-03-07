@@ -2,7 +2,6 @@ package org.bm3k.abboe.common;
 
 import java.io.UnsupportedEncodingException;
 import java.util.*;
-import java.util.List;
 
 import com.google.common.net.MediaType;
 import org.bm3k.abboe.objects.BusinessObject;
@@ -60,6 +59,8 @@ public class BusinessObjectMetadata {
         }
     }
 
+    
+    
     public boolean hasPayload() {
         return getType() != null;
     }
@@ -101,24 +102,28 @@ public class BusinessObjectMetadata {
     }
     
     /** @return empty list if no natures */
-    public List<String> getNatures() {
+    public Set<String> getNatures() {
     	JSONArray arr = json.optJSONArray("nature");
     	if (arr == null) {
     		arr = json.optJSONArray("natures");
     	}
     	
     	if (arr != null) {
-    		ArrayList<String> result = new ArrayList<>(arr.length());
+    		LinkedHashSet<String> result = new LinkedHashSet<>(arr.length());
     		for (int i=0; i<arr.length(); i++) {
     			result.add(arr.getString(i));
     		}
     		return result;
     	}
     	else {
-    		return Collections.emptyList();
+    		return Collections.emptySet();
     	}    		    	
     }
         
+    public void setNatures(String... natures) {
+        List<String> list = Arrays.asList(natures);
+        putStringList("natures", list);
+    }
     
     public void setSubsciptions(Subscriptions subscriptions) throws JSONException {             
         json.put("subscriptions", subscriptions.toJSON());
@@ -155,6 +160,16 @@ public class BusinessObjectMetadata {
         return CollectionUtils.makeArrayList((Iterator<String>)json.keys());
     }
     
+    public boolean hasPlainTextPayload() {
+        MediaType type = getOfficialType();
+        if (type != null && type.is(MediaType.ANY_TEXT_TYPE)) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    
     /**
      * @return null if no such key.
      * @throws ClassCastException when the value is not a String.
@@ -164,11 +179,14 @@ public class BusinessObjectMetadata {
         if (val == null) {
             return null;
         }
+        else if (val == JSONObject.NULL) {
+            return null;
+        }
         else if (val instanceof String){
             return (String)val;
         }
         else {
-            throw new ClassCastException("Value for key "+key+" has class "+val.getClass()+", which is not a String, as supposed by the foolish caller");
+            throw new ClassCastException("Value for key "+key+" has class "+val.getClass()+", which is not a String, as supposed by the foolish caller. Complete json\n: "+json.toString(4));
         }
         
     }

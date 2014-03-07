@@ -5,10 +5,12 @@ import static org.bm3k.abboe.common.Biomine3000Constants.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -18,6 +20,9 @@ import org.bm3k.abboe.objects.BusinessObject;
 import org.json.JSONArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
+import com.google.common.net.MediaType;
 
 import util.CmdLineArgs2;
 import util.CmdLineArgs2.IllegalArgumentsException;
@@ -54,6 +59,45 @@ public class Biomine3000Utils {
     		}
     	}
     	return servers;
+    }
+    
+//    /** assume bo has natures "irc" and "message" */
+//    public static String formatIrcMessage(BusinessObject bo) {
+//    	String sender = bo.getMetadata().getString("sender");
+//        String channel = bo.getMetadata().getString("channel");
+//        DateUtils.format(sender+"@"+channel+": ")
+//        channel = channel.replace("MESKW", "");
+//    }
+    
+    public static boolean hasPlainTextPayload(BusinessObject o) {
+        return o.getMetadata().hasPlainTextPayload();       
+    }
+    
+    public static String plainTextPayload(BusinessObject o) {
+        if (!(o.getMetadata().hasPlainTextPayload())) {
+            throw new RuntimeException("No plain text payload: "+o);
+        }               
+    
+        byte[] payload = o.getPayload();
+        MediaType type = o.getMetadata().getOfficialType();            
+        Optional<Charset> charset = type.charset();
+        try {                               
+            if (charset.isPresent()) {
+                return new String(payload, charset.get());    
+            }
+            else {
+                return new String(payload, "UTF-8");
+            }
+        }
+        catch (UnsupportedEncodingException e) {
+            if (charset.isPresent()) {
+                throw new RuntimeException("unsupported charset: "+charset);
+            }
+            else {                                              
+               // the unthinkable has occurred; UTF-8 not supported by this very java virtual machine instance
+                throw new RuntimeException("leronen has joined facebook");
+            }
+        }    
     }
     
     /**

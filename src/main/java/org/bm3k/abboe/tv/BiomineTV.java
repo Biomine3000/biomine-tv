@@ -56,6 +56,8 @@ public class BiomineTV extends JFrame {
 	// private BiomineTVImagePanel contentPanel;
 	private BMTVMp3Player mp3Player;
 	
+	private boolean paused;
+	
 	
 	////////////////////////////////
 	// Damagement of server connections
@@ -79,10 +81,20 @@ public class BiomineTV extends JFrame {
         mp3Player.play(bo.getPayload());
     }
     
+    private void togglePaused() {    	
+    	paused = !paused;
+    	if (paused) {
+    		message("PAUSED!");
+    	}
+    	else {
+    		message("UNPAUSED!");
+    	}
+    }
+    
     private void tryToListenKeys(List<? extends Component> components) {
     	BMTVKeyListener keyListener = new BMTVKeyListener();
     	for (Component c: components) {
-    		c.setFocusable(true);
+    		c.setFocusable(true);    		
     		c.addKeyListener(keyListener);    	
 		    logArea.addFocusListener(new FocusListener() {
 				
@@ -353,6 +365,8 @@ public class BiomineTV extends JFrame {
         @Override
         public void handleObject(BusinessObject bo) {
             
+            log.info("Handling object: "+bo);
+            
             if (bo.getMetadata().isEvent()) {                
                 BusinessObjectEventType et = bo.getMetadata().getKnownEvent();
                 if (et == BusinessObjectEventType.CLIENTS_LIST_REPLY) {
@@ -379,6 +393,12 @@ public class BiomineTV extends JFrame {
                     String name = bo.getMetadata().getString("name");
                     message("Client "+name+" parted from ABBOE");
                 }
+                else if (et == BusinessObjectEventType.ROUTING_SUBSCRIPTION) {
+                    message("ROUTING_SUBSCRIPTION");
+                }
+                else if (et == BusinessObjectEventType.ROUTING_SUBSCRIBE_REPLY) {
+                    message("ROUTING_SUBSCRIBE_REPLY");
+                }                
                 else if (et == BusinessObjectEventType.ROUTING_SUBSCRIBE_NOTIFICATION) {
                 	message("ROUTING_SUBSCRIBE_NOTIFICATION");
                 }
@@ -392,35 +412,47 @@ public class BiomineTV extends JFrame {
                 }
                 else if (et == BusinessObjectEventType.SERVICES_REPLY) {
                 	message("SERVICE_REPLY: "+Biomine3000Utils.formatBusinessObject(bo));
-                }
+                }                
                 else {
                     // unknown event
                     message("UNKNOWN_EVENT: "+Biomine3000Utils.formatBusinessObject(bo));
                 }
-            } else {
+            } else {                       
+            	// show media
                 MediaType type = bo.getType();
-                if (type.is(MediaType.ANY_IMAGE_TYPE)) {
-                    ByteArrayInputStream is = null;
-                    try {
-                        is = new ByteArrayInputStream(bo.getPayload());
-                        BufferedImage image = ImageIO.read(is);
-                        imagePanel.setImage(image);
-                        String oldMsg = imagePanel.getMessage();
-                        if (oldMsg != null && oldMsg.equals("Awaiting content from server...")) {
-                            imagePanel.setMessage(null);
-                        }
-                    } catch (IOException e) {
-                        log.warn("Couldn't read image", e);
-                    } finally {
-                        try {
-                            is.close();
-                        } catch (Exception e) {
-                        }
+                if (type.is(MediaType.ANY_IMAGE_TYPE)) {                	
+                	if (!paused) {
+	                    ByteArrayInputStream is = null;
+	                    try {
+	                        is = new ByteArrayInputStream(bo.getPayload());
+	                        BufferedImage image = ImageIO.read(is);
+	                        imagePanel.setImage(image);
+	                        String oldMsg = imagePanel.getMessage();
+	                        if (oldMsg != null && oldMsg.equals("Awaiting content from server...")) {
+	                            imagePanel.setMessage(null);
+	                        }
+	                    } catch (IOException e) {
+	                        log.warn("Couldn't read image", e);
+	                    } finally {
+	                        try {
+	                            is.close();
+	                        } catch (Exception e) {
+	                        }
+	                    }
+                	}
+                } else if (type.is(MediaType.ANY_TEXT_TYPE)) {                	
+                	Set<String> natures = bo.getMetadata().getNatures();
+                    if (natures.contains("message")) {
+                    	// show as message
+                    	message(BusinessObjectFormatter.format(bo));
                     }
-
-
-                } else if (type.is(MediaType.ANY_TEXT_TYPE)) {
-	                logPanel.appendText(Biomine3000Utils.formatBusinessObject(bo)+"\n");
+                    else if (natures.contains("url")) {
+                    	// show as message
+                        message(BusinessObjectFormatter.format(bo));
+                    }
+                    else {                 	
+                    	message("NO MESSAGE OR URL NATURE: "+Biomine3000Utils.formatBusinessObject(bo)+"\n");
+                	}
 	            } else if (type.equals(BusinessMediaType.MP3)) {
 	                playMP3(bo);
 	            } else {
@@ -461,7 +493,11 @@ public class BiomineTV extends JFrame {
 	    	}
 	    	else if (keyCode == KeyEvent.VK_Q && e.isControlDown()) {	    		
 	    		close();
-	    	}	    	
+	    	}
+	    	else if (keyCode == KeyEvent.VK_SPACE) {
+	    		togglePaused();
+	    	}
+	    	
 		}
 	
 		@Override
@@ -471,7 +507,7 @@ public class BiomineTV extends JFrame {
 	}    
         
     private void message(String msg) {
-        logPanel.appendText(msg+"\n");
-        log.info("BiomineTV: "+msg);
+        logPanel.appendText(msg);
+        log.info(msg);
     }    
 }

@@ -14,7 +14,7 @@ import javax.swing.SwingUtilities;
 
 
 @SuppressWarnings("serial")
-public class LogPanel extends JPanel {
+public class LogPanel extends JPanel {    
     private final Logger log = LoggerFactory.getLogger(LogPanel.class);
 
     JTextArea textArea;
@@ -23,16 +23,17 @@ public class LogPanel extends JPanel {
     /** Should only be called from the event dispatch thread */
     public void appendText(String text) {
         if (!SwingUtilities.isEventDispatchThread()) {
-            // log.warning("appendText called from outside event dispatch thread");
+            log.warn("appendText called from outside event dispatch thread");
             SwingUtilities.invokeLater(new Appender(text));            
         }
         else {
             // in event dispatch thread
-            textArea.append(text);        
+            textArea.append(text+"\n");            
             Dimension d = textArea.getSize();
-            log.info("Text area dimensions: "+d);
+            // log.info("Text area dimensions: "+d);
             Rectangle r = new Rectangle(0, d.height-10, d.width, 10);
-            log.info("Rectangle to make visible: "+r);
+            // log.info("Rectangle to make visible: "+r);
+//            log.info("appended text: "+text);
             textArea.scrollRectToVisible(r);
         }                              
     }
