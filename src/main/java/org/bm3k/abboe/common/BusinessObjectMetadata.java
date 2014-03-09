@@ -86,14 +86,14 @@ public class BusinessObjectMetadata {
     }
     
     /** null if no subscriptions defined. */
-    public Subscriptions getSubscriptions() throws InvalidJSONException {
+    public LegacySubscriptions getSubscriptions() throws InvalidJSONException {
         try {
             Object json = this.json.opt("subscriptions");
             if (json == null) {
                 return null;
             }
             else {
-                return Subscriptions.make(json);
+                return LegacySubscriptions.make(json);
             }
         }
         catch (JSONException e) {
@@ -125,7 +125,7 @@ public class BusinessObjectMetadata {
         putStringList("natures", list);
     }
     
-    public void setSubsciptions(Subscriptions subscriptions) throws JSONException {             
+    public void setSubsciptions(LegacySubscriptions subscriptions) throws JSONException {             
         json.put("subscriptions", subscriptions.toJSON());
     }
     

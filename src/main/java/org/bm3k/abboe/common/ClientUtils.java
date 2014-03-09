@@ -56,7 +56,7 @@ public class ClientUtils {
     }
 
     public static BusinessObject makeSubscriptionObject(ClientReceiveMode receiveMode,
-                                                        Subscriptions types) {
+                                                        LegacySubscriptions types) {
         BusinessObjectMetadata metadata = new BusinessObjectMetadata();
         metadata.put("receive-mode", receiveMode.toString());
         metadata.put("types", types.toString());

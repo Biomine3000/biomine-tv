@@ -11,7 +11,7 @@ import java.util.List;
  *   <li>client: attached to all sent packets (by ABBOEConnection) as attribute "client". May be null,
  *       which should generally be interpreted as anonymous"</li> 
  *   <li>receive mode (affects what is sent to client by server; see {@link ClientReceiveMode})</li>
- *   <li>subscriptions (what content types are sent to client by server; see {@link Subscriptions})</li>
+ *   <li>subscriptions (what content types are sent to client by server; see {@link LegacySubscriptions})</li>
  *   <li>construct dedicated implementations for business objects?</li> 
  * </ul> 
  */
@@ -19,13 +19,13 @@ public class ClientParameters {
     public String name;
     public String client;
     public ClientReceiveMode receiveMode;
-    public Subscriptions subscriptions;
+    public LegacySubscriptions subscriptions;
     public boolean constructDedicatedImplementationsForBusineses;
     public List<String> services;
     
     public ClientParameters(String name,
                             ClientReceiveMode receiveMode,
-                            Subscriptions subscriptions,
+                            LegacySubscriptions subscriptions,
                             boolean constructDedicatedImplementationsForBusineses) {
         this(name,  null, receiveMode, subscriptions, constructDedicatedImplementationsForBusineses);
     }
@@ -33,7 +33,7 @@ public class ClientParameters {
     public ClientParameters(String name,
                             String client,
                             ClientReceiveMode receiveMode,
-                            Subscriptions subscriptions,
+                            LegacySubscriptions subscriptions,
                             boolean constructDedicatedImplementationsForBusineses) {
         this.name = name;
         this.client = client;

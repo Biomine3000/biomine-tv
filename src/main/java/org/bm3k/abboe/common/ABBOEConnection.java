@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 import util.net.NonBlockingSender;
 
 /**
- * Connection to an ABBOE server. Implementors should use method
+ * Connection to an ABBOE server, used by ABBOE clients. Implementors should use method
  * {@link #send(org.bm3k.abboe.objects.BusinessObject)} to send stuff.
  */
 public class ABBOEConnection {
@@ -55,12 +55,12 @@ public class ABBOEConnection {
 
 
     /**
-     * Actual initialization of communications done later by calling
-     * {@link #init(org.bm3k.abboe.common.ABBOEConnection.BusinessObjectHandler)}
-     * to allow for peaceful registration into data structures e.g., before beginning
-     * the actual business of performing any communications
-     * (nothing will be sent or received before
-     * {@link #init(org.bm3k.abboe.common.ABBOEConnection.BusinessObjectHandler)} is called).
+     * Actual initialization of communications done later by calling 
+     * {@link #init(org.bm3k.abboe.common.ABBOEConnection.BusinessObjectHandler)},
+     * allowing for disciplined initialization proceedings before beginning
+     * the actual business of performing any communications (nothing will be sent 
+     * or received before {@link #init(org.bm3k.abboe.common.ABBOEConnection.BusinessObjectHandler)} 
+     * is called).
      */
     public ABBOEConnection(ClientParameters clientParameters, Socket socket) throws IOException {
         this.socket = socket;

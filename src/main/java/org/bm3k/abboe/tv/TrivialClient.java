@@ -21,7 +21,7 @@ public class TrivialClient {
               
     private static final ClientParameters CLIENT_PARAMS =
             new ClientParameters("TrivialClient", ClientReceiveMode.NO_ECHO,
-                                 Subscriptions.make("text/plain"), false);
+                                 LegacySubscriptions.make("text/plain"), false);
     
     private ABBOEConnection connection;
     private boolean stopYourStdinReading = false;    

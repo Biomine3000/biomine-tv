@@ -34,11 +34,11 @@ public class IRCLogManager  {
 
     private static ClientParameters CLIENT_PARAMS =
             new ClientParameters("IRCLogManager", ClientReceiveMode.NO_ECHO,
-                                 Subscriptions.PLAINTEXT, false);
+                                 LegacySubscriptions.PLAINTEXT, false);
     
     static {
         CLIENT_PARAMS = new ClientParameters("IRCLogManager", ClientReceiveMode.NO_ECHO, 
-                                             Subscriptions.PLAINTEXT, false);
+                                             LegacySubscriptions.PLAINTEXT, false);
         CLIENT_PARAMS.addServices(IRCLOGMANAGER_LIST_LOGS, IRCLOGMANAGER_TAIL);
     }
     

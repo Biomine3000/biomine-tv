@@ -195,7 +195,7 @@ public class ABBOEServer {
         BusinessObjectReader reader;
         ReaderListener readerListener;
         ClientReceiveMode receiveMode = ClientReceiveMode.ALL;
-        Subscriptions subscriptions = Subscriptions.ALL;
+        LegacySubscriptions subscriptions = LegacySubscriptions.ALL;
         boolean closed;
         /** actual name of client, not including user or addr */
         String clientName;
@@ -773,8 +773,6 @@ public class ABBOEServer {
         requestingClient.send(clientReport);
     }
 
-
-
     private void handleClientRegisterEvent(Client client, BusinessObject bo) {
         BusinessObjectMetadata meta = bo.getMetadata();
         String name = meta.getString("name");
@@ -809,7 +807,7 @@ public class ABBOEServer {
             msg+=" No receive mode specified, using the default: "+client.receiveMode;
         }
 
-        Subscriptions subscriptions = null;
+        LegacySubscriptions subscriptions = null;
         try {
             subscriptions = meta.getSubscriptions();
         }
@@ -860,7 +858,7 @@ public class ABBOEServer {
                     log.info("Received {} event: ", bo);
                     if (et == CLIENT_REGISTER) {
                         sendErrorReply(client, "Using deprecated name for client registration; the " +
-                                       "present-day jargon defines that event type be \""+
+                                      "present-day jargon defines that event type be \""+
                                 CLIENTS_REGISTER.toString()+"\"");
                         handleClientRegisterEvent(client, bo);
                         forwardEvent = false;

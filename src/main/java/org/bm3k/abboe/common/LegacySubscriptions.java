@@ -14,11 +14,11 @@ import org.json.JSONException;
 import util.CollectionUtils;
 
 
-public abstract class Subscriptions {
+public abstract class LegacySubscriptions {
     
-    public static final Subscriptions ALL = new All();
-    public static final Subscriptions NONE = new None();
-    public static final Subscriptions PLAINTEXT = make(BusinessMediaType.PLAINTEXT);
+    public static final LegacySubscriptions ALL = new All();
+    public static final LegacySubscriptions NONE = new None();
+    public static final LegacySubscriptions PLAINTEXT = make(BusinessMediaType.PLAINTEXT);
         
     
     public abstract boolean shouldSend(BusinessObject bo);
@@ -28,21 +28,21 @@ public abstract class Subscriptions {
         return toJSON().toString();           
     }
     
-    public static Subscriptions make(String... types) throws JSONException {
+    public static LegacySubscriptions make(String... types) throws JSONException {
         return make(CollectionUtils.makeArrayList(types));
     }
     
-    public static Subscriptions make(MediaType... types) {
+    public static LegacySubscriptions make(MediaType... types) {
         IncludeList result = new IncludeList();
         result.addAll(Arrays.asList(types));
         return result;
     }
     
-    public static Subscriptions make(Collection<String> types) throws JSONException {
+    public static LegacySubscriptions make(Collection<String> types) throws JSONException {
         return new IncludeList(types);
     }
     
-    public static Subscriptions make(String s)  {        
+    public static LegacySubscriptions make(String s)  {        
         if (s.equals("all")) {
             return new All();
         }
@@ -55,11 +55,11 @@ public abstract class Subscriptions {
         }       
     }
     
-    public static Subscriptions make(MediaType o) {
+    public static LegacySubscriptions make(MediaType o) {
         return null;
     }
     
-    public static Subscriptions make(Object o) throws JSONException {
+    public static LegacySubscriptions make(Object o) throws JSONException {
         if (o instanceof String) {
             return make((String)o);
         }
@@ -77,7 +77,7 @@ public abstract class Subscriptions {
         
     }
     
-    private static class All extends Subscriptions {
+    private static class All extends LegacySubscriptions {
         
         @Override
         public boolean shouldSend(BusinessObject bo) {
@@ -92,7 +92,7 @@ public abstract class Subscriptions {
         
     }
     
-    private static class None extends Subscriptions {
+    private static class None extends LegacySubscriptions {
         @Override
         public boolean shouldSend(BusinessObject bo) {
             // only send events
@@ -106,7 +106,7 @@ public abstract class Subscriptions {
                 
     }
     
-    private static class IncludeList extends Subscriptions {
+    private static class IncludeList extends LegacySubscriptions {
         private Set<String> types;
         
         private IncludeList() {

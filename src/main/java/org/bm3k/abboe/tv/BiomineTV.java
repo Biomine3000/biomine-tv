@@ -40,7 +40,7 @@ public class BiomineTV extends JFrame {
     // CONSTANTS
     private static final double RETRY_INTERVAL_SEC = 1.0;
     private static final ClientParameters CLIENT_PARAMS = 
-            new ClientParameters("BiomineTV", ClientReceiveMode.NO_ECHO, Subscriptions.ALL, true);
+            new ClientParameters("BiomineTV", ClientReceiveMode.NO_ECHO, LegacySubscriptions.ALL, true);
     
     ////////////////////////////////
     // GUI
