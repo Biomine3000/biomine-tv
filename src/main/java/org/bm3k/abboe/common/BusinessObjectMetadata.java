@@ -121,8 +121,11 @@ public class BusinessObjectMetadata {
     }
         
     public void setNatures(String... natures) {
-        List<String> list = Arrays.asList(natures);
-        putStringList("natures", list);
+        putStringList("natures", Arrays.asList(natures));        
+    }
+    
+    public void setNatures(List<String> natures) {        
+        putStringList("natures", natures);
     }
     
     public void setSubsciptions(LegacySubscriptions subscriptions) throws JSONException {             
@@ -219,7 +222,7 @@ public class BusinessObjectMetadata {
         
     }
     
-    /** Return single strings as a singleton list */ 
+    /** Return single strings as a singleton list. Return null, is no such key. */ 
     public List<String> getList(String key) {
         Object o = json.opt(key);
         if (o == null) {

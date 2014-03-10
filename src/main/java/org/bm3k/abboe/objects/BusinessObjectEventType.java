@@ -34,7 +34,8 @@ public enum BusinessObjectEventType {
     CLIENTS_PART_NOTIFY("clients/part/notify"),
     CLIENTS_REGISTER_REPLY("clients/register/reply"),
     CLIENTS_LIST("clients/list"),
-    CLIENTS_LIST_REPLY("clients/list/reply");
+    CLIENTS_LIST_REPLY("clients/list/reply"),    
+    DUMMY("haba3000"); // for testing purposes
     
     private static Map<String, BusinessObjectEventType> typeByName;
     private String typeString;  

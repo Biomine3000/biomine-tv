@@ -135,6 +135,6 @@ public class BusinessObjectImpl implements BusinessObject {
 	        payloadStr = "<no payload>";
 	    }
 	                	                	                    
-	    return "BusinessObject <"+metadata.toString()+"> "+payloadStr;
+	    return metadata.toString()+" "+payloadStr;
 	}
 }

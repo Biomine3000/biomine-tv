@@ -5,6 +5,8 @@ import org.bm3k.abboe.common.BusinessMediaType;
 import org.bm3k.abboe.common.BusinessObjectMetadata;
 
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * BOB is the builder class for BusinessObjectImpl.  Short for BusinessObjectBuilder since they are
@@ -15,6 +17,7 @@ public class BOB {
     MediaType type;
     byte[] payload;
     BusinessObjectMetadata metadata;
+    List<String> natures;
 
     private BOB() {
     }
@@ -32,6 +35,10 @@ public class BOB {
             metadata.setEvent(event);
         }
 
+        if (natures != null) {
+            metadata.setNatures(natures);
+        }
+        
         if (payload != null && metadata.getType() == null) {
             throw new RuntimeException("Payload without a type");
         }
@@ -45,6 +52,17 @@ public class BOB {
 
     public BOB event(BusinessObjectEventType event) {
         this.event = event;
+        return this;
+    }
+    
+    /** add single nature */
+    public BOB nature(String nature) {
+        if (natures == null) {
+            natures = new ArrayList<String>();           
+        }
+        
+        natures.add(nature);
+        
         return this;
     }
 
