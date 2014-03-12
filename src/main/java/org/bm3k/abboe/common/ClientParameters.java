@@ -16,37 +16,45 @@ import java.util.List;
  * </ul> 
  */
 public class ClientParameters {
-    public String name;
-    public String client;
+    public String name;    // more specific name than provided by field "client"; name may also contain identifying info such as username or host 
+    public String client;  // name of the client program
     public ClientReceiveMode receiveMode;
-    public LegacySubscriptions subscriptions;
+    private LegacySubscriptions legacySubscriptions;
     public boolean constructDedicatedImplementationsForBusineses;
     public List<String> services;
+    public Subscriptions subscriptions;
     
     public ClientParameters(String name,
                             ClientReceiveMode receiveMode,
-                            LegacySubscriptions subscriptions,
-                            boolean constructDedicatedImplementationsForBusineses) {
-        this(name,  null, receiveMode, subscriptions, constructDedicatedImplementationsForBusineses);
+                            LegacySubscriptions legacySubscriptions,
+                            boolean constructDedicatedImplementationsForBusineses,
+                            Subscriptions subscriptions) {
+        this(name,  null, receiveMode, legacySubscriptions, constructDedicatedImplementationsForBusineses, subscriptions);
     }
-    
+            
     public ClientParameters(String name,
                             String client,
                             ClientReceiveMode receiveMode,
-                            LegacySubscriptions subscriptions,
-                            boolean constructDedicatedImplementationsForBusineses) {
+                            LegacySubscriptions legacySubscriptions,
+                            boolean constructDedicatedImplementationsForBusineses,
+                            Subscriptions subscriptions) {
         this.name = name;
         this.client = client;
         this.receiveMode = receiveMode;
-        this.subscriptions = subscriptions;
+        this.legacySubscriptions = legacySubscriptions;
         this.constructDedicatedImplementationsForBusineses = constructDedicatedImplementationsForBusineses;
         this.services = new ArrayList<String>();
+        this.subscriptions = subscriptions;
+    }
+    
+    public LegacySubscriptions getLegacySubscriptions() {
+        return legacySubscriptions;
     }
     
     /** Copy constructor */
     public ClientParameters(ClientParameters original) {
-         this(original.name, original.client, original.receiveMode, original.subscriptions,
-                 original.constructDedicatedImplementationsForBusineses);
+         this(original.name, original.client, original.receiveMode, original.legacySubscriptions,
+                 original.constructDedicatedImplementationsForBusineses, original.subscriptions);
     }
     
     public void addServices(Biomine3000ServiceName... services) {

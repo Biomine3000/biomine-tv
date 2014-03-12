@@ -43,11 +43,8 @@ public class ClientUtils {
     }
 
     public static BusinessObject makeSubscriptionObject(ClientParameters params) {
-        BusinessObjectMetadata metadata = new BusinessObjectMetadata();
-        // metadata.setName(params.name);
-        metadata.put("receive-mode", params.receiveMode.toString());
-        metadata.put("types", params.subscriptions.toString());
-        // metadata.put("natures", params.natures.toString()); // TODO: natures?
+        BusinessObjectMetadata metadata = new BusinessObjectMetadata();        
+        metadata.setSubscriptions(params.subscriptions); 
 
         return BOB.newBuilder()
                 .event(BusinessObjectEventType.ROUTING_SUBSCRIPTION)
@@ -55,11 +52,9 @@ public class ClientUtils {
                 .build();
     }
 
-    public static BusinessObject makeSubscriptionObject(ClientReceiveMode receiveMode,
-                                                        LegacySubscriptions types) {
+    public static BusinessObject makeSubscriptionObject(Subscriptions subscriptions) {
         BusinessObjectMetadata metadata = new BusinessObjectMetadata();
-        metadata.put("receive-mode", receiveMode.toString());
-        metadata.put("types", types.toString());
+        metadata.setSubscriptions(subscriptions);
 
         return BOB.newBuilder()
                 .event(BusinessObjectEventType.ROUTING_SUBSCRIPTION)

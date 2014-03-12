@@ -18,46 +18,48 @@ import org.bm3k.abboe.objects.BusinessObject;
  */
 public class SubscriptionRule {
     
-     private String ruleString; 
+     private String ruleStr; 
      private boolean negated;
      private Type type;
-     private String ruleText; // text without prefix
+     private String pattern; // text without (optiona) prefix and (optiona) '*'-suffix
      private boolean wildcard; // has wildcard suffix
      
-     public SubscriptionRule(String rule) {
-         ruleString = rule;
+     public SubscriptionRule(String ruleStr) {
+         this.ruleStr = ruleStr;
          
-         if (rule.startsWith("!")) {
+         String pattern = ruleStr;
+         
+         if (pattern .startsWith("!")) {
              negated = true;
-             rule = rule.substring(1);
+             pattern  = pattern .substring(1);
          }
          else {
              negated = false;
          }
          
-         if (rule.startsWith("#")) {
+         if (pattern .startsWith("#")) {
              // rule concerns natures
              type = Type.NATURE;
-             rule = rule.substring(1);
+             pattern  = pattern .substring(1);
          }
-         else if (rule.startsWith("@")) {
+         else if (pattern .startsWith("@")) {
              // rule concerns events
              type = Type.EVENT;
-             rule = rule.substring(1);
+             pattern  = pattern .substring(1);
          }
          else {
              type = Type.CONTENTTYPE;
          }
          
-         if (rule.endsWith("*")) {
+         if (pattern .endsWith("*")) {
              wildcard = true;
-             rule = rule.substring(0, rule.length()-1);
+             pattern  = pattern .substring(0, pattern .length()-1);
          }
          else {
              wildcard = false;
          }
-                  
-         ruleText = rule;                 
+         
+         this.pattern = pattern;
      }
      
      public boolean negated() {
@@ -72,13 +74,13 @@ public class SubscriptionRule {
          
          if (value == null) {
              // if just wildcard, return true also for missing
-             return wildcard && ruleText.equals("");
+             return wildcard && pattern.equals("");
          }              
          if (wildcard) {
-             return value.startsWith(ruleText);
+             return value.startsWith(pattern);
          }
          else {
-             return value.equals(ruleText);
+             return value.equals(pattern);
          }
      }
                     
@@ -111,19 +113,22 @@ public class SubscriptionRule {
          }                                   
      }
 
+     /** Format as official JSON-able ABBOE rule string */
+     public String format() {
+         return ruleStr;
+     }
+     
      private enum Type { 
          EVENT, NATURE, CONTENTTYPE;
-     }         
-     
-     
+     }                  
      
      public String toString() {
          return new ToStringBuilder(this).
-                 append("ruleString", ruleString).                 
+                 append("ruleStr", ruleStr).                 
                  append("negated", negated).
                  append("type", type).
                  append("wildcard", wildcard).
-                 append("ruleText", ruleText).build();                                                   
+                 append("pattern", pattern).build();                                                   
      }
      
      

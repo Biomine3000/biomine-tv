@@ -21,24 +21,17 @@ import util.io.FileNameCondition;
 import util.io.FileUtils;
 
 /**
- * Sends objects from the notorious content vault with a constant interval
- * to provide a tuning image for BiomineTV®.
  * 
- * Note that sending is synchronous, that is we do not want to accumulate content which 
- * will not be read by the server anyway.
- * 
- * Use a {@link org.bm3k.abboe.senders.ContentVaultProxy} for loading the stuff over the web.
  */
 public class IRCLogManager  {
     private final Logger log = LoggerFactory.getLogger(IRCLogManager.class);
 
-    private static ClientParameters CLIENT_PARAMS =
-            new ClientParameters("IRCLogManager", ClientReceiveMode.NO_ECHO,
-                                 LegacySubscriptions.PLAINTEXT, false);
-    
+    private static Subscriptions SUBSCRIPTIONS;
+    private static ClientParameters CLIENT_PARAMS;
+        
     static {
-        CLIENT_PARAMS = new ClientParameters("IRCLogManager", ClientReceiveMode.NO_ECHO, 
-                                             LegacySubscriptions.PLAINTEXT, false);
+        SUBSCRIPTIONS = new Subscriptions("irc");    
+        CLIENT_PARAMS = new ClientParameters("IRCLogManager", ClientReceiveMode.NO_ECHO, LegacySubscriptions.PLAINTEXT, false, SUBSCRIPTIONS);
         CLIENT_PARAMS.addServices(IRCLOGMANAGER_LIST_LOGS, IRCLOGMANAGER_TAIL);
     }
     

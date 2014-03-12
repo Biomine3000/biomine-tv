@@ -10,6 +10,8 @@ public interface BusinessObject {
 
     byte[] getPayload();
 
+    public boolean hasNature(String nature);
+    
     boolean isEvent();
 
     MediaType getType();

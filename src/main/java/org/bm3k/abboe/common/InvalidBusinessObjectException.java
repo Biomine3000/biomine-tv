@@ -2,7 +2,7 @@ package org.bm3k.abboe.common;
 
 /** Should this be called "InvalidBusinessObjectException" */
 @SuppressWarnings("serial")
-public class InvalidBusinessObjectException extends Exception {    
+public class InvalidBusinessObjectException extends RuntimeException {    
                               
     private Throwable cause;
         

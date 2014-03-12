@@ -185,28 +185,33 @@ public class ABBOEServer {
     }
 
     /** Actually, a connection to a client */
-    private class Client implements NonBlockingSender.Listener {
-        boolean registered = false;
+    private class Client implements NonBlockingSender.Listener {                       
         Socket socket;
         BufferedInputStream is;
         OutputStream os;
+        boolean registered = false;  // TODO: used to mean whether clients/register done. should mean whether routing/subscribe done
+        boolean senderFinished;
+        boolean receiverFinished;
         /** Please do not call send of this client directly, even within this class, except in the one dedicated place */
         NonBlockingSender sender;
         BusinessObjectReader reader;
         ReaderListener readerListener;
         ClientReceiveMode receiveMode = ClientReceiveMode.ALL;
-        LegacySubscriptions subscriptions = LegacySubscriptions.ALL;
-        boolean closed;
+        LegacySubscriptions legacySubscriptions = LegacySubscriptions.ALL;
+        Subscriptions subscriptions = new Subscriptions();
+        boolean echo = false; // should echo objects back to sender?
+        boolean closed;   
+        List<String> routingIds; // assigned in routing/subscribe event        
         /** actual name of client, not including user or addr */
         String clientName;
         String user;
         String addr;
         /** Derived from clientName, user and addr */
-        String name;
-        boolean senderFinished;
-        boolean receiverFinished;
+        String name;                
+        
         /** services implemented by client */
         LinkedHashSet<String> services = new LinkedHashSet<String>();
+        ClientRole role;
 
         Client(Socket socket) throws IOException {
             senderFinished = false;
@@ -255,30 +260,67 @@ public class ABBOEServer {
 
         /**
          * Caller needs to first ensure that client is willing to receive such a packet
-         * by calling {@link #shouldSend(Client, BusinessObject)} or {@link #receiveEvents()}.
+         * by calling {@link #shouldSend_deprecated(Client, BusinessObject)} or {@link #receiveEvents()}.
          * @param obj
          */
-        private void send(BusinessObject obj) {
-            log.info("Sending: "+obj);
+        private void send(BusinessObject obj) {                       
+            if (obj.hasNature("error")) {
+                log.error("Sending: "+obj);
+            }
+            else if (obj.hasNature("warning")) {
+                log.warn("Sending: "+obj);
+            }
+            else {
+                log.info("Sending: "+obj);
+            }
             send(obj.toBytes());
         }
 
-        private void send(String text) {                       
+        /**
+         * Send a message to client (nature=message, contenttype=plaintext, sender=java-A.B.B.O.E.) 
+         * Sending is not conditional on subscriptions (they should be checked by this point if needed).
+         **/
+        private void sendWarning(String text) {                       
             BusinessObjectMetadata meta = new BusinessObjectMetadata();
             meta.put("sender", "java-A.B.B.O.E.");
-            meta.setNatures("message");                              
-            log("Sending plain text to client "+this+": "+text);
+            meta.setNatures("message", "warning");
+            log("Sending warning to client " + this + ": " + text);
             BusinessObject reply = BOB.newBuilder().metadata(meta).payload(text).build();
             send(reply);
         }
+        
+        /**
+         * Send a warning to client (nature=message, contenttype=plaintext, sender=java-A.B.B.O.E.) 
+         * Sending is not conditional on subscriptions (they should be checked by this point if needed).
+         **/
+        private void sendMessage(String text) {                       
+            BusinessObjectMetadata meta = new BusinessObjectMetadata();
+            meta.put("sender", "java-A.B.B.O.E.");
+            meta.setNatures("message");
+            log("Sending message to client " + this + ": " + text);
+            BusinessObject reply = BOB.newBuilder().metadata(meta).payload(text).build();
+            send(reply);
+        }
+        
 
         /** Should events be sent to this client? */
         public boolean receiveEvents() {
             return receiveMode != ClientReceiveMode.NONE;
         }
 
-        /** Should the object <bo> from client <source> be sent to this client? */
         public boolean shouldSend(Client source, BusinessObject bo) {
+            if (source == this && echo == false) {
+                return false;
+            }
+            
+            return subscriptions.pass(bo);
+        }
+        
+        /**
+         * Should the object <bo> from client <source> be sent to this client?
+         * @deprecated Use new implementation shouldSend based on new subscription mechanism.
+         */                
+        public boolean shouldSend_deprecated(Client source, BusinessObject bo) {
 
             boolean result;
 
@@ -300,7 +342,7 @@ public class ABBOEServer {
             }
 
             if (result == true) {
-                result = subscriptions.shouldSend(bo);
+                result = legacySubscriptions.shouldSend(bo);
             }
 
             return result;
@@ -499,9 +541,9 @@ public class ABBOEServer {
         try {
             client = new Client(clientSocket);
             String abboeUser = Biomine3000Utils.getUser();
-            client.send("Welcome to this fully operational java-A.B.B.O.E., run by "+abboeUser);
+            client.sendMessage("Welcome to this fully operational java-A.B.B.O.E., run by "+abboeUser);
             if (Biomine3000Utils.isBMZTime()) {
-                client.send("For relaxing times, make it Zombie time");
+                client.sendMessage("For relaxing times, make it Zombie time");
             }
             // suggest registration, if client has not done so within a second of its registration...
             new RegisterSuggesterThread(client).start();
@@ -715,7 +757,7 @@ public class ABBOEServer {
                 Thread.sleep(1000);
                 if (state == ABBOEServer.State.SHUTTING_DOWN) return;
                 if (!client.registered) {
-                    client.send("Please register by sending a \""+CLIENTS_REGISTER+"\" event");
+                    client.sendMessage("Please register by sending a \""+CLIENTS_REGISTER+"\" event");
                 }
             }
             catch (InterruptedException e) {
@@ -772,18 +814,102 @@ public class ABBOEServer {
 
         requestingClient.send(clientReport);
     }
-
-    private void handleClientRegisterEvent(Client client, BusinessObject bo) {
+    /**
+     * specs before 2014-03-09:
+     * id optional. If included, the reply can be linked to this object via in-reply-to field.
+     *
+     * receive-mode: one of
+     *     none: nothing will be sent to the client by server
+     *     all: everything will be sent
+     *     no_echo: everything but objects sent by client itself
+     *     events_only:  events only (recall that events may include no or arbitrary CONTENT)
+     * types an array of content types the client is willing to receive, or:
+     *    "all" receive everything (default); this is not an array, but a string literal
+     *    "none" receive nothing; this is not an array, but string literal   
+     *     
+     * routing-id the unique routing id for the client. This is optional and should not be used.
+     * routing-ids a list of additional id’s the client wants to receive objects for.
+     * role this is is mandatory for servers, optional for clients.
+     *    server for servers
+     *    there are no other uses for this field 
+     */
+    
+    private void handleRoutingSubscribeEvent(Client client, BusinessObject bo) throws InvalidBusinessObjectMetadataException {
+        BusinessObjectMetadata meta = bo.getMetadata();        
+        
+        // role
+        String role = meta.getString("role");
+        if (role == null) {
+            client.role = ClientRole.CLIENT;
+        }
+        else if (role.equals("client")) {
+            // the expected case; no action
+            client.role = ClientRole.CLIENT;
+        }
+        else if (role.equals("server")) {
+            client.sendWarning("Server-to-server communications not supported by this server");
+            client.role = ClientRole.SERVER;
+        }
+        else {
+            client.sendWarning("Unknown role in "+ROUTING_SUBSCRIPTION.getEventName()+": "+role+". Setting role to CLIENT");
+            client.role = ClientRole.CLIENT;
+        }
+        
+        // routing id of client (should be given only by servers?)
+        String routingId = meta.getString("routing-id");        
+        if (routingId != null) {
+            client.sendWarning("A client should not specify a routing id");
+        }
+        
+        // routing ids
+        String routingIds = meta.getString("routing-ids");
+        if (routingIds != null) {
+            client.sendWarning("List of additional routing-id:s not supported by java-ABBOE");
+        }
+               
+        // echo
+        Boolean echo = meta.getBoolean("echo");
+        if (echo != null) {            
+            client.echo = echo;
+            if (echo) {
+                client.sendMessage("Narcistic client: you have opted to get your own messages echoed to you"); 
+            }
+            else {
+                client.sendMessage("Client messages will not be echoed back");
+            }
+        }
+        else {
+            client.sendMessage("Client messages will not be echoed back (default). Specify echo=true to enable echoing");
+            client.echo = false; // by default, do not echo
+        }
+                
+        if (meta.hasKey("subscriptions")) {
+            List<String> subscriptions = meta.getList("subscriptions");
+            client.subscriptions = new Subscriptions(subscriptions);        
+            client.sendMessage("You made the following subscriptions:\n"+
+                               client.subscriptions);
+        }
+        else {
+            client.sendMessage("You have not subscribed to any content or events => nothing will be sent. We are nonetheless believed to be receiving your communications"); 
+            client.echo = false; // by default, do not echo
+        }
+        
+    }
+    
+    private void handleClientRegisterEvent(Client client, BusinessObject bo) throws InvalidBusinessObjectMetadataException {
         BusinessObjectMetadata meta = bo.getMetadata();
         String name = meta.getString("name");
-        String user = meta.getString("user");
-        String receiveModeName = meta.getString(ClientReceiveMode.KEY);
+        
+        
+        
         if (name != null) {
             client.setName(name);
         }
         else {
             log.warn("No name in register packet from {}", client);
         }
+        
+        String user = meta.getString("user");
         if (user != null) {
             client.setUser(user);
         }
@@ -791,43 +917,48 @@ public class ABBOEServer {
             log.warn("No user in register packet from {}", client);
         }
 
-        String msg = "Registered you as \""+name+"-"+user+"\".";
+        StringBuffer msg = new StringBuffer("Registered you as \""+name+"-"+user+"\".");
 
+        String receiveModeName = meta.getString(ClientReceiveMode.KEY);
         if (receiveModeName != null) {
+            log.warn("Legacy receive mode from client "+name+"-"+user+": "+receiveModeName);
+            msg.append("Warning: using legacy field in client registration: "+ClientReceiveMode.KEY);
             ClientReceiveMode recvMode = ClientReceiveMode.getMode(receiveModeName);
             if (recvMode == null) {
                 sendErrorReply(client, "Unrecognized rcv mode in packet: "+recvMode+", using the default: "+client.receiveMode);
             }
             else {
                 client.receiveMode = recvMode;
-                msg+=" Your receive mode is set to: \""+recvMode+"\".";
+                msg.append("Your receive mode is set to: \""+recvMode+"\".");
             }
         }
         else {
-            msg+=" No receive mode specified, using the default: "+client.receiveMode;
+            msg.append(" No receive mode specified, using the default: "+client.receiveMode);
         }
 
         LegacySubscriptions subscriptions = null;
         try {
-            subscriptions = meta.getSubscriptions();
+            subscriptions = meta.getLegacySubscriptions();
         }
-        catch (InvalidJSONException e) {
+        catch (InvalidBusinessObjectMetadataException e) {
             sendErrorReply(client, "Unrecognized subscriptions in packet: "+e.getMessage());
         }
 
-        if (subscriptions != null) {
-            msg+=" Your subscriptions are set to: "+subscriptions+".";
+        if (subscriptions != null) {            
+            msg.append("Warning: using legacy field subscriptions in client/register event (subscriptions reworked and moved to routing/subscribe event)");
+            msg.append(" Your legacy subscriptions are set to: "+subscriptions+".");
+            log.warn("using legacy field 'subscriptions' in client/register event "+name+"-"+user+": "+subscriptions);
         }
         else {
-            msg+=" You did not specify subscriptions; using the default: "+client.subscriptions;
+            msg.append(" You did not specify legacy subscriptions; using the default: "+client.legacySubscriptions);
         }
 
-        BusinessObject replyObj = BOB.newBuilder().payload(msg).event(CLIENTS_LIST_REPLY).build();
+        BusinessObject replyObj = BOB.newBuilder().payload(msg).event(CLIENTS_REGISTER_REPLY).build();
         client.send(replyObj);
 
         // only set after sending the plain text reply                        
         if (subscriptions != null) {
-            client.subscriptions = subscriptions;
+            client.legacySubscriptions = subscriptions;
         }
 
         client.registered = true;
@@ -874,6 +1005,10 @@ public class ABBOEServer {
                     }
                     else if (et == SERVICES_REGISTER) {
                         handleServicesRegisterEvent(client, bo);
+                        forwardEvent = false;
+                    }
+                    else if (et == ROUTING_SUBSCRIPTION) {
+                        handleRoutingSubscribeEvent(client, bo);
                         forwardEvent = false;
                     }
                     else {
@@ -936,7 +1071,6 @@ public class ABBOEServer {
         @Override
         public void handle(InvalidBusinessObjectException e) {
             handleException(e);
-
         }
 
         @Override
@@ -997,6 +1131,11 @@ public class ABBOEServer {
         }
     }
 
+    private enum ClientRole {
+        CLIENT,
+        SERVER;
+    }
+    
     private enum State {
         NOT_RUNNING,
         ACCEPTING_CLIENTS,

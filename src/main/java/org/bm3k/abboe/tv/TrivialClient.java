@@ -21,7 +21,7 @@ public class TrivialClient {
               
     private static final ClientParameters CLIENT_PARAMS =
             new ClientParameters("TrivialClient", ClientReceiveMode.NO_ECHO,
-                                 LegacySubscriptions.make("text/plain"), false);
+                                 LegacySubscriptions.make("text/plain"), false, new Subscriptions("text/plain"));
     
     private ABBOEConnection connection;
     private boolean stopYourStdinReading = false;    
@@ -89,10 +89,7 @@ public class TrivialClient {
                 if (line.startsWith("http://")) {
                     natures.add("url");
                     natures.add("hyperlink");
-                }
-                else {
-                    log.info("line does not start with http://");
-                }
+                }                
                 BusinessObjectMetadata meta = new BusinessObjectMetadata();
                 meta.putStringList("natures", natures);
                 meta.put("sender", user);

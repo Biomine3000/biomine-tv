@@ -27,8 +27,8 @@ import util.collections.Pair;
  * TODO: generalize this to obtain a generic PacketReader.
  */
 public class BusinessObjectReader implements Runnable {
-    private final Logger log = LoggerFactory.getLogger(BusinessObjectReader.class);
-
+    private final Logger log = LoggerFactory.getLogger(BusinessObjectReader.class);    
+    
     private State state;
     
     private InputStream is;

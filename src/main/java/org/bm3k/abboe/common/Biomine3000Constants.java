@@ -2,7 +2,7 @@ package org.bm3k.abboe.common;
 
 public class Biomine3000Constants {
     	
-	/** magic number */
+	/** magic number */        
     public static final int DEFAULT_ABBOE_PORT = 61910; 
     public static final String DEFAULT_ABBOE_HOST = "localhost";
     

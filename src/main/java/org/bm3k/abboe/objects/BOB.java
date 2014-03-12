@@ -65,6 +65,19 @@ public class BOB {
         
         return this;
     }
+    
+    /** add some natures */
+    public BOB natures(String... natures) {
+        if (this.natures == null) {
+            this.natures = new ArrayList<String>();           
+        }
+        
+        for (String nature: natures) {
+            this.natures.add(nature);
+        }
+        
+        return this;
+    }
 
     public BOB type(MediaType type) {
         this.type = type;
@@ -81,6 +94,10 @@ public class BOB {
         return this;
     }
 
+    public BOB payload(CharSequence payload) {
+        return payload(payload.toString());
+    }
+    
     public BOB payload(String payload) {
         try {
             this.payload = payload.getBytes("UTF-8");

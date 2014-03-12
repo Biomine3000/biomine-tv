@@ -49,8 +49,7 @@ public class ImageSender {
         }
         
         // Subscribe & registrer
-        BusinessObject subscription = ClientUtils.makeSubscriptionObject(ClientReceiveMode.NONE,
-                LegacySubscriptions.NONE);
+        BusinessObject subscription = ClientUtils.makeSubscriptionObject(Subscriptions.NONE);
         log.info("Writing subscription object: {}", subscription);
         IOUtils.writeBytes(socket.getOutputStream(), subscription.toBytes());
 

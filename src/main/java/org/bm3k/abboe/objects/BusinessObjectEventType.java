@@ -55,6 +55,10 @@ public enum BusinessObjectEventType {
         return typeByName.get(name);
     }
     
+    public String getEventName() {
+        return typeString;
+    }
+    
    
    /** 
     * Note that the actual names are accessed via {@link #toString()}, not via {@link #name()}, which     

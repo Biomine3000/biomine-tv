@@ -68,6 +68,11 @@ public class BusinessObjectImpl implements BusinessObject {
         return metadata.isEvent();
     }
 
+    @Override 
+    public boolean hasNature(String nature) {
+        return metadata.hasNature(nature);
+    }
+    
     @Override
     public MediaType getType() {
         return metadata.getOfficialType();

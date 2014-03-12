@@ -31,7 +31,8 @@ import util.JSONUtils;
  *  
  */
 public class BusinessObjectMetadata {
-        
+           
+    
     private BusinessObject obj;
     
     private JSONObject json;
@@ -44,7 +45,7 @@ public class BusinessObjectMetadata {
      * Construct from JSON represented as UTF-8 coded toBytes. Note that behavior is undefined
      * when the characters are not encoded as UTF-8.
      */
-    public BusinessObjectMetadata (byte[] bytes) throws InvalidJSONException {
+    public BusinessObjectMetadata (byte[] bytes) throws InvalidBusinessObjectMetadataException {
 
         try {            
             json = new JSONObject(new String(bytes, "UTF-8"));
@@ -55,7 +56,7 @@ public class BusinessObjectMetadata {
         }                                         
         catch (JSONException e) {
             // failure due to callers folly of providing invalid JSON text
-            throw new InvalidJSONException(e);
+            throw new InvalidBusinessObjectMetadataException(e);
         }
     }
 
@@ -85,8 +86,18 @@ public class BusinessObjectMetadata {
         put("type", type.toString());
     }
     
-    /** null if no subscriptions defined. */
-    public LegacySubscriptions getSubscriptions() throws InvalidJSONException {
+    public void setSubscriptions(Subscriptions subscriptions) {
+        this.putStringList("subscriptions", subscriptions.toStringList());
+    }
+    
+    /** 
+     *  stored as field "subscriptions". The fact that they are legacy is revealed by such a field
+     * residing in a clients/register object (instead of the routing/subscribe object)
+     * 
+     * null if no subscriptions defined. 
+     * @deprecated
+     */    
+    public LegacySubscriptions getLegacySubscriptions() throws InvalidBusinessObjectMetadataException {
         try {
             Object json = this.json.opt("subscriptions");
             if (json == null) {
@@ -97,7 +108,7 @@ public class BusinessObjectMetadata {
             }
         }
         catch (JSONException e) {
-            throw new InvalidJSONException(e);
+            throw new InvalidBusinessObjectMetadataException(e);
         }
     }
     
@@ -109,6 +120,7 @@ public class BusinessObjectMetadata {
     	}
     	
     	if (arr != null) {
+    	    // TODO: should maybe do some Set wrapper for JSONArray instead of duplicating data
     		LinkedHashSet<String> result = new LinkedHashSet<>(arr.length());
     		for (int i=0; i<arr.length(); i++) {
     			result.add(arr.getString(i));
@@ -128,7 +140,13 @@ public class BusinessObjectMetadata {
         putStringList("natures", natures);
     }
     
-    public void setSubsciptions(LegacySubscriptions subscriptions) throws JSONException {             
+    /** stored as field "subscriptions". The fact that they are legacy is revealed by such a field
+     * residing in a clients/register object (instead of the routing/subscribe object)
+     * @param subscriptions
+     * @throws JSONException
+     * @deprecated
+     */     
+    public void setLegacySubsciptions(LegacySubscriptions subscriptions) throws JSONException {             
         json.put("subscriptions", subscriptions.toJSON());
     }
     
@@ -320,13 +338,18 @@ public class BusinessObjectMetadata {
     }
         
     
-    /** @throws InvalidJSONException if the value is not booleanizable */
-    public Boolean getBoolean(String key) throws InvalidJSONException {
-        try {
-            return json.getBoolean(key);
+    /** @throws InvalidBusinessObjectMetadataException if the value is not booleanizable */
+    public Boolean getBoolean(String key) throws InvalidBusinessObjectMetadataException {
+        if (json.has(key)) {                    
+            try {
+                return json.getBoolean(key);            
+            }
+            catch (JSONException e) {
+                throw new InvalidBusinessObjectMetadataException(e);
+            }
         }
-        catch (JSONException e) {
-            throw new InvalidJSONException(e);
+        else {
+            return null;
         }
     }
   
@@ -419,8 +442,16 @@ public class BusinessObjectMetadata {
         
     }
     
+    public boolean hasKey(String key) {
+        return json.has(key);
+    }
+    
     public boolean isEvent() {
         return json.has("event");
+    }
+
+    public boolean hasNature(String nature) {
+        return getNatures().contains("nature");
     }
     
     

@@ -7,15 +7,19 @@ package org.bm3k.abboe.common;
  * In practice, InvalidInvalidJSONException will probably contain a JSONException as cause, though, at least initially.
  */
 @SuppressWarnings("serial")
-public class InvalidJSONException extends InvalidBusinessObjectException {               
+public class InvalidBusinessObjectMetadataException extends InvalidBusinessObjectException {               
     
     private Throwable cause;
-        
-    public InvalidJSONException(String message) {
+    
+    public InvalidBusinessObjectMetadataException(String message, Throwable cause) {
+        super(message, cause);
+    }
+    
+    public InvalidBusinessObjectMetadataException(String message) {
         super(message);
     }
 
-    public InvalidJSONException(Throwable cause) {
+    public InvalidBusinessObjectMetadataException(Throwable cause) {
         super(cause);
         this.cause = cause;
     }
