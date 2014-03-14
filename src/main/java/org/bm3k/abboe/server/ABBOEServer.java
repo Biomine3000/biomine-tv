@@ -535,26 +535,10 @@ public class ABBOEServer {
     }
 
     private void acceptSingleClient(Socket clientSocket) {
-
         Client client;
 
         try {
             client = new Client(clientSocket);
-            String abboeUser = Biomine3000Utils.getUser();
-            client.sendMessage("Welcome to this fully operational java-A.B.B.O.E., run by "+abboeUser);
-            if (Biomine3000Utils.isBMZTime()) {
-                client.sendMessage("For relaxing times, make it Zombie time");
-            }
-            // suggest registration, if client has not done so within a second of its registration...
-            new RegisterSuggesterThread(client).start();
-            if (contentVaultProxy.getState() == ContentVaultProxy.State.INITIALIZED_SUCCESSFULLY) {
-                try {
-                    client.send(contentVaultProxy.sampleImage());
-                }
-                catch (InvalidStateException e) {
-                    log.error("Invalid state while getting content from vault", e);
-                }
-            }
         }
         catch (IOException e) {
             log.error("Failed creating streams on socket", e);
@@ -836,72 +820,69 @@ public class ABBOEServer {
     
     private void handleRoutingSubscribeEvent(Client client, BusinessObject bo) throws InvalidBusinessObjectMetadataException {
         BusinessObjectMetadata meta = bo.getMetadata();        
-        
-        // role
+
+        ArrayList<String> errors = new ArrayList<>();
         String role = meta.getString("role");
-        if (role == null) {
+        if (role == null || role.equals("client")) {
             client.role = ClientRole.CLIENT;
-        }
-        else if (role.equals("client")) {
-            // the expected case; no action
-            client.role = ClientRole.CLIENT;
-        }
-        else if (role.equals("server")) {
-            client.sendWarning("Server-to-server communications not supported by this server");
-            client.role = ClientRole.SERVER;
-        }
-        else {
-            client.sendWarning("Unknown role in "+ROUTING_SUBSCRIPTION.getEventName()+": "+role+". Setting role to CLIENT");
-            client.role = ClientRole.CLIENT;
+        } else if (role.equals("server")) {
+            errors.add("Unknown roleServer-to-server communications not supported by this server");
+            // client.role = ClientRole.SERVER;
+        } else {
+            errors.add("Unknown role in "+ROUTING_SUBSCRIPTION.getEventName()+": "+role+". Setting role to CLIENT");
+            // client.role = ClientRole.CLIENT;
         }
         
-        // routing id of client (should be given only by servers?)
+        // Routing id of client
         String routingId = meta.getString("routing-id");        
         if (routingId != null) {
-            client.sendWarning("A client should not specify a routing id");
+            errors.add("A client should not specify a routing id");
         }
-        
-        // routing ids
+
+        // Additional routing id's are possibly a deprecated feature, not high on to-do
         String routingIds = meta.getString("routing-ids");
         if (routingIds != null) {
-            client.sendWarning("List of additional routing-id:s not supported by java-ABBOE");
+            errors.add("List of additional routing-id:s not supported by java-ABBOE");
         }
-               
-        // echo
+
+        // Echo mode
         Boolean echo = meta.getBoolean("echo");
-        if (echo != null) {            
-            client.echo = echo;
-            if (echo) {
-                client.sendMessage("Narcistic client: you have opted to get your own messages echoed to you"); 
-            }
-            else {
-                client.sendMessage("Client messages will not be echoed back");
-            }
+        if (echo == null || echo == false) {
+            client.echo = false;
+        } else {
+            client.echo = true;
         }
-        else {
-            client.sendMessage("Client messages will not be echoed back (default). Specify echo=true to enable echoing");
-            client.echo = false; // by default, do not echo
-        }
-                
+
         if (meta.hasKey("subscriptions")) {
             List<String> subscriptions = meta.getList("subscriptions");
             client.subscriptions = new Subscriptions(subscriptions);        
-            client.sendMessage("You made the following subscriptions:\n"+
-                               client.subscriptions);
         }
-        else {
-            client.sendMessage("You have not subscribed to any content or events => nothing will be sent. We are nonetheless believed to be receiving your communications"); 
-            client.echo = false; // by default, do not echo
+
+        // TODO: implement this common idiom for all request-response communication
+        BusinessObjectMetadata responseMetadata = new BusinessObjectMetadata();
+        if (bo.getMetadata().hasKey("id")) {
+            responseMetadata.put("in-reply-to", bo.getMetadata().getString("id"));
         }
-        
+
+        BusinessObject response = BOB.newBuilder()
+                .event(ROUTING_SUBSCRIBE_REPLY)
+                .metadata(responseMetadata)
+                .build();
+        client.send(response);
+
+        client.sendMessage("You made the following subscriptions:\n" + client.subscriptions.toStringList());
+        client.sendMessage("Echo: " + client.echo);
+        String localUser = Biomine3000Utils.getUser();
+        client.sendMessage("Welcome to this fully operational java-A.B.B.O.E., run by " + localUser);
+        if (Biomine3000Utils.isBMZTime()) {
+            client.sendMessage("For relaxing times, make it Zombie time");
+        }
     }
     
     private void handleClientRegisterEvent(Client client, BusinessObject bo) throws InvalidBusinessObjectMetadataException {
         BusinessObjectMetadata meta = bo.getMetadata();
         String name = meta.getString("name");
-        
-        
-        
+
         if (name != null) {
             client.setName(name);
         }
