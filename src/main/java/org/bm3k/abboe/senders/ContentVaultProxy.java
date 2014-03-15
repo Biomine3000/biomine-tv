@@ -9,7 +9,7 @@ import java.net.URL;
 import java.util.*;
 
 import org.bm3k.abboe.common.BusinessMediaType;
-import org.bm3k.abboe.common.BusinessObjectMetadata;
+import org.bm3k.abboe.objects.BusinessObjectMetadata;
 import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
 import org.slf4j.Logger;

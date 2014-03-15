@@ -1,6 +1,5 @@
 package org.bm3k.abboe.objects;
 
-import org.bm3k.abboe.common.BusinessObjectMetadata;
 import org.bm3k.abboe.common.InvalidBusinessObjectException;
 import org.bm3k.abboe.common.InvalidBusinessObjectMetadataException;
 

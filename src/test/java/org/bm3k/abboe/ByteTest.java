@@ -1,7 +1,7 @@
 package org.bm3k.abboe;
 
 import org.bm3k.abboe.common.BusinessMediaType;
-import org.bm3k.abboe.common.BusinessObjectMetadata;
+import org.bm3k.abboe.objects.BusinessObjectMetadata;
 
 public class ByteTest {
     

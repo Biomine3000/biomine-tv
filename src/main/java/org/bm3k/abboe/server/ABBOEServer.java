@@ -17,6 +17,7 @@ import org.bm3k.abboe.common.*;
 import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
 import org.bm3k.abboe.objects.BusinessObjectEventType;
+import org.bm3k.abboe.objects.BusinessObjectMetadata;
 import org.bm3k.abboe.senders.ContentVaultProxy;
 import org.bm3k.abboe.senders.ContentVaultProxy.InvalidStateException;
 import org.json.JSONArray;

@@ -3,6 +3,7 @@ package org.bm3k.abboe.common;
 import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
 import org.bm3k.abboe.objects.BusinessObjectEventType;
+import org.bm3k.abboe.objects.BusinessObjectMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

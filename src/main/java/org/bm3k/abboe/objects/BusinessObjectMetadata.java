@@ -1,11 +1,12 @@
-package org.bm3k.abboe.common;
+package org.bm3k.abboe.objects;
 
 import java.io.UnsupportedEncodingException;
 import java.util.*;
 
 import com.google.common.net.MediaType;
-import org.bm3k.abboe.objects.BusinessObject;
-import org.bm3k.abboe.objects.BusinessObjectEventType;
+import org.bm3k.abboe.common.InvalidBusinessObjectMetadataException;
+import org.bm3k.abboe.common.LegacySubscriptions;
+import org.bm3k.abboe.common.Subscriptions;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;

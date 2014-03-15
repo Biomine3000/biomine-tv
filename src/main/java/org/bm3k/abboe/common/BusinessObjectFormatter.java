@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.Set;
 
 import org.bm3k.abboe.objects.BusinessObject;
+import org.bm3k.abboe.objects.BusinessObjectMetadata;
 
 
 /** Format objects according to their nature */

@@ -8,6 +8,7 @@ import java.net.SocketException;
 
 import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
+import org.bm3k.abboe.objects.BusinessObjectMetadata;
 import org.bm3k.abboe.objects.BusinessObjectUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -2,6 +2,7 @@ package org.bm3k.abboe.common;
 
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.bm3k.abboe.objects.BusinessObject;
+import org.bm3k.abboe.objects.BusinessObjectMetadata;
 
 /**
  * Subscription rule, as proposed by Arkku around 2014-02-10.
