@@ -532,6 +532,14 @@ public class ABBOEServer {
             return name;
         }
 
+        public void sendPong(BusinessObject bo) {
+            BusinessObjectMetadata metadata = new BusinessObjectMetadata();
+            if (bo.getMetadata().hasKey("id")) {
+                metadata.put("in-reply-to", bo.getMetadata().getString("id"));
+            }
+
+            send(BOB.newBuilder().event(PONG).metadata(metadata).build());
+        }
     }
 
     private void acceptSingleClient(Socket clientSocket) {
@@ -990,6 +998,9 @@ public class ABBOEServer {
                     }
                     else if (et == ROUTING_SUBSCRIPTION) {
                         handleRoutingSubscribeEvent(client, bo);
+                        forwardEvent = false;
+                    } else if (et == PING) {
+                        client.sendPong(bo);
                         forwardEvent = false;
                     }
                     else {
