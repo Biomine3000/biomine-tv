@@ -23,10 +23,10 @@ public enum BusinessObjectEventType {
     ROUTING_DISCONNECT("routing/disconnect"),
     /** set a (client-specific) property at the server*/
     SET_PROPERTY("set-property"),
-    /** "deprecated */
-    CLIENTS_REGISTER_REPLY("clients/register/reply"),
-    /** "deprecated */
-    CLIENTS_LIST_REPLY("clients/list/reply"),    
+    ///** "deprecated */
+    // CLIENTS_REGISTER_REPLY("clients/register/reply"),
+    // /** "deprecated */
+    // CLIENTS_LIST_REPLY("clients/list/reply"),    
     PING("ping"),
     PONG("pong"),
     DUMMY("haba3000"); // for testing purposes

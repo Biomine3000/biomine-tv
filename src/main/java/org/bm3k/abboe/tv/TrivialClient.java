@@ -9,19 +9,18 @@ import java.util.List;
 
 import org.bm3k.abboe.common.*;
 import org.bm3k.abboe.objects.*;
+import org.json.JSONArray;
 import org.json.JSONException;
 
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import util.StringUtils;
 
 public class TrivialClient {
     private final Logger log = LoggerFactory.getLogger(TrivialClient.class);
               
     private static final ClientParameters CLIENT_PARAMS =
-            new ClientParameters("TrivialClient", ClientReceiveMode.NO_ECHO,
-                                 LegacySubscriptions.make("text/plain"), false, new Subscriptions("text/plain"), false);
+            new ClientParameters("TrivialClient", new Subscriptions("text/plain"), false);
     
     private ABBOEConnection connection;
     private boolean stopYourStdinReading = false;    
@@ -34,8 +33,7 @@ public class TrivialClient {
     /** Call {@link startMainReadLoop()} to perform actual processing */
     public TrivialClient(Socket socket, String user) throws IOException, JSONException {        
         this.stdinReaderState = StdinReaderState.NOT_YET_READING;
-        ClientParameters clientParams = new ClientParameters(CLIENT_PARAMS);
-        clientParams.client = user;
+        ClientParameters clientParams = new ClientParameters(CLIENT_PARAMS);        
         this.user = user;
         this.connection = new ABBOEConnection(clientParams, socket);
         this.connection.init(new ObjectHandler());
@@ -135,21 +133,21 @@ public class TrivialClient {
         public void handleObject(BusinessObject bo) {
             if (bo.isEvent()) {                
                 BusinessObjectEventType et = bo.getMetadata().getKnownEvent();
-                if (et == BusinessObjectEventType.CLIENTS_LIST_REPLY) {
-                    String registeredAs = bo.getMetadata().getString("you");
-                    System.out.println("This client registered on the server as: "+registeredAs);
-                    List<String> clients = bo.getMetadata().getList("others");
-                    if (clients.size() == 0) {
-                        System.out.println("No other clients");
+                if (et == BusinessObjectEventType.SERVICES_REPLY) {
+                    String serviceName = bo.getMetadata().getString("name");
+                    String request = bo.getMetadata().getString("request");
+                    
+                    if (serviceName != null && request != null && serviceName.equals("clients") && request.equals("list")) { 
+                        // clients list reply
+                        JSONArray clients = bo.getMetadata().asJSON().getJSONArray("clients");
+                        System.out.println("Clients on this server:\n"+clients.toString(4));
                     }
                     else {
-                        System.out.println("Other clients:");
-                        System.out.println("\t"+StringUtils.collectionToString(clients, "\n\t"));
+                        System.out.println("SERVICE_REPLY: "+Biomine3000Utils.formatBusinessObject(bo));
                     }
-                    
                 }
-                else if (et == BusinessObjectEventType.CLIENTS_REGISTER_REPLY) {
-                    System.out.println("Registered successfully to clients service");
+                else if (et == BusinessObjectEventType.ROUTING_SUBSCRIBE_REPLY) {
+                    System.out.println("Subscribed successfully to the server: "+bo);
                 }
                 else if (et == BusinessObjectEventType.ROUTING_SUBSCRIBE_NOTIFICATION) {
                     String name = bo.getMetadata().getString("routing-id");

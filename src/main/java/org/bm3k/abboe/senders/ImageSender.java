@@ -53,7 +53,7 @@ public class ImageSender {
         log.info("Writing subscription object: {}", subscription);
         IOUtils.writeBytes(socket.getOutputStream(), subscription.toBytes());
 
-        BusinessObject registration = ClientUtils.makeRegistrationObject("ImageSender");
+        BusinessObject registration = ClientUtils.makeClientsJoinRequest("ImageSender");
         log.info("Writing register object: {}", registration);
         IOUtils.writeBytes(socket.getOutputStream(), registration.toBytes());
 

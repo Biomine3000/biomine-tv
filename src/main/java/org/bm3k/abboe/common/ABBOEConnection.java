@@ -92,11 +92,11 @@ public class ABBOEConnection {
         this.sender = new NonBlockingSender(socket, new SenderListener());
 
         // Subscribe and register
-        BusinessObject subscription = ClientUtils.makeSubscriptionObject(clientParameters);
+        BusinessObject subscription = ClientUtils.makeSubscriptionEvent(clientParameters);
         log.info("Sending subscription object: {}", new String(subscription.toBytes()));
         sender.send(subscription.toBytes());
 
-        BusinessObject registerObj = ClientUtils.makeRegistrationObject(clientParameters);
+        BusinessObject registerObj = ClientUtils.makeClientsJoinRequest(clientParameters);
         log.info("Sending register packet: {}", new String(registerObj.toBytes()));
         sender.send(registerObj.toBytes());
 
@@ -109,8 +109,8 @@ public class ABBOEConnection {
                    
     /** Put object to queue of objects to be sent*/
     public void send(BusinessObject object) throws IOException {
-        if (clientParameters.client != null) {
-            object.getMetadata().put("client", clientParameters.client);
+        if (clientParameters.getClient() != null) {
+            object.getMetadata().put("client", clientParameters.getClient());
         }
         this.sender.send(object.toBytes());
     }       
@@ -127,9 +127,9 @@ public class ABBOEConnection {
                 .build());
     }
 
-    public synchronized String getName() {
-        return clientParameters.name;
-    }
+//    public synchronized String getName() {
+//        return clientParameters.name;
+//    }
 
     /**
      * Closing of socket is to be done only after both sender and receiver have finished.

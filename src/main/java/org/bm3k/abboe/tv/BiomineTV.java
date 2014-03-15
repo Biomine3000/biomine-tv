@@ -27,6 +27,7 @@ import com.google.common.net.MediaType;
 import org.bm3k.abboe.common.*;
 
 import org.bm3k.abboe.objects.*;
+import org.json.JSONArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.StringUtils;
@@ -40,7 +41,7 @@ public class BiomineTV extends JFrame {
     // CONSTANTS
     private static final double RETRY_INTERVAL_SEC = 1.0;
     private static final ClientParameters CLIENT_PARAMS = 
-            new ClientParameters("BiomineTV", ClientReceiveMode.NO_ECHO, LegacySubscriptions.ALL, true, Subscriptions.EVERYTHING, true);        
+            new ClientParameters("BiomineTV", Subscriptions.EVERYTHING, true);        
     
     ////////////////////////////////
     // GUI
@@ -203,9 +204,7 @@ public class BiomineTV extends JFrame {
         if (connectionsByAddress.containsSrcKey(address)) {
             throw new RuntimeException("Already receiving content from: "+address);
         }
-               
-        ClientParameters clientParams = new ClientParameters(CLIENT_PARAMS);
-        clientParams.client = Biomine3000Utils.getUser();
+                              
         ABBOEConnection connection = new ABBOEConnection(CLIENT_PARAMS, socket);
         BiomineTVImagePanel imagePanel = new BiomineTVImagePanel(this);
         imagePanelByConnection.put(connection, imagePanel);
@@ -370,36 +369,12 @@ public class BiomineTV extends JFrame {
             
             if (bo.getMetadata().isEvent()) {                
                 BusinessObjectEventType et = bo.getMetadata().getKnownEvent();
-                if (et == BusinessObjectEventType.CLIENTS_LIST_REPLY) {
-                    String registeredAs = bo.getMetadata().getString("you");
-                    message("Got clients/list reply: "+registeredAs);
-                    message("This client registered on the server as: "+registeredAs);
-                    List<String> clients = bo.getMetadata().getList("others");
-                    if (clients.size() == 0) {
-                        message("No other clients");
-                    }
-                    else {
-                        message("Other clients:");
-                        message("\t"+StringUtils.collectionToString(clients, "\n\t"));
-                    }
-                    
-                }
-                else if (et == BusinessObjectEventType.CLIENTS_REGISTER_REPLY) {
-                    message("Registered successfully to the server");
-                }
-//                else if (et == BusinessObjectEventType.CLIENTS_REGISTER_NOTIFY) {
-//                    String name = bo.getMetadata().getString("name");
-//                    message("Client "+name+" registered to ABBOE");
-//                }
-//                else if (et == BusinessObjectEventType.CLIENTS_PART_NOTIFY) {
-//                    String name = bo.getMetadata().getString("name");
-//                    message("Client "+name+" parted from ABBOE");
-//                }
-                else if (et == BusinessObjectEventType.ROUTING_SUBSCRIPTION) {
+                               
+                if (et == BusinessObjectEventType.ROUTING_SUBSCRIPTION) {
                     message("ROUTING_SUBSCRIPTION (our own one echoed back?):  "+bo);
                 }
                 else if (et == BusinessObjectEventType.ROUTING_SUBSCRIBE_REPLY) {
-                    message("Got routing/subscribe reply: "+bo);
+                    message("Subscribed successfully to the server: "+bo);
                 }                
                 else if (et == BusinessObjectEventType.ROUTING_SUBSCRIBE_NOTIFICATION) {
                 	message("Client subscribed to server: "+bo);
@@ -413,7 +388,17 @@ public class BiomineTV extends JFrame {
                 	message("HOST " +bo.getMetadata().get("host")+" REQUESTED "+ request + " FROM SERVICE " +name);
                 }
                 else if (et == BusinessObjectEventType.SERVICES_REPLY) {
-                	message("SERVICE_REPLY: "+Biomine3000Utils.formatBusinessObject(bo));
+                    String serviceName = bo.getMetadata().getString("name");
+                    String request = bo.getMetadata().getString("request");
+                    
+                    if (serviceName != null && request != null && serviceName.equals("clients") && request.equals("list")) { 
+                        // clients list reply
+                        JSONArray clients = bo.getMetadata().asJSON().getJSONArray("clients");
+                        message("Clients on this server:\n"+clients.toString(4));
+                    }
+                    else {
+                        message("SERVICE_REPLY: "+Biomine3000Utils.formatBusinessObject(bo));
+                    }
                 }                
                 else {
                     // unknown event

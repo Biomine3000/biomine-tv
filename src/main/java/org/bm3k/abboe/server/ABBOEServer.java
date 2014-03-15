@@ -233,18 +233,19 @@ public class ABBOEServer {
             buf.append(addr);
             name = buf.toString();
         }
-
-        private synchronized void setName(String clientName) {
+        
+        
+        public synchronized void setClientName(String clientName) {
             this.clientName = clientName;
             initName();
-            sender.setName("client-"+this.name);
+            sender.setName("sender-"+this.name);
             reader.setName("reader-"+this.name);
         }
 
         private synchronized void setUser(String user) {
             this.user = user;
             initName();
-            sender.setName("client-"+name);
+            sender.setName("sender-"+name);
             reader.setName("reader-"+name);
         }
 
@@ -754,7 +755,7 @@ public class ABBOEServer {
         client.registerServices(names);
     }
 
-    private void handleClientsListEvent(Client requestingClient) {
+    private void handleClientsListEvent(Client requestingClient, BusinessObject bo ) {
         
         BusinessObject reply;
         
@@ -771,12 +772,17 @@ public class ABBOEServer {
                 clientJSON.put("routing-id", client.routingId);
                 clientsJSON.put(clientJSON);
                 log.info("clientsJSON in clients list reply: "+clientsJSON);
-            }
+            }                        
             
             BusinessObjectMetadata replyMeta = new BusinessObjectMetadata();
+            String requestId = bo.getMetadata().getString("id");
+            if (requestId != null) {
+                replyMeta.put("in-reply-to", requestId);
+            }
             replyMeta.asJSON().put("clients", clientsJSON);
-            
-            reply = BOB.newBuilder().event(CLIENTS_LIST_REPLY).metadata(replyMeta).build();
+            replyMeta.asJSON().put("name", "clients");
+            replyMeta.asJSON().put("request", "list");
+            reply = BOB.newBuilder().event(SERVICES_REPLY).metadata(replyMeta).build();
             
 //            List<String> clientNames = new ArrayList<>();
 //            for (Client client: clients) {
@@ -888,7 +894,7 @@ public class ABBOEServer {
         // send additional informative messages to client (non-events)
         String abboeUser = Biomine3000Utils.getUser();
         client.sendMessage("Welcome to this fully operational java-A.B.B.O.E., run by " + abboeUser);
-        client.sendMessage("You made the following subscriptions:\n" + client.subscriptions.toStringList());
+        client.sendMessage("You made the following subscriptions: " + client.subscriptions.toStringList());
         client.sendMessage("Being narcistic: " + client.echo);                        
         if (Biomine3000Utils.isBMZTime()) {
             client.sendMessage("For relaxing times, make it Zombie time");
@@ -921,34 +927,32 @@ public class ABBOEServer {
         );
     }
     
-    private void handleClientRegisterEvent(Client client, BusinessObject bo) throws InvalidBusinessObjectMetadataException {
+    private void handleClientJoinRequest(Client client, BusinessObject bo) throws InvalidBusinessObjectMetadataException {
         BusinessObjectMetadata meta = bo.getMetadata();
-        String name = meta.getString("name");
+        String clientName = meta.getString("client");
+        String user = meta.getString("user");       
 
-        if (name != null) {
-            client.setName(name);
-        }
-        else {
-            log.warn("No name in register packet from {}", client);
-        }
-        
-        String user = meta.getString("user");
-        if (user != null) {
-            client.setUser(user);
-        }
-        else {
+        if (user == null) {
             log.warn("No user in register packet from {}", client);
         }
+        if (clientName == null) {
+            log.warn("No client in register packet from {}", client);
+        }
+        
+        client.setClientName(clientName);
+        client.setUser(user);                                                     
 
-        StringBuffer msg = new StringBuffer("Registered you as \""+name+"-"+user+"\".");
+        StringBuffer msg = new StringBuffer("Registered you as \""+client.name);              
 
-        String legacyReceiveMode = meta.getString(ClientReceiveMode.KEY);
-        if (legacyReceiveMode != null) {
-            log.warn("Legacy receive mode from client "+name+"-"+user+": " + legacyReceiveMode);
-            client.sendWarning("using legacy field in client registration: " + ClientReceiveMode.KEY);            
-        }        
-
-        BusinessObject replyObj = BOB.newBuilder().payload(msg).event(CLIENTS_REGISTER_REPLY).build();
+        BusinessObjectMetadata replyMeta = new BusinessObjectMetadata();
+        String requestId = bo.getMetadata().getString("id");
+        if (requestId != null) { 
+            replyMeta.put("in-reply-to", requestId);
+        }
+        replyMeta.put("to", client.routingId);
+        replyMeta.put("name", "client");
+        replyMeta.put("request", "join");        
+        BusinessObject replyObj = BOB.newBuilder().event(SERVICES_REPLY).metadata(replyMeta).payload(msg).build();        
         client.send(replyObj);
 
         // TODO: in the current protocol, there is no event to notify this. However, only at this point do we have
@@ -984,13 +988,13 @@ public class ABBOEServer {
                             String request = bo.getMetadata().getString("request");
                             
                             if (request.equals("join")) {
-                                handleClientRegisterEvent(client, bo);
+                                handleClientJoinRequest(client, bo);
                             }
                             else if (request.equals("leave")) {
                                 client.sendWarning("Unhandled request: clients/join (request id: "+bo.getMetadata().get("id"));         
                             }
                             else if (request.equals("list")) {
-                                handleClientsListEvent(client);
+                                handleClientsListEvent(client, bo);
                             }
                             else {
                                 client.sendWarning("Unknown request to clients service: " + request + " (request id: "+bo.getMetadata().get("id"));

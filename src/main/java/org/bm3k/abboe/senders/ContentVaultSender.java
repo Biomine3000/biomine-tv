@@ -21,9 +21,7 @@ import org.slf4j.LoggerFactory;
 public class ContentVaultSender implements IBusinessObjectHandler {
     private final Logger log = LoggerFactory.getLogger(ContentVaultSender.class);
 
-    private static final ClientParameters CLIENT_PARAMS =
-            new ClientParameters("ContentVaultSender", ClientReceiveMode.NONE,
-                    LegacySubscriptions.NONE, false, Subscriptions.NONE, false);
+    private static final ClientParameters CLIENT_PARAMS = new ClientParameters("ContentVaultSender", Subscriptions.NONE, false);
     
     private boolean stopped;
     private ContentVaultAdapter vaultAdapter;
@@ -45,9 +43,7 @@ public class ContentVaultSender implements IBusinessObjectHandler {
         this.channel = channel;
         
         this.nSent = 0;
-        this.stopped = false;
-        ClientParameters clientParams = new ClientParameters(CLIENT_PARAMS);
-        clientParams.client = "ContentVaultSender-"+Biomine3000Utils.getUser();
+        this.stopped = false;               
         
         this.connection = new ABBOEConnection(CLIENT_PARAMS, socket);
         this.connection.init(new ObjectHandler());

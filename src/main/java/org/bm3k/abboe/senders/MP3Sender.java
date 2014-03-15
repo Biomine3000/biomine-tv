@@ -42,7 +42,7 @@ public class MP3Sender {
             log.info("Writing subscription object: {} ", subscription);
             IOUtils.write(subscription.toBytes(), os);
 
-            BusinessObject registration = ClientUtils.makeRegistrationObject("MP3Sender");
+            BusinessObject registration = ClientUtils.makeClientsJoinRequest("MP3Sender");
             log.info("Writing register object: {} ", registration);
             IOUtils.write(registration.toBytes(), os);
 

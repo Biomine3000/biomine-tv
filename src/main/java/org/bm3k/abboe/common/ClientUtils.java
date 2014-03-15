@@ -3,8 +3,12 @@ package org.bm3k.abboe.common;
 import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
 import org.bm3k.abboe.objects.BusinessObjectEventType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ClientUtils {
+    private static Logger log = LoggerFactory.getLogger(ABBOEConnection.class);
+    
     private ClientUtils () {
     }
 
@@ -29,12 +33,13 @@ public class ClientUtils {
         return BusinessObject(metadata, None)
      */
 
-    public static BusinessObject makeRegistrationObject(ClientParameters params) {
+    /** Make object for join request to clients service */ 
+    public static BusinessObject makeClientsJoinRequest(ClientParameters params) {        
         BusinessObjectMetadata metadata = new BusinessObjectMetadata();
         metadata.put("name", "clients"); // name of registration service
         metadata.put("request", "join"); // name of service request
-        metadata.put("user", params.name);
-        metadata.put("client", params.client);
+        metadata.put("user", Biomine3000Utils.getUser());
+        metadata.put("client", params.getClient());
 
         return BOB.newBuilder()
                 .event(BusinessObjectEventType.SERVICES_REQUEST)
@@ -42,10 +47,10 @@ public class ClientUtils {
                 .build();
     }
 
-    public static BusinessObject makeSubscriptionObject(ClientParameters params) {
+    public static BusinessObject makeSubscriptionEvent(ClientParameters params) {
         BusinessObjectMetadata metadata = new BusinessObjectMetadata();        
-        metadata.setSubscriptions(params.subscriptions);
-        metadata.setBoolean("echo", params.echo);
+        metadata.setSubscriptions(params.getySubscriptions());
+        metadata.setBoolean("echo", params.getEcho());
         String requestId = Biomine3000Utils.generateId(Biomine3000Utils.getHostName());
         metadata.put("id", requestId);
 
@@ -65,10 +70,11 @@ public class ClientUtils {
                 .build();
     }
 
-    public static BusinessObject makeRegistrationObject(String client) {
+    public static BusinessObject makeClientsJoinRequest(String client) {
+        log.info("Making clientsJoinRequest with client: "+client);
         BusinessObjectMetadata metadata = new BusinessObjectMetadata();
         metadata.put("name", "clients"); // name of registration service        
-        metadata.put("request", "join"); // name of service request
+        metadata.put("request", "join"); // name of service request        
         metadata.put("client", client);                        
         metadata.put("user", Biomine3000Utils.getUser());
         
