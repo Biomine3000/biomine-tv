@@ -40,7 +40,7 @@ public class BiomineTV extends JFrame {
     // CONSTANTS
     private static final double RETRY_INTERVAL_SEC = 1.0;
     private static final ClientParameters CLIENT_PARAMS = 
-            new ClientParameters("BiomineTV", ClientReceiveMode.NO_ECHO, LegacySubscriptions.ALL, true, Subscriptions.EVERYTHING);
+            new ClientParameters("BiomineTV", ClientReceiveMode.NO_ECHO, LegacySubscriptions.ALL, true, Subscriptions.EVERYTHING, true);        
     
     ////////////////////////////////
     // GUI
@@ -288,6 +288,7 @@ public class BiomineTV extends JFrame {
                             }
                             catch (ConnectException e) {                                
                                 // no action 
+                                log.error("Failed connecting to server "+address, e);
                             }
                             catch (IOException e) {
                                 log.error("Failed connecting to server "+address, e);
@@ -371,6 +372,7 @@ public class BiomineTV extends JFrame {
                 BusinessObjectEventType et = bo.getMetadata().getKnownEvent();
                 if (et == BusinessObjectEventType.CLIENTS_LIST_REPLY) {
                     String registeredAs = bo.getMetadata().getString("you");
+                    message("Got clients/list reply: "+registeredAs);
                     message("This client registered on the server as: "+registeredAs);
                     List<String> clients = bo.getMetadata().getList("others");
                     if (clients.size() == 0) {
@@ -385,25 +387,25 @@ public class BiomineTV extends JFrame {
                 else if (et == BusinessObjectEventType.CLIENTS_REGISTER_REPLY) {
                     message("Registered successfully to the server");
                 }
-                else if (et == BusinessObjectEventType.CLIENTS_REGISTER_NOTIFY) {
-                    String name = bo.getMetadata().getString("name");
-                    message("Client "+name+" registered to ABBOE");
-                }
-                else if (et == BusinessObjectEventType.CLIENTS_PART_NOTIFY) {
-                    String name = bo.getMetadata().getString("name");
-                    message("Client "+name+" parted from ABBOE");
-                }
+//                else if (et == BusinessObjectEventType.CLIENTS_REGISTER_NOTIFY) {
+//                    String name = bo.getMetadata().getString("name");
+//                    message("Client "+name+" registered to ABBOE");
+//                }
+//                else if (et == BusinessObjectEventType.CLIENTS_PART_NOTIFY) {
+//                    String name = bo.getMetadata().getString("name");
+//                    message("Client "+name+" parted from ABBOE");
+//                }
                 else if (et == BusinessObjectEventType.ROUTING_SUBSCRIPTION) {
-                    message("ROUTING_SUBSCRIPTION");
+                    message("ROUTING_SUBSCRIPTION (our own one echoed back?):  "+bo);
                 }
                 else if (et == BusinessObjectEventType.ROUTING_SUBSCRIBE_REPLY) {
-                    message("ROUTING_SUBSCRIBE_REPLY");
+                    message("Got routing/subscribe reply: "+bo);
                 }                
                 else if (et == BusinessObjectEventType.ROUTING_SUBSCRIBE_NOTIFICATION) {
-                	message("ROUTING_SUBSCRIBE_NOTIFICATION");
+                	message("Client subscribed to server: "+bo);
                 }
                 else if (et == BusinessObjectEventType.ROUTING_DISCONNECT) {
-                	message("ROUTING_DISCONNECT");
+                    message("Client disconnected from server: "+bo);
                 }
                 else if (et == BusinessObjectEventType.SERVICES_REQUEST) {
                 	String name = bo.getMetadata().getString("name");

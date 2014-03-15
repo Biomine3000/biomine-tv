@@ -23,7 +23,7 @@ public class ContentVaultSender implements IBusinessObjectHandler {
 
     private static final ClientParameters CLIENT_PARAMS =
             new ClientParameters("ContentVaultSender", ClientReceiveMode.NONE,
-                    LegacySubscriptions.NONE, false, Subscriptions.NONE);
+                    LegacySubscriptions.NONE, false, Subscriptions.NONE, false);
     
     private boolean stopped;
     private ContentVaultAdapter vaultAdapter;

@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.bm3k.abboe.objects.BusinessObject;
+import org.json.JSONArray;
 
 public class Subscriptions {
     
@@ -56,5 +57,13 @@ public class Subscriptions {
         }
         
         return pass;
+    }
+    
+    public String toString() {
+        JSONArray arr = new JSONArray();
+        for (SubscriptionRule rule: rules) {
+            arr.put(rule.getRuleString());
+        }
+        return arr.toString();
     }
 }

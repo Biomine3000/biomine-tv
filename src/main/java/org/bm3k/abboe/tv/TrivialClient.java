@@ -21,7 +21,7 @@ public class TrivialClient {
               
     private static final ClientParameters CLIENT_PARAMS =
             new ClientParameters("TrivialClient", ClientReceiveMode.NO_ECHO,
-                                 LegacySubscriptions.make("text/plain"), false, new Subscriptions("text/plain"));
+                                 LegacySubscriptions.make("text/plain"), false, new Subscriptions("text/plain"), false);
     
     private ABBOEConnection connection;
     private boolean stopYourStdinReading = false;    
@@ -149,14 +149,14 @@ public class TrivialClient {
                     
                 }
                 else if (et == BusinessObjectEventType.CLIENTS_REGISTER_REPLY) {
-                    System.out.println("Registered successfully to the server");
+                    System.out.println("Registered successfully to clients service");
                 }
-                else if (et == BusinessObjectEventType.CLIENTS_REGISTER_NOTIFY) {
-                    String name = bo.getMetadata().getString("name");
-                    System.out.println("Client "+name+" registered to ABBOE");
+                else if (et == BusinessObjectEventType.ROUTING_SUBSCRIBE_NOTIFICATION) {
+                    String name = bo.getMetadata().getString("routing-id");
+                    System.out.println("Client "+name+" subscribed to ABBOE");
                 }
-                else if (et == BusinessObjectEventType.CLIENTS_PART_NOTIFY) {
-                    String name = bo.getMetadata().getString("name");
+                else if (et == BusinessObjectEventType.ROUTING_DISCONNECT) {
+                    String name = bo.getMetadata().getString("routing-id");
                     System.out.println("Client "+name+" parted from ABBOE");
                 }
                 else {

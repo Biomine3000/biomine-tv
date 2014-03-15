@@ -44,7 +44,10 @@ public class ClientUtils {
 
     public static BusinessObject makeSubscriptionObject(ClientParameters params) {
         BusinessObjectMetadata metadata = new BusinessObjectMetadata();        
-        metadata.setSubscriptions(params.subscriptions); 
+        metadata.setSubscriptions(params.subscriptions);
+        metadata.setBoolean("echo", params.echo);
+        String requestId = Biomine3000Utils.generateId(Biomine3000Utils.getHostName());
+        metadata.put("id", requestId);
 
         return BOB.newBuilder()
                 .event(BusinessObjectEventType.ROUTING_SUBSCRIPTION)
@@ -64,9 +67,11 @@ public class ClientUtils {
 
     public static BusinessObject makeRegistrationObject(String client) {
         BusinessObjectMetadata metadata = new BusinessObjectMetadata();
-        metadata.put("name", "clients");
-        metadata.put("client", client);
-
+        metadata.put("name", "clients"); // name of registration service        
+        metadata.put("request", "join"); // name of service request
+        metadata.put("client", client);                        
+        metadata.put("user", Biomine3000Utils.getUser());
+        
         return BOB.newBuilder()
                 .event(BusinessObjectEventType.SERVICES_REQUEST)
                 .metadata(metadata)

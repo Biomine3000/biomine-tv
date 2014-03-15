@@ -28,12 +28,12 @@ public enum BusinessObjectEventType {
     // TODO: should these client database services offered by ABBOE be handled as any other service? 
     // that is, they should only appear as "name" in services/request events?
     /** "deprecated" */
-    CLIENT_REGISTER("client/register"),
-    CLIENTS_REGISTER("clients/register"),
-    CLIENTS_REGISTER_NOTIFY("clients/register/notify"),
-    CLIENTS_PART_NOTIFY("clients/part/notify"),
+    // CLIENT_REGISTER("client/register"),
+    // CLIENTS_REGISTER("clients/register"),
+    // CLIENTS_REGISTER_NOTIFY("clients/register/notify"),
+    // CLIENTS_PART_NOTIFY("clients/part/notify"),
     CLIENTS_REGISTER_REPLY("clients/register/reply"),
-    CLIENTS_LIST("clients/list"),
+    // CLIENTS_LIST("clients/list"),    
     CLIENTS_LIST_REPLY("clients/list/reply"),    
     DUMMY("haba3000"); // for testing purposes
     

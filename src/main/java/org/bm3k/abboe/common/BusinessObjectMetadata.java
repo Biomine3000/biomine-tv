@@ -169,6 +169,14 @@ public class BusinessObjectMetadata {
     }
     
     /**
+     * Put a simple string value. For more complex values, use the wrapped json object directly
+     * (reference obtainable via {@link #asJSON()})
+     */ 
+    public void put(String key, JSONArray arr) {                    
+        json.put(key, arr);                    
+    }
+    
+    /**
      * Put a simple integer value. For more complex values, use the wrapped json object directly
      * (reference obtainable via {@link #asJSON()})
      */ 

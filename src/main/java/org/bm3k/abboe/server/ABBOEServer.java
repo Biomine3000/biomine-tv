@@ -19,6 +19,8 @@ import org.bm3k.abboe.objects.BusinessObject;
 import org.bm3k.abboe.objects.BusinessObjectEventType;
 import org.bm3k.abboe.senders.ContentVaultProxy;
 import org.bm3k.abboe.senders.ContentVaultProxy.InvalidStateException;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,18 +61,18 @@ public class ABBOEServer {
 
     private State state;
 
-    private synchronized List<String> clientReport(Client you) {
-        List<String> result = new ArrayList<String>();
-        for (Client client: clients) {
-            if (client == you) {
-                result.add(client.name+" (you)");
-            }
-            else {
-                result.add(client.name);
-            }
-        }
-        return result;
-    }
+//    private synchronized List<String> clientReport(Client you) {
+//        List<String> result = new ArrayList<String>();
+//        for (Client client: clients) {
+//            if (client == you) {
+//                result.add(client.name+" (you)");
+//            }
+//            else {
+//                result.add(client.name);
+//            }
+//        }
+//        return result;
+//    }
 
     /** Generates a map (small int) => (client) for later reference. */
     private synchronized Map<Integer, Client> clientShortcuts() {
@@ -189,7 +191,7 @@ public class ABBOEServer {
         Socket socket;
         BufferedInputStream is;
         OutputStream os;
-        boolean registered = false;  // TODO: used to mean whether clients/register done. should mean whether routing/subscribe done
+        boolean subscribed = false;
         boolean senderFinished;
         boolean receiverFinished;
         /** Please do not call send of this client directly, even within this class, except in the one dedicated place */
@@ -197,14 +199,16 @@ public class ABBOEServer {
         BusinessObjectReader reader;
         ReaderListener readerListener;
         ClientReceiveMode receiveMode = ClientReceiveMode.ALL;
-        LegacySubscriptions legacySubscriptions = LegacySubscriptions.ALL;
+        // LegacySubscriptions legacySubscriptions = LegacySubscriptions.ALL;
         Subscriptions subscriptions = new Subscriptions();
         boolean echo = false; // should echo objects back to sender?
-        boolean closed;   
-        List<String> routingIds; // assigned in routing/subscribe event        
-        /** actual name of client, not including user or addr */
+        boolean closed;
+        String primaryRoutingId;     // primary routing id of the client
+        List<String> additionalRoutingIds = Collections.emptyList(); // additional routing ids assigned in routing/subscribe event. Never null. 
+        /** actual name of client program, not including user or addr */
         String clientName;
         String user;
+        /* Obtained by getRemoteSocketAddress() */
         String addr;
         /** Derived from clientName, user and addr */
         String name;                
@@ -260,7 +264,7 @@ public class ABBOEServer {
 
         /**
          * Caller needs to first ensure that client is willing to receive such a packet
-         * by calling {@link #shouldSend_deprecated(Client, BusinessObject)} or {@link #receiveEvents()}.
+         * by calling {@link #shouldSend(Client, BusinessObject)} or {@link #receiveEvents()}.
          * @param obj
          */
         private void send(BusinessObject obj) {                       
@@ -315,39 +319,7 @@ public class ABBOEServer {
             
             return subscriptions.pass(bo);
         }
-        
-        /**
-         * Should the object <bo> from client <source> be sent to this client?
-         * @deprecated Use new implementation shouldSend based on new subscription mechanism.
-         */                
-        public boolean shouldSend_deprecated(Client source, BusinessObject bo) {
-
-            boolean result;
-
-            if (receiveMode == ClientReceiveMode.ALL) {
-                result = true;
-            }
-            else if (receiveMode == ClientReceiveMode.NONE) {
-                result = false;
-            }
-            else if (receiveMode == ClientReceiveMode.EVENTS_ONLY) {
-                result = bo.isEvent();
-            }
-            else if (receiveMode == ClientReceiveMode.NO_ECHO) {
-                result = (source != this);
-            }
-            else {
-                log.error("Unknown receive mode: "+receiveMode+"; not sending!");
-                result = false;
-            }
-
-            if (result == true) {
-                result = legacySubscriptions.shouldSend(bo);
-            }
-
-            return result;
-        }
-
+                
        /**
         * Put object to queue of messages to be sent (to this one client) and return immediately.
         * Assume send queue has unlimited capacity.
@@ -405,12 +377,14 @@ public class ABBOEServer {
                 }
             }
 
-
-            // TODO: should send routing/disconnect and proper routing/announcement
+            BusinessObjectMetadata meta = new BusinessObjectMetadata();
+            meta.put("routing-id", primaryRoutingId);
             sendToAllClients(this,
                     BOB.newBuilder()
-                            .payload("Client " + this + " disconnected")
-                            .event(CLIENTS_PART_NOTIFY).build()
+                            .event(ROUTING_DISCONNECT)
+                            .metadata(meta)
+                            .payload("Client " + this + " disconnected").build()
+                            
             );
         }
 
@@ -450,11 +424,13 @@ public class ABBOEServer {
                 }
             }
 
+            BusinessObjectMetadata meta = new BusinessObjectMetadata();
+            meta.put("routing-id", primaryRoutingId);
             sendToAllClients(this,
                     BOB.newBuilder()
-                            .payload("Client " + this + " disconnected")
-                            .event(CLIENTS_PART_NOTIFY)
-                            .build()
+                            .event(ROUTING_DISCONNECT)
+                            .metadata(meta)
+                            .payload("Client " + this + " disconnected").build()
             );
         }
 
@@ -546,7 +522,7 @@ public class ABBOEServer {
                 client.sendMessage("For relaxing times, make it Zombie time");
             }
             // suggest registration, if client has not done so within a second of its registration...
-            new RegisterSuggesterThread(client).start();
+            new SubscriptionCheckerThread(client).start();
             if (contentVaultProxy.getState() == ContentVaultProxy.State.INITIALIZED_SUCCESSFULLY) {
                 try {
                     client.send(contentVaultProxy.sampleImage());
@@ -746,9 +722,9 @@ public class ABBOEServer {
         }
     }
 
-    private class RegisterSuggesterThread extends Thread {
+    private class SubscriptionCheckerThread extends Thread {
         Client client;
-        RegisterSuggesterThread(Client client) {
+        SubscriptionCheckerThread(Client client) {
             this.client = client;
         }
 
@@ -756,12 +732,13 @@ public class ABBOEServer {
             try {
                 Thread.sleep(1000);
                 if (state == ABBOEServer.State.SHUTTING_DOWN) return;
-                if (!client.registered) {
-                    client.sendMessage("Please register by sending a \""+CLIENTS_REGISTER+"\" event");
+                if (!client.subscribed) {
+                    log.warn("Client has not subscribed during the first second: "+client);
+                    client.sendMessage("Please subscribe by sending a \""+ROUTING_SUBSCRIPTION+"\" event");
                 }
             }
             catch (InterruptedException e) {
-                log.error("RegisterSuggesterThread interrupted");
+                log.error("SubscriptionCheckerThread interrupted");
             }
 
         }
@@ -794,25 +771,41 @@ public class ABBOEServer {
     }
 
     private void handleClientsListEvent(Client requestingClient) {
-
-        BusinessObject clientReport;
-
-        synchronized(ABBOEServer.this) {
-            clientReport = BOB.newBuilder()
-                    .payload(StringUtils.colToStr(clientReport(requestingClient), "\n"))
-                    .build();
-            List<String> clientNames = new ArrayList<>();
+        
+        BusinessObject reply;
+        
+        synchronized(ABBOEServer.this) {                        
+            JSONArray clientsJSON = new JSONArray();
             for (Client client: clients) {
-                if (client != requestingClient) {
-                    clientNames.add(client.name);
+                JSONObject clientJSON = new JSONObject();
+                if (client.clientName != null) {
+                    clientJSON.put("client", client.clientName);
                 }
+                if  (client.user != null) { 
+                    clientJSON.put("user", client.user);
+                }
+                clientJSON.put("routing-id", client.primaryRoutingId);
+                clientsJSON.put(clientJSON);
+                log.info("clientsJSON in clients list reply: "+clientsJSON);
             }
-            clientReport.getMetadata().put("you", requestingClient.name);
-            clientReport.getMetadata().setEvent(CLIENTS_LIST_REPLY);
-            clientReport.getMetadata().putStringList("others", clientNames);
+            
+            BusinessObjectMetadata replyMeta = new BusinessObjectMetadata();
+            replyMeta.asJSON().put("clients", clientsJSON);
+            
+            reply = BOB.newBuilder().event(CLIENTS_LIST_REPLY).metadata(replyMeta).build();
+            
+//            List<String> clientNames = new ArrayList<>();
+//            for (Client client: clients) {
+//                if (client != requestingClient) {
+//                    clientNames.add(client.name);
+//                }
+//            }
+//            clientReport.getMetadata().put("you", requestingClient.name);
+//            clientReport.getMetadata().setEvent(CLIENTS_LIST_REPLY);
+//            clientReport.getMetadata().putStringList("others", clientNames);
         }
 
-        requestingClient.send(clientReport);
+        requestingClient.send(reply);
     }
     /**
      * specs before 2014-03-09:
@@ -837,6 +830,8 @@ public class ABBOEServer {
     private void handleRoutingSubscribeEvent(Client client, BusinessObject bo) throws InvalidBusinessObjectMetadataException {
         BusinessObjectMetadata meta = bo.getMetadata();        
         
+        String id = meta.getString("id");
+        
         // role
         String role = meta.getString("role");
         if (role == null) {
@@ -856,17 +851,19 @@ public class ABBOEServer {
         }
         
         // routing id of client (should be given only by servers?)
-        String routingId = meta.getString("routing-id");        
-        if (routingId != null) {
+        String routingIdFromClient = meta.getString("routing-id");        
+        if (routingIdFromClient!= null) {
             client.sendWarning("A client should not specify a routing id");
         }
-        
+        String routingId = Biomine3000Utils.generateId(client.addr);
+        client.primaryRoutingId = routingId;
+                
         // routing ids
-        String routingIds = meta.getString("routing-ids");
+        List<String> routingIds = meta.getList("routing-ids");
         if (routingIds != null) {
-            client.sendWarning("List of additional routing-id:s not supported by java-ABBOE");
+            client.additionalRoutingIds = routingIds; 
         }
-               
+                               
         // echo
         Boolean echo = meta.getBoolean("echo");
         if (echo != null) {            
@@ -886,14 +883,42 @@ public class ABBOEServer {
         if (meta.hasKey("subscriptions")) {
             List<String> subscriptions = meta.getList("subscriptions");
             client.subscriptions = new Subscriptions(subscriptions);        
-            client.sendMessage("You made the following subscriptions:\n"+
-                               client.subscriptions);
+            client.sendMessage("You made the following subscriptions: "+client.subscriptions);
         }
         else {
             client.sendMessage("You have not subscribed to any content or events => nothing will be sent. We are nonetheless believed to be receiving your communications"); 
             client.echo = false; // by default, do not echo
         }
         
+        BusinessObjectMetadata replyMeta = new BusinessObjectMetadata();        
+        if (id != null) {
+            replyMeta.put("in-reply-to", id);    // id of the request (optional)
+        }
+        replyMeta.put("routing-id", routingId);  // the unique routing id of the client                         
+        if (routingIds != null && routingIds.size() > 0)
+        replyMeta.putStringList("routing-ids ", routingIds);  // list of additional id’s the client wants to receive objects for
+        BusinessObject reply =  BOB.newBuilder().metadata(replyMeta).event(BusinessObjectEventType.ROUTING_SUBSCRIBE_REPLY).build();
+        
+        client.subscribed = true;
+                        
+        client.send(reply);
+        
+        BusinessObjectMetadata notificationMeta = new BusinessObjectMetadata();
+        notificationMeta.put("routing-id", client.primaryRoutingId);
+        if (client.additionalRoutingIds.size() > 0) {
+            notificationMeta.putStringList("routing-ids", client.additionalRoutingIds);
+        }
+        if (client.role == ABBOEServer.ClientRole.SERVER) {
+            notificationMeta.put("role", "server");
+        }                
+            
+        sendToAllClients(client,
+                BOB.newBuilder()
+                        .event(ROUTING_SUBSCRIBE_NOTIFICATION)
+                        .metadata(notificationMeta)
+                        .payload("Client " + client + " subscribed")                        
+                        .build()
+        );
     }
     
     private void handleClientRegisterEvent(Client client, BusinessObject bo) throws InvalidBusinessObjectMetadataException {
@@ -936,37 +961,37 @@ public class ABBOEServer {
             msg.append(" No receive mode specified, using the default: "+client.receiveMode);
         }
 
-        LegacySubscriptions subscriptions = null;
-        try {
-            subscriptions = meta.getLegacySubscriptions();
-        }
-        catch (InvalidBusinessObjectMetadataException e) {
-            sendErrorReply(client, "Unrecognized subscriptions in packet: "+e.getMessage());
-        }
+        // LegacySubscriptions subscriptions = null;
+//        try {
+//            subscriptions = meta.getLegacySubscriptions();
+//        }
+//        catch (InvalidBusinessObjectMetadataException e) {
+//            sendErrorReply(client, "Unrecognized subscriptions in packet: "+e.getMessage());
+//        }
 
-        if (subscriptions != null) {            
-            msg.append("Warning: using legacy field subscriptions in client/register event (subscriptions reworked and moved to routing/subscribe event)");
-            msg.append(" Your legacy subscriptions are set to: "+subscriptions+".");
-            log.warn("using legacy field 'subscriptions' in client/register event "+name+"-"+user+": "+subscriptions);
-        }
-        else {
-            msg.append(" You did not specify legacy subscriptions; using the default: "+client.legacySubscriptions);
-        }
+//        if (subscriptions != null) {            
+//            msg.append("Warning: using legacy field subscriptions in client/register event (subscriptions reworked and moved to routing/subscribe event)");
+//            msg.append(" Your legacy subscriptions are set to: "+subscriptions+".");
+//            log.warn("using legacy field 'subscriptions' in client/register event "+name+"-"+user+": "+subscriptions);
+//        }
+//        else {
+//            msg.append(" You did not specify legacy subscriptions; using the default: "+client.legacySubscriptions);
+//        }
 
         BusinessObject replyObj = BOB.newBuilder().payload(msg).event(CLIENTS_REGISTER_REPLY).build();
         client.send(replyObj);
 
         // only set after sending the plain text reply                        
-        if (subscriptions != null) {
-            client.legacySubscriptions = subscriptions;
-        }
-
-        client.registered = true;
-        // TODO: send routing/subscribe/notification
+//        if (subscriptions != null) {
+//            client.legacySubscriptions = subscriptions;
+//        }
+        
+        // TODO: in the current protocol, there is no event to notify this. However, only at this point do we have
+        // human-readable identification info fot the client...
         sendToAllClients(client,
                 BOB.newBuilder()
-                        .payload("Client " + client + " registered")
-                        .event(CLIENTS_REGISTER_NOTIFY)
+                        .nature("message")
+                        .payload("Client " + client + " registered")                        
                         .build()
         );
     }
@@ -986,21 +1011,30 @@ public class ABBOEServer {
                 // does this event need to be sent to other clients?
                 boolean forwardEvent = true;
                 if (et != null) {
-                    log.info("Received {} event: ", bo);
-                    if (et == CLIENT_REGISTER) {
-                        sendErrorReply(client, "Using deprecated name for client registration; the " +
-                                      "present-day jargon defines that event type be \""+
-                                CLIENTS_REGISTER.toString()+"\"");
-                        handleClientRegisterEvent(client, bo);
-                        forwardEvent = false;
-                    }
-                    else if (et == CLIENTS_REGISTER) {
-                        // deprecated version
-                        handleClientRegisterEvent(client, bo);
-                        forwardEvent = false;
-                    }
-                    else if (et == CLIENTS_LIST) {
-                        handleClientsListEvent(client);
+                    log.info("Received {} event: ", bo);                    
+                    if (et == SERVICES_REQUEST) {                                            
+                        String serviceName = bo.getMetadata().getString("name");
+                        
+                        if (serviceName.equals("clients")) {
+                            String request = bo.getMetadata().getString("request");
+                            
+                            if (request.equals("join")) {
+                                handleClientRegisterEvent(client, bo);
+                            }
+                            else if (request.equals("leave")) {
+                                client.sendWarning("Unhandled request: clients/join (request id: "+bo.getMetadata().get("id"));         
+                            }
+                            else if (request.equals("list")) {
+                                handleClientsListEvent(client);
+                            }
+                            else {
+                                client.sendWarning("Unknown request to clients service: " + request + " (request id: "+bo.getMetadata().get("id"));
+                            }
+                        }
+                        else {
+                            client.sendWarning("Forwarding service requests not implemented. (service=" + serviceName+ " ;request id: "+bo.getMetadata().get("id"));        
+                        }
+                        
                         forwardEvent = false;
                     }
                     else if (et == SERVICES_REGISTER) {
@@ -1027,18 +1061,20 @@ public class ABBOEServer {
             }
             else {
                 // not an event, assume mythical "content"
-
-                if (bo.getPayload() != null &&
-                        bo.getMetadata().getType() == BusinessMediaType.PLAINTEXT.withoutParameters().toString()) {
-                    BusinessObject pto = BOB.newBuilder()
-                            .payload(bo.getPayload())
-                            .metadata(bo.getMetadata().clone())
-                            .build();
-                    log.info("Received content: {}", Biomine3000Utils.formatBusinessObject(pto));
-                }
-                else {
-                    log.info("Received content: {}", bo);
-                }
+                log.info("Received content: {}", Biomine3000Utils.formatBusinessObject(bo));
+                
+                
+//                if (bo.getPayload() != null &&
+//                        bo.getMetadata().getType() == BusinessMediaType.PLAINTEXT.withoutParameters().toString()) {
+//                    BusinessObject pto = BOB.newBuilder()
+//                            .payload(bo.getPayload())
+//                            .metadata(bo.getMetadata().clone())
+//                            .build();
+//                    log.info("Received content: {}", Biomine3000Utils.formatBusinessObject(pto));
+//                }
+//                else {
+//                    log.info("Received content: {}", bo);
+//                }
                 // log("Sending the very same content to all clients...");
                 ABBOEServer.this.sendToAllClients(client, bo);
             }

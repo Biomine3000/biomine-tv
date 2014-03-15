@@ -118,6 +118,10 @@ public class SubscriptionRule {
          return ruleStr;
      }
      
+     public String getRuleString() {
+         return ruleStr;
+     }
+     
      private enum Type { 
          EVENT, NATURE, CONTENTTYPE;
      }                  

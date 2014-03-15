@@ -23,13 +23,15 @@ public class ClientParameters {
     public boolean constructDedicatedImplementationsForBusineses;
     public List<String> services;
     public Subscriptions subscriptions;
+    public boolean echo;
     
     public ClientParameters(String name,
                             ClientReceiveMode receiveMode,
                             LegacySubscriptions legacySubscriptions,
                             boolean constructDedicatedImplementationsForBusineses,
-                            Subscriptions subscriptions) {
-        this(name,  null, receiveMode, legacySubscriptions, constructDedicatedImplementationsForBusineses, subscriptions);
+                            Subscriptions subscriptions, 
+                            boolean echo) {
+        this(name,  null, receiveMode, legacySubscriptions, constructDedicatedImplementationsForBusineses, subscriptions, echo);
     }
             
     public ClientParameters(String name,
@@ -37,7 +39,8 @@ public class ClientParameters {
                             ClientReceiveMode receiveMode,
                             LegacySubscriptions legacySubscriptions,
                             boolean constructDedicatedImplementationsForBusineses,
-                            Subscriptions subscriptions) {
+                            Subscriptions subscriptions, 
+                            boolean echo) {
         this.name = name;
         this.client = client;
         this.receiveMode = receiveMode;
@@ -45,6 +48,7 @@ public class ClientParameters {
         this.constructDedicatedImplementationsForBusineses = constructDedicatedImplementationsForBusineses;
         this.services = new ArrayList<String>();
         this.subscriptions = subscriptions;
+        this.echo = echo;
     }
     
     public LegacySubscriptions getLegacySubscriptions() {
@@ -52,9 +56,9 @@ public class ClientParameters {
     }
     
     /** Copy constructor */
-    public ClientParameters(ClientParameters original) {
-         this(original.name, original.client, original.receiveMode, original.legacySubscriptions,
-                 original.constructDedicatedImplementationsForBusineses, original.subscriptions);
+    public ClientParameters(ClientParameters src) {
+         this(src.name, src.client, src.receiveMode, src.legacySubscriptions,
+                 src.constructDedicatedImplementationsForBusineses, src.subscriptions, src.echo);
     }
     
     public void addServices(Biomine3000ServiceName... services) {

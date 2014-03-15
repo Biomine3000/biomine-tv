@@ -9,12 +9,14 @@ import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
+import java.util.Random;
 
 import org.bm3k.abboe.objects.BusinessObject;
 import org.json.JSONArray;
@@ -31,6 +33,7 @@ import util.RandUtils;
 
 public class Biomine3000Utils {
     private static final Logger log = LoggerFactory.getLogger(Biomine3000Utils.class);
+    private static final Random random = new Random();
     
     /** Return null if host name for some reason could not be resolved */
     public static String getHostName()  {
@@ -230,9 +233,52 @@ public class Biomine3000Utils {
     	return null;
     }
     
+    public static String generateId() {
+        return generateId(getHostName());
+    }
+    
+    /*
+     * JWZ Algorithm:
+     * - Append "<".     
+     * - Get the current (wall-clock) time in the highest resolution to which you have access (most systems can give it to you in milliseconds, but seconds will do);
+     * - Generate 64 bits of randomness from a good, well-seeded random number generator;
+     * - Convert these two numbers to base 36 (0-9 and A-Z) and append the first number, a ".", the second number, and an "@". This makes the left hand side of the message ID be only about 21 characters long.
+     * - Append the FQDN of the local host, or the host name in the user's return address.
+     * - Append ">".
+     */
+    public static String generateId(String hostname) {
+                      
+        long millis = System.currentTimeMillis();
+        long rand = random.nextLong();
+        
+        StringBuffer id = new StringBuffer();
+        id.append('<');
+        id.append(Long.toString(millis, 36));
+        id.append('.');
+        id.append(Long.toString(rand, 36));
+        id.append('@');
+        id.append(hostname);
+        id.append('>');
+
+        return id.toString();
+    }
+    
+    
     private static Socket connect(InetSocketAddress addr) throws IOException {
-        Socket socket = new Socket();                  
-        socket.connect(addr, DEFAULT_SERVER_CONNECT_TIMEOUT_MILLIS);        
+        Socket socket = new Socket();
+        log.info("Trying to connect to server at addr " + addr + " (timeout in "+DEFAULT_SERVER_CONNECT_TIMEOUT_MILLIS/1000 + " seconds)");
+        try {
+            socket.connect(addr, DEFAULT_SERVER_CONNECT_TIMEOUT_MILLIS);
+        }
+        catch (SocketTimeoutException e) {
+            log.info("Connecting to server at "+addr + "timed out");
+            throw e;
+        }        
+        catch (IOException e) {
+            log.info("Connecting to server at "+addr + "threw IOException: "+e);
+            throw e;
+        }
+                
         return socket;              
     }
     

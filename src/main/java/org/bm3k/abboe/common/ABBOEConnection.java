@@ -116,7 +116,15 @@ public class ABBOEConnection {
     }       
         
     public void sendClientListRequest() throws IOException {
-        send(BOB.newBuilder().event(BusinessObjectEventType.CLIENTS_LIST).build());
+        String reqId = Biomine3000Utils.generateId();
+        BusinessObjectMetadata meta = new BusinessObjectMetadata();
+        meta.put("id", reqId);
+        meta.put("name", "clients");
+        meta.put("request", "list");
+        send(BOB.newBuilder()
+                .event(BusinessObjectEventType.SERVICES_REQUEST)
+                .metadata(meta)
+                .build());
     }
 
     public synchronized String getName() {
