@@ -54,6 +54,8 @@ public class ABBOEConnection {
     private boolean socketClosed = false;
     private boolean closeOutputRequested = false;
 
+    /** obtained from the server in a routing/subscribe/reply event */
+    private String routingId;
 
     /**
      * Actual initialization of communications done later by calling 
@@ -72,8 +74,8 @@ public class ABBOEConnection {
 
         MyShutdown sh = new MyShutdown();
         Runtime.getRuntime().addShutdownHook(sh);
-    }
-
+    }    
+    
     /**
      * Note that businessobject handler is not yet passed in constructor, as constructing the handler
      * might require a reference to the connection.
@@ -107,7 +109,22 @@ public class ABBOEConnection {
         log.info("Starting reader thread...");
         startReaderThread();
     }                     
-                   
+           
+    /**
+     * Used by client to set routing id assigned by the server to the client (connection) after receiving a routing/subscribe/reply. Actually, such events could be handled 
+     * by the connection (at least if so requested). 
+     * Note that there is (at least presently, 2014-03-16) a dedicated routing id / client connection. That is, if a client is connected
+     * to multiple servers or multiple times to same server, the routing id is presently different for all of the connections...
+     * Naturally this should not be so, if any benefit is to come from having e.g. "heavy" and "light" queue of objects by using concurrent connections...
+     */
+    public void setRoutingId(String routingId) {
+        this.routingId = routingId;
+    }
+    
+    public String getRoutingId() {
+        return routingId;
+    }
+    
     /** Put object to queue of objects to be sent*/
     public void send(BusinessObject object) throws IOException {
         if (clientParameters.getClient() != null) {

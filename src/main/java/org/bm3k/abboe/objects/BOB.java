@@ -102,27 +102,34 @@ public class BOB {
         return this;
     }
 
-    public BOB payload(byte[] payload) {
-        this.payload = payload;
-        return this;
-    }
-
     public BOB metadata(BusinessObjectMetadata metadata) {
         this.metadata = metadata;
         return this;
     }
+    
+    public BOB payload(byte[] payload) {
+        this.payload = payload;
+        return this;
+    }   
 
     public BOB payload(CharSequence payload) {
-        return payload(payload.toString());
+        if (payload != null) {
+            payload(payload.toString());
+        }
+        
+        return this;        
     }
     
     public BOB payload(String payload) {
-        try {
-            this.payload = payload.getBytes("UTF-8");
-            this.type(BusinessMediaType.PLAINTEXT);
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException("Unexpected encoding exception", e);
+        if (payload != null) {
+            try {
+                this.payload = payload.getBytes("UTF-8");
+                this.type(BusinessMediaType.PLAINTEXT);
+            } catch (UnsupportedEncodingException e) {
+                throw new RuntimeException("Unexpected encoding exception", e);
+            }
         }
+        
         return this;
     }
 }

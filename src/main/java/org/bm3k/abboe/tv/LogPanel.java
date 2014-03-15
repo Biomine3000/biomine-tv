@@ -14,16 +14,16 @@ import javax.swing.SwingUtilities;
 
 
 @SuppressWarnings("serial")
-public class LogPanel extends JPanel {    
+public class LogPanel extends JPanel {
+    @SuppressWarnings("unused")
     private final Logger log = LoggerFactory.getLogger(LogPanel.class);
 
     JTextArea textArea;
     JScrollPane scrollPane;
         
-    /** Should only be called from the event dispatch thread */
+    /** Append text to the panel. If not the swing event dispatch thread, use invokelater to to the appending in said thread. */ 
     public void appendText(String text) {
-        if (!SwingUtilities.isEventDispatchThread()) {
-            log.warn("appendText called from outside event dispatch thread");
+        if (!SwingUtilities.isEventDispatchThread()) {            
             SwingUtilities.invokeLater(new Appender(text));            
         }
         else {

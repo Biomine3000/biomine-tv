@@ -46,6 +46,8 @@ import util.net.NonBlockingSender;
 public class ABBOEServer {
     private final Logger log = LoggerFactory.getLogger(ABBOEServer.class);
 
+    private static final String NODE_NAME = "java-A.B.B.O.E";
+    
     public static final DateFormat DEFAULT_DATE_FORMAT = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM);
 
     private ServerSocket serverSocket;
@@ -59,9 +61,8 @@ public class ABBOEServer {
 
     /** Shortcuts for clients, to be used for interactive server management only */
     private Map<Integer, Client> clientShortcuts;
-
-    private State state;
-
+    
+    private State state;    
 
     /** Generates a map (small int) => (client) for later reference. */
     private synchronized Map<Integer, Client> clientShortcuts() {
@@ -255,42 +256,43 @@ public class ABBOEServer {
          * by calling {@link #shouldSend(Client, BusinessObject)} or {@link #receiveEvents()}.
          * @param obj
          */
-        private void send(BusinessObject obj) {                       
-            if (obj.hasNature("error")) {
-                log.error("Sending: "+obj);
+        private void send(BusinessObject bo) {
+            bo.getMetadata().put("sender", NODE_NAME);
+            if (bo.hasNature("error")) {
+                log.error("Sending: "+bo);
             }
-            else if (obj.hasNature("warning")) {
-                log.warn("Sending: "+obj);
+            else if (bo.hasNature("warning")) {
+                log.warn("Sending: "+bo);
             }
             else {
-                log.info("Sending: "+obj);
+                log.info("Sending: "+bo);
             }
-            send(obj.toBytes());
+            send(bo.toBytes());
         }
 
         /**
-         * Send a message to client (nature=message, contenttype=plaintext, sender=java-A.B.B.O.E.) 
+         * Send a warning message to client (natures=[warning,message], contenttype=plaintext, sender=java-A.B.B.O.E.) 
          * Sending is not conditional on subscriptions (they should be checked by this point if needed).
          **/
         private void sendWarning(String text) {                       
-            BusinessObjectMetadata meta = new BusinessObjectMetadata();
-            meta.put("sender", "java-A.B.B.O.E.");
-            meta.setNatures("message", "warning");
             log("Sending warning to client " + this + ": " + text);
-            BusinessObject reply = BOB.newBuilder().metadata(meta).payload(text).build();
+            BusinessObject reply = BOB.newBuilder()
+                    .natures("message", "warning")
+                    .attribute("sender", NODE_NAME)
+                    .payload(text).build();
             send(reply);
         }
         
         /**
-         * Send a warning to client (nature=message, contenttype=plaintext, sender=java-A.B.B.O.E.) 
+         * Send a message to client (nature=message, contenttype=plaintext, sender=java-A.B.B.O.E.) 
          * Sending is not conditional on subscriptions (they should be checked by this point if needed).
          **/
-        private void sendMessage(String text) {                       
-            BusinessObjectMetadata meta = new BusinessObjectMetadata();
-            meta.put("sender", "java-A.B.B.O.E.");
-            meta.setNatures("message");
+        private void sendMessage(String text) {                                                           
             log("Sending message to client " + this + ": " + text);
-            BusinessObject reply = BOB.newBuilder().metadata(meta).payload(text).build();
+            BusinessObject reply = BOB.newBuilder()
+                    .natures("message")
+                    .attribute("sender", NODE_NAME)
+                    .payload(text).build();
             send(reply);
         }                
 
@@ -314,7 +316,7 @@ public class ABBOEServer {
         */
         private void send(byte[] packet) {
             if (senderFinished) {
-                log.warn("No more sending business");
+                log.warn("No more sending business for client "+this);
                 return;
             }
 
@@ -730,13 +732,18 @@ public class ABBOEServer {
         }
     }
 
+    /** Handle a services/register event */
     private void handleServicesRegisterEvent(Client client, BusinessObject bo) {
         BusinessObjectMetadata meta = bo.getMetadata();
         List<String> names = meta.getList("names");
-        String name = meta.getString("name");
+        String name = meta.getString("name");        
+                
+        List<String> warnings = new ArrayList<String>();
+        List<String> errors = new ArrayList<String>();
         if (name != null && names != null) {
             // client has decided to generously provide both name and names; 
-            // let's as generously handle this admittably deranged request
+            // let's as generously handle this admittably deranged request            
+            warnings.add("It is rather pompous to provide both name and names; we have, however, decided to generously process your request including both");
             names = new ArrayList<String>(names);
             names.add(name);
         }
@@ -744,16 +751,36 @@ public class ABBOEServer {
             names = Collections.singletonList(name);
         }
         else if (name == null && names != null) {
-            // no action
+            // no action needed (names remains names)
         }
         else {
             // both null
-            sendErrorReply(client, "No name nor names in services/register event");
-            return;
+            errors.add("No name nor names in services/register event");            
         }
 
-        // names now contains the services to register
-        client.registerServices(names);
+        BusinessObjectMetadata replyMeta = new BusinessObjectMetadata();
+        replyMeta.put("in-reply-to", bo.getMetadata().getString("id"));
+        String message = null;
+        if (errors.size() > 0) { 
+            replyMeta.setNatures("message", "error");
+            message = StringUtils.collectionToString(errors, ",");
+        }
+        else if (warnings.size() > 0) { 
+            replyMeta.setNatures("message", "warning");
+            message = StringUtils.collectionToString(warnings, ",");
+        }        
+        
+        BusinessObject reply = BOB.newBuilder()
+                .event(SERVICES_REGISTER_REPLY)
+                .metadata(replyMeta)
+                .payload(message) // may be null, in which case no payload
+                .build();
+        
+        client.send(reply);        
+               
+        if (names != null) {
+            client.registerServices(names);
+        }
     }
 
     private void handleClientsListEvent(Client requestingClient, BusinessObject bo ) {
@@ -900,16 +927,18 @@ public class ABBOEServer {
         if (Biomine3000Utils.isBMZTime()) {
             client.sendMessage("For relaxing times, make it Zombie time");
         }
-        
-        // TODO: send random image, IFF client has subscribed to images.                         
-//            if (contentVaultProxy.getState() == ContentVaultProxy.State.INITIALIZED_SUCCESSFULLY) {
-//                try {
-//                    client.send(contentVaultProxy.sampleImage());
-//                }
-//                catch (InvalidStateException e) {
-//                    log.error("Invalid state while getting content from vault", e);
-//                }
-//            }                          
+                               
+        if (contentVaultProxy.getState() == ContentVaultProxy.State.INITIALIZED_SUCCESSFULLY) {
+            try {
+                BusinessObject image = contentVaultProxy.sampleImage();
+                if (client.shouldSend(image)) {
+                    client.send(image);
+                }
+            }
+            catch (InvalidStateException e) {
+                log.error("Invalid state while getting content from vault", e);
+            }
+        }                                     
         
         // notify other clients
         BusinessObjectMetadata notificationMeta = new BusinessObjectMetadata();
@@ -951,7 +980,7 @@ public class ABBOEServer {
             replyMeta.put("in-reply-to", requestId);
         }
         replyMeta.put("to", client.routingId);
-        replyMeta.put("name", "client");
+        replyMeta.put("name", "clients");
         replyMeta.put("request", "join");        
         BusinessObject replyObj = BOB.newBuilder().event(SERVICES_REPLY).metadata(replyMeta).payload(msg).build();        
         client.send(replyObj);
@@ -961,7 +990,8 @@ public class ABBOEServer {
         sendToAllClients(client,
                 BOB.newBuilder()
                         .nature("message")
-                        .payload("Client " + client + " registered")                        
+                        .attribute("sender", NODE_NAME)
+                        .payload("Client " + client + " registered using clients/join service provided by java-ABBOE (no event nor nature has been specified for such an occurence)")                        
                         .build()
         );
     }
@@ -1092,14 +1122,7 @@ public class ABBOEServer {
             log.error("Connection reset by client: {}", this.client);
             client.doReceiverFinished();
         }
-    }
-
-    private void sendErrorReply(Client client, String error) {
-        BusinessObject reply =
-                BOB.newBuilder().payload(error).event(ERROR).build();
-        log.info("Sending error reply to client {}: {}", client, error);
-        client.send(reply);
-    }
+    }   
 
     private void startSystemInReadLoop() {
         SystemInReader systemInReader = new SystemInReader();

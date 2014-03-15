@@ -139,10 +139,7 @@ public class IRCLogManager  {
                 else if (et == BusinessObjectEventType.ROUTING_DISCONNECT) {
                     String name = bo.getMetadata().getString("routing-id");
                     System.out.println("Client "+name+" parted from ABBOE");
-                }
-                else if (et == BusinessObjectEventType.ERROR) {                   
-                    System.out.println("ERROR: "+Biomine3000Utils.formatBusinessObject(bo));
-                }
+                }                
                 else {
                     String formatted = Biomine3000Utils.formatBusinessObject(bo);
                     System.out.println(formatted);

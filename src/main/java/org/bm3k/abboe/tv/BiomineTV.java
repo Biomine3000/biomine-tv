@@ -48,7 +48,6 @@ public class BiomineTV extends JFrame {
 	private JLabel zombiLabel;
 	private LogPanel logPanel;
 	private JTextArea logArea;
-//	private JButton testButton;
 	private JPanel contentPanels;
 	/** Only non-null when no connections */
 	private JLabel notConnectedLabel;
@@ -159,11 +158,7 @@ public class BiomineTV extends JFrame {
 	        public void focusLost(FocusEvent e) {
 				log.info("focusLost");
 	        }
-	    });
-	    
-	    // EI TOIMI:
-//	    logArea.setFocusable(false);
-//	    logPanel.setFocusable(false);
+	    });	    
 	    
 	    tryToListenKeys(Arrays.asList(getContentPane()));	    
 	    
@@ -374,35 +369,105 @@ public class BiomineTV extends JFrame {
                     message("ROUTING_SUBSCRIPTION (our own one echoed back?):  "+bo);
                 }
                 else if (et == BusinessObjectEventType.ROUTING_SUBSCRIBE_REPLY) {
+                    String routingId = bo.getMetadata().getString("routing-id");
+                    connection.setRoutingId(routingId);
                     message("Subscribed successfully to the server: "+bo);
+                    message("Routing id of TV using connection " + connection + " is now: " + routingId);
+                    
                 }                
                 else if (et == BusinessObjectEventType.ROUTING_SUBSCRIBE_NOTIFICATION) {
-                	message("Client subscribed to server: "+bo);
+                    if (bo.getMetadata().get("routing-id").equals(connection.getRoutingId())) {
+                        message("Ignoring notification about our own routing/subscribe");
+                    }
+                    else {
+                        message("Client subscribed to server: "+bo);
+                    }
                 }
                 else if (et == BusinessObjectEventType.ROUTING_DISCONNECT) {
                     message("Client disconnected from server: "+bo);
                 }
                 else if (et == BusinessObjectEventType.SERVICES_REQUEST) {
-                	String name = bo.getMetadata().getString("name");
+                	String serviceName = bo.getMetadata().getString("name");
                 	String request = bo.getMetadata().getString("request");
-                	message("HOST " +bo.getMetadata().get("host")+" REQUESTED "+ request + " FROM SERVICE " +name);
+                	String client = bo.getMetadata().getString("client");
+                	String clientName;
+                	if (client != null) {
+                	    clientName = "Client "+client;
+                	}
+                	else {
+                	    clientName = "Unknown client";
+                	}
+                	List<String> route = bo.getMetadata().getList("route");
+                	if (route != null) {
+                	    String sourceRoutingId = route.get(0);
+                	    clientName += " with routing id \"" + sourceRoutingId;
+                	}
+                	else {
+                	    clientName += " with unknown routing id";
+                	}
+                	message(clientName + " requested \""+ request + "\" from service \"" +serviceName+"\": "+bo);
                 }
-                else if (et == BusinessObjectEventType.SERVICES_REPLY) {
+                else if (et == BusinessObjectEventType.SERVICES_REGISTER) {
                     String serviceName = bo.getMetadata().getString("name");
-                    String request = bo.getMetadata().getString("request");
-                    
-                    if (serviceName != null && request != null && serviceName.equals("clients") && request.equals("list")) { 
-                        // clients list reply
-                        JSONArray clients = bo.getMetadata().asJSON().getJSONArray("clients");
-                        message("Clients on this server:\n"+clients.toString(4));
+                    List<String> route = bo.getMetadata().getList("route");
+                    if (route != null) {
+                        String sourceRoutingId = route.get(0);
+                        message("Node with routing id " + sourceRoutingId +" registered service \"" + serviceName + "\": "+bo);
                     }
                     else {
-                        message("SERVICE_REPLY: "+Biomine3000Utils.formatBusinessObject(bo));
+                        message("Some unidentified node registered service \"" + serviceName + "\" (no route attribute): "+bo);
+                    }
+                }
+                else if (et == BusinessObjectEventType.SERVICES_REGISTER_REPLY) {                    
+                    if (bo.hasNature("error")) {
+                        message("Registered services offered by the TV™: "+bo);
+                    }
+                    else {
+                        message("Failed registering services offered by the TV: "+bo);
+                    }
+                }
+                
+                else if (et == BusinessObjectEventType.SERVICES_REPLY) {
+                    boolean recognizedReply = false;
+                    
+                    String serviceName = bo.getMetadata().getString("name");
+                                                                    
+                    if (serviceName != null) {
+                        String request = bo.getMetadata().getString("request");
+                        if (request != null) {
+                            if (request.equals("list")) {
+                                recognizedReply = true;
+				                JSONArray clients = bo.getMetadata().asJSON().getJSONArray("clients");
+				                message("Clients on this server:\n"+clients.toString(4));
+                            }
+                            else if (request.equals("join")) {
+                                recognizedReply = true;
+								if (bo.hasNature("error"))  {
+								    message("Failed registering to clients registry: "+bo);
+								}
+								else {
+								    message("Registered to clients registry: "+bo);
+								}							
+                            }
+                            else if (request.equals("leave")) {
+                                if (bo.hasNature("error"))  {
+                                    message("Failed registering our departure to clients registry: "+bo);
+                                }
+                                else { 
+                                    message("Our departure was duly noted by clients registry: "+bo);
+                                }
+                                recognizedReply = true;
+                            }
+                        }                            
+                    }
+                                            
+                    if (!recognizedReply) {
+                        message("UNRECOGNIZED services/reply: "+Biomine3000Utils.formatBusinessObject(bo));
                     }
                 }                
                 else {
                     // unknown event
-                    message("UNKNOWN_EVENT: "+Biomine3000Utils.formatBusinessObject(bo));
+                    message("UNRECOGNIZED event: "+Biomine3000Utils.formatBusinessObject(bo));
                 }
             } else {                       
             	// show media
@@ -430,12 +495,12 @@ public class BiomineTV extends JFrame {
                 } else if (type.is(MediaType.ANY_TEXT_TYPE)) {                	
                 	Set<String> natures = bo.getMetadata().getNatures();
                     if (natures.contains("message")) {
-                    	// show as message
-                    	message(BusinessObjectFormatter.format(bo));
+                    	// show business object as is (no interpretation by TV)
+                    	message(bo);
                     }
                     else if (natures.contains("url")) {
-                    	// show as message
-                        message(BusinessObjectFormatter.format(bo));
+                     // show business object as is (no interpretation by TV)
+                        message(bo);
                     }
                     else {                 	
                     	message("NO MESSAGE OR URL NATURE: "+Biomine3000Utils.formatBusinessObject(bo)+"\n");
@@ -492,9 +557,18 @@ public class BiomineTV extends JFrame {
 			// no action
 		}					
 	}    
-        
-    private void message(String msg) {
+            
+    /* show business object showable as such, with no interpretation done by tv */
+    private void message(BusinessObject bo) {        
+        String msg = BusinessObjectFormatter.format(bo);
         logPanel.appendText(msg);
         log.info(msg);
+    }
+    
+    private void message(String msg) {
+        String ircTime = BusinessObjectFormatter.formatIRCTime();        
+        String formattedMsg = ircTime + " <TV> " +msg; 
+        logPanel.appendText(formattedMsg);
+        log.info(formattedMsg);
     }    
 }

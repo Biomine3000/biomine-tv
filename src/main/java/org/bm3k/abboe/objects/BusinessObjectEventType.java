@@ -14,6 +14,7 @@ public enum BusinessObjectEventType {
     SERVICES_REQUEST("services/request"),
     SERVICES_REPLY("services/reply"),
     SERVICES_REGISTER("services/register"),
+    SERVICES_REGISTER_REPLY("services/register/reply"), // todo: is this really needed...
     SERVICES_UNREGISTER("services/unregister"),
     SERVICES_LIST("services/list"),
     SERVICES_STATE_CHANGED("services/state-change"),
