@@ -15,10 +15,17 @@ public class TvLogLayout extends LayoutBase<ILoggingEvent> {
 
     @Override
     public String doLayout(ILoggingEvent event) {
+        // %d{HH:mm:ss.SSS} [%thread] %-5level %logger{5} - %msg%n
         StringBuilder buf = new StringBuilder(128);
 
-        // %d{HH:mm:ss.SSS} [%thread] %-5level %logger{5} - %msg%n
-        buf.append(gen.generate());
+        // BMZGenerator produces timestamps of varying length, let's level them to the longest one
+        String timestamp = gen.generate();
+        buf.append(timestamp);
+        int length = timestamp.length();
+        while (length > 24) {
+            buf.append(" ");
+        }
+
         buf.append(" ");
         buf.append(String.format("%-6s", event.getLevel()));
         if((event.getLevel() == Level.ERROR || event.getLevel() == Level.WARN)

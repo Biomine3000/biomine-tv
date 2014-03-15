@@ -23,18 +23,12 @@ public enum BusinessObjectEventType {
     ROUTING_DISCONNECT("routing/disconnect"),
     /** set a (client-specific) property at the server*/
     SET_PROPERTY("set-property"),
-    
-    
-    // TODO: should these client database services offered by ABBOE be handled as any other service? 
-    // that is, they should only appear as "name" in services/request events?
-    /** "deprecated" */
-    // CLIENT_REGISTER("client/register"),
-    // CLIENTS_REGISTER("clients/register"),
-    // CLIENTS_REGISTER_NOTIFY("clients/register/notify"),
-    // CLIENTS_PART_NOTIFY("clients/part/notify"),
+    /** "deprecated */
     CLIENTS_REGISTER_REPLY("clients/register/reply"),
-    // CLIENTS_LIST("clients/list"),    
+    /** "deprecated */
     CLIENTS_LIST_REPLY("clients/list/reply"),    
+    PING("ping"),
+    PONG("pong"),
     DUMMY("haba3000"); // for testing purposes
     
     private static Map<String, BusinessObjectEventType> typeByName;
