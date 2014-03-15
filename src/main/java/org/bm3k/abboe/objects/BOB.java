@@ -5,7 +5,9 @@ import org.bm3k.abboe.common.BusinessMediaType;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * BOB is the builder class for BusinessObjectImpl.  Short for BusinessObjectBuilder since they are
@@ -17,6 +19,7 @@ public class BOB {
     byte[] payload;
     BusinessObjectMetadata metadata;
     List<String> natures;
+    Map<String,String> attributes;
 
     private BOB() {
     }
@@ -36,6 +39,13 @@ public class BOB {
 
         if (natures != null) {
             metadata.setNatures(natures);
+        }
+        
+        if (attributes != null) {
+            for (String attribute: attributes.keySet()) {
+                String val = attributes.get(attribute);
+                metadata.put(attribute, val);
+            }
         }
         
         if (payload != null && metadata.getType() == null) {
@@ -78,6 +88,15 @@ public class BOB {
         return this;
     }
 
+    public BOB attribute(String attribute, String value) {
+        if (attributes == null) {
+            attributes = new LinkedHashMap<>();
+        }
+        attributes.put(attribute, value);
+        
+        return this;
+    }
+    
     public BOB type(MediaType type) {
         this.type = type;
         return this;
