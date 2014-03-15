@@ -5,6 +5,7 @@ import java.util.Map;
 
 /**
  * Tells the server how the client wants to receive content.
+ * @deprecated
  */
 public enum ClientReceiveMode {
     /** All objects */
