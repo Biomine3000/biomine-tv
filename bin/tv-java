@@ -11,7 +11,7 @@ function leronen_classpath() {
     echo "$TV_CLASSES_CLASSPATH:$TV_LIBS_CLASSPATH:$LERONEN_JAVA_CLASSPATH:$GRADLE_JARS_CLASSPATH"
 }
 
-if [ "$USER" == "leronen" ]; then
+if [ -e $LERONEN_JAVA_ROOT/classes ]; then
     # needless to say, leronen cannot use generic CLASSPATH
     TV_CLASSPATH=$(leronen_classpath)
 else
