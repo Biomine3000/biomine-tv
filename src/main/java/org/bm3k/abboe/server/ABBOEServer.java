@@ -52,6 +52,7 @@ public class ABBOEServer {
 
     private ServerSocket serverSocket;
     private int serverPort;
+    private String serverRoutingId;
 
     /** For sending welcome images */
     private ContentVaultProxy contentVaultProxy;
@@ -78,6 +79,7 @@ public class ABBOEServer {
     public ABBOEServer(int port) throws IOException {
         state = State.NOT_RUNNING;
         this.serverPort = port;
+        this.serverRoutingId = Biomine3000Utils.generateId();
         serverSocket = new ServerSocket(serverPort);
         clients = new ArrayList<Client>();
         log.info("Listening.");
@@ -811,39 +813,12 @@ public class ABBOEServer {
             replyMeta.asJSON().put("name", "clients");
             replyMeta.asJSON().put("request", "list");
             reply = BOB.newBuilder().event(SERVICES_REPLY).metadata(replyMeta).build();
-            
-//            List<String> clientNames = new ArrayList<>();
-//            for (Client client: clients) {
-//                if (client != requestingClient) {
-//                    clientNames.add(client.name);
-//                }
-//            }
-//            clientReport.getMetadata().put("you", requestingClient.name);
-//            clientReport.getMetadata().setEvent(CLIENTS_LIST_REPLY);
-//            clientReport.getMetadata().putStringList("others", clientNames);
         }
 
         requestingClient.send(reply);
     }
-    /**
-     * specs before 2014-03-09:
-     * id optional. If included, the reply can be linked to this object via in-reply-to field.
-     *
-     * receive-mode: one of
-     *     none: nothing will be sent to the client by server
-     *     all: everything will be sent
-     *     no_echo: everything but objects sent by client itself
-     *     events_only:  events only (recall that events may include no or arbitrary CONTENT)
-     * types an array of content types the client is willing to receive, or:
-     *    "all" receive everything (default); this is not an array, but a string literal
-     *    "none" receive nothing; this is not an array, but string literal   
-     *     
-     * routing-id the unique routing id for the client. This is optional and should not be used.
-     * role this is is mandatory for servers, optional for clients.
-     *    server for servers
-     *    there are no other uses for this field 
-     */
     
+    /** handle a routing/subscribe event */
     private void handleRoutingSubscribeEvent(Client client, BusinessObject subscribeEvent) throws InvalidBusinessObjectMetadataException {
         BusinessObjectMetadata subscribeMeta = subscribeEvent.getMetadata();        
         ArrayList<String> errors = new ArrayList<>();
@@ -899,10 +874,9 @@ public class ABBOEServer {
             client.subscriptions = new Subscriptions(subscriptions);        
         }
         else {
-            // no subscriptions (perhaps this is valid)
+            // no subscriptions (perhaps, just perhaps this is valid)
         }
 
-        // TODO: implement this common idiom for all request-response communication
         BusinessObjectMetadata responseMetadata = new BusinessObjectMetadata();
         String subscribeEventId = subscribeMeta.getString("id");
         if (subscribeEventId != null ) {
@@ -917,8 +891,7 @@ public class ABBOEServer {
                 .metadata(responseMetadata)
                 .build();
         client.send(response);
-        
-        
+                
         // send additional informative messages to client (non-events)
         String abboeUser = Biomine3000Utils.getUser();
         client.sendMessage("Welcome to this fully operational java-A.B.B.O.E., run by " + abboeUser);
@@ -940,13 +913,25 @@ public class ABBOEServer {
             }
         }                                     
         
+        // "register back", if server and if this is not already a back-registration by the other server
+        if (client.role == ClientRole.SERVER  && !subscribeEvent.getMetadata().hasKey("in-reply-to")) {            
+            BusinessObject returnSubscribeEvent = BOB.newBuilder()
+                    .event(BusinessObjectEventType.ROUTING_SUBSCRIPTION)
+                    .attribute("id", Biomine3000Utils.generateId())
+                    .attribute("in-reply-to", subscribeEvent.getMetadata().getString("id"))
+                    .attribute("routing-id", serverRoutingId)
+                    .build();
+            
+            client.send(returnSubscribeEvent);
+        }
+        
         // notify other clients
         BusinessObjectMetadata notificationMeta = new BusinessObjectMetadata();
         notificationMeta.put("routing-id", client.routingId);
 
-        if (client.role == ABBOEServer.ClientRole.SERVER) {
+        if (client.role == ABBOEServer.ClientRole.SERVER) {                               
             notificationMeta.put("role", "server");
-        }                
+        }                               
             
         sendToAllClients(client,
                 BOB.newBuilder()
@@ -1130,8 +1115,7 @@ public class ABBOEServer {
     }
 
     public static void main(String[] pArgs) throws Exception {
-    	
-    	
+    	    	
         Logger log = LoggerFactory.getLogger(ABBOEServer.class);
         log.debug("ABBOE!");
 
