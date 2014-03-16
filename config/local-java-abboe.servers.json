@@ -1,0 +1,8 @@
+[
+    {
+	"name" : "leronen-abboe (local)",
+	"host" : "leronen-bubuntu",
+	"port" : 61910,
+	"impl": "java"
+    }
+]
