@@ -59,7 +59,6 @@ function abboe-select-servers() {
     abboe-list-server-files > $SERVERLIST_FILES_FILE      
 
     cat $SERVERLIST_FILES_FILE \
-      | tee serverlist_files.tmp \
       | xargs whiptail \
         --title "ABBOE server selection" \
 	--menu "Choose your servers" $LINES $COLUMNS $(( $LINES - 8 )) \
