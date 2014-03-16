@@ -36,7 +36,8 @@ function resolve_config_dir() {
 function abboe-list-server-files() {
     resolve_config_dir || exit 1
 
-    DEFAULT_SERVERLIST_FILES_FILE="$BIOMINE_TV_CONFIG/servers_files.txt"
+    local SERVERLIST_FILES_FILE
+    local DEFAULT_SERVERLIST_FILES_FILE="$BIOMINE_TV_CONFIG/servers_files.txt"
     if [ -e $DEFAULT_SERVERLIST_FILES_FILE ]; then
 	SERVERLIST_FILES_FILE="$DEFAULT_SERVERLIST_FILES_FILE"
     else
@@ -52,12 +53,13 @@ function abboe-list-server-files() {
 function abboe-select-servers() {
     resolve_config_dir || exit 1
 
-    SELFILE=$(mktemp /tmp/select-servers.selection.XXXXXX)
+    local SELFILE=$(mktemp /tmp/select-servers.selection.XXXXXX)
     eval `resize`;
-    SERVERLIST_FILES_FILE=$(mktemp /tmp/select-servers.serverlist.XXXXXX)
+    local SERVERLIST_FILES_FILE=$(mktemp /tmp/select-servers.serverlist.XXXXXX)
     abboe-list-server-files > $SERVERLIST_FILES_FILE      
 
     cat $SERVERLIST_FILES_FILE \
+      | tee serverlist_files.tmp \
       | xargs whiptail \
         --title "ABBOE server selection" \
 	--menu "Choose your servers" $LINES $COLUMNS $(( $LINES - 8 )) \
@@ -68,8 +70,8 @@ function abboe-select-servers() {
 	return 0
     fi
 
-    SELIND=$(cat $SELFILE)
-    SERVERFILE=$(abboe-list-server-files | awk -v SELIND=$SELIND '$1 == SELIND {print $2}')
+    local SELIND=$(cat $SELFILE)
+    local SERVERFILE=$(abboe-list-server-files | awk -v SELIND=$SELIND '$1 == SELIND {print $2}')
     echo "Selecting servers file: $BIOMINE_TV_CONFIG/$SERVERFILE"
 
     if [ -e "$SERVERFILE" ]; then
