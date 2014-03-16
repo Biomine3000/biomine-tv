@@ -55,7 +55,7 @@ function abboe-select-servers() {
     SELFILE=$(mktemp /tmp/select-servers.selection.XXXXXX)
     eval `resize`;
     SERVERLIST_FILES_FILE=$(mktemp /tmp/select-servers.serverlist.XXXXXX)
-    abboe-list-server-files | tee serverfile.tmp > $SERVERLIST_FILES_FILE      
+    abboe-list-server-files > $SERVERLIST_FILES_FILE      
 
     cat $SERVERLIST_FILES_FILE \
       | xargs whiptail \
