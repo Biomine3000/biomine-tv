@@ -88,7 +88,7 @@ public class BusinessObjectMetadata {
     }
     
     public void setSubscriptions(Subscriptions subscriptions) {
-        this.putStringList("subscriptions", subscriptions.toStringList());
+        this.putStringArray("subscriptions", subscriptions.toStringList());
     }
     
     /** 
@@ -134,11 +134,11 @@ public class BusinessObjectMetadata {
     }
         
     public void setNatures(String... natures) {
-        putStringList("natures", Arrays.asList(natures));        
+        putStringArray("natures", Arrays.asList(natures));        
     }
     
     public void setNatures(List<String> natures) {        
-        putStringList("natures", natures);
+        putStringArray("natures", natures);
     }
     
     public void addNatures(String... natures) {
@@ -258,7 +258,17 @@ public class BusinessObjectMetadata {
         
     }
     
-    public void putStringList(String key, List<String> values) {
+    public void putStringArray(String key, List<String> values) {
+        JSONArray arr = new JSONArray();
+        for (String s: values) {
+            arr.put(s);
+        }
+        
+        json.put(key, arr);        
+        
+    }
+    
+    public void putStringArray(String key, String... values) {
         JSONArray arr = new JSONArray();
         for (String s: values) {
             arr.put(s);
@@ -356,7 +366,7 @@ public class BusinessObjectMetadata {
         
     }
             
-    public void setBoolean(String key, boolean value) {
+    public void put(String key, boolean value) {
         try {
             json.put(key, value);
         }
@@ -423,6 +433,10 @@ public class BusinessObjectMetadata {
         }
     }
     
+    /** 
+     * Note that the clone will not have a reference to the businessobject, as supposedly
+     * it is to be assigned to a different businessobject instance 
+     */
     public BusinessObjectMetadata clone() {
         JSONObject jsonClone = JSONUtils.clone(this.json);
         BusinessObjectMetadata clone = new BusinessObjectMetadata(jsonClone);

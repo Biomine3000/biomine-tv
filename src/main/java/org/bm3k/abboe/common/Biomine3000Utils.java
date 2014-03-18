@@ -214,15 +214,16 @@ public class Biomine3000Utils {
     }
         
     /**
-     * Read host info from the ABBOE_SERVERS_FILE and use that to tell what port is used on which host.
-     * If no such file, or server on no such host, or multiple servers defined for host, return null.
+     * Read host info from $ABBOE_SERVERS_FILE and use that to tell what port is used on which host.
+     * If no such file, or server on no such host, return null.
+     * For multiple matches, return the first one.
      */
     public static Integer conjurePortByHostName() throws IOException {
     	String host = getHostName();
     	if (host == null) {
     		return null;
     	}
-    	log.info("Conjuring port by host name @: "+host);    	
+    	log.info("Conjuring port by host name @"+host);    	
     	List<ServerAddress> servers =  Biomine3000Utils.readServersFromConfigFile();
     	for (ServerAddress server: servers) {
     		if  (server.getHost().startsWith(host)) {

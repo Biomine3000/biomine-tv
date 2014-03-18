@@ -5,6 +5,7 @@ import org.bm3k.abboe.common.BusinessMediaType;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,7 @@ public class BOB {
     BusinessObjectMetadata metadata;
     List<String> natures;
     Map<String,String> attributes;
+    List<String> route;
 
     private BOB() {
     }
@@ -46,6 +48,10 @@ public class BOB {
                 String val = attributes.get(attribute);
                 metadata.put(attribute, val);
             }
+        }
+        
+        if (route != null) {
+            metadata.putStringArray("route", route);
         }
         
         if (payload != null && metadata.getType() == null) {
@@ -93,6 +99,12 @@ public class BOB {
             attributes = new LinkedHashMap<>();
         }
         attributes.put(attribute, value);
+        
+        return this;
+    }
+    
+    public BOB route(String... routingIds) {        
+        route = Arrays.asList(routingIds);
         
         return this;
     }

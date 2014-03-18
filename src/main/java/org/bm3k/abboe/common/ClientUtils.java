@@ -51,7 +51,7 @@ public class ClientUtils {
     public static BusinessObject makeSubscriptionEvent(ClientParameters params) {
         BusinessObjectMetadata metadata = new BusinessObjectMetadata();        
         metadata.setSubscriptions(params.getySubscriptions());
-        metadata.setBoolean("echo", params.getEcho());
+        metadata.put("echo", params.getEcho());
         String requestId = Biomine3000Utils.generateId(Biomine3000Utils.getHostName());
         metadata.put("id", requestId);
 

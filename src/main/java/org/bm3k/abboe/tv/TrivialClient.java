@@ -89,7 +89,7 @@ public class TrivialClient {
                     natures.add("hyperlink");
                 }                
                 BusinessObjectMetadata meta = new BusinessObjectMetadata();
-                meta.putStringList("natures", natures);
+                meta.putStringArray("natures", natures);
                 meta.put("sender", user);
                 BusinessObject sendObj = BOB.newBuilder().metadata(meta).payload(line).build();
                 connection.send(sendObj);
