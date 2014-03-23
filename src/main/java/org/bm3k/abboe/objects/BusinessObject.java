@@ -8,8 +8,8 @@ public interface BusinessObject {
 	byte[] toBytes();
 
     byte[] getPayload();
-
-    public boolean hasNature(String nature);
+    
+    boolean hasNature(String nature);
     
     boolean isEvent();
 

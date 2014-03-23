@@ -160,6 +160,19 @@ public class BusinessObjectMetadata {
         natures.put(nature);
     }
     
+    public void addWarning(String warning) {
+        JSONArray warnings;
+        if (hasKey("warnings")) {
+            warnings = json.getJSONArray("warnings");            
+        }
+        else {
+            warnings = new JSONArray();
+            json.put("warnings", warnings);
+        }
+        
+        warnings.put(warning);
+    }
+    
     /** stored as field "subscriptions". The fact that they are legacy is revealed by such a field
      * residing in a clients/register object (instead of the routing/subscribe object)
      * @param subscriptions

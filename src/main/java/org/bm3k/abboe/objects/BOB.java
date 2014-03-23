@@ -2,6 +2,7 @@ package org.bm3k.abboe.objects;
 
 import com.google.common.net.MediaType;
 import org.bm3k.abboe.common.BusinessMediaType;
+import org.json.JSONArray;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -21,6 +22,7 @@ public class BOB {
     BusinessObjectMetadata metadata;
     List<String> natures;
     Map<String,String> attributes;
+    Map<String,JSONArray> arrayAttributes;
     List<String> route;
 
     private BOB() {
@@ -46,6 +48,13 @@ public class BOB {
         if (attributes != null) {
             for (String attribute: attributes.keySet()) {
                 String val = attributes.get(attribute);
+                metadata.put(attribute, val);
+            }
+        }
+        
+        if (arrayAttributes != null) {
+            for (String attribute: arrayAttributes.keySet()) {
+                JSONArray val = arrayAttributes.get(attribute);
                 metadata.put(attribute, val);
             }
         }
@@ -94,7 +103,25 @@ public class BOB {
         return this;
     }
 
+    public BOB attribute(String attribute, JSONArray value) {
+        if (value == null) {
+            return this;
+        }
+        
+        if (arrayAttributes == null) {
+            arrayAttributes = new LinkedHashMap<>();
+        }
+        arrayAttributes.put(attribute, value);
+        
+        return this;
+    }
+    
+    /** Null value implies that attribute is not to be put. This facilitates handling of optional attributes */  
     public BOB attribute(String attribute, String value) {
+        if (value == null) {
+            return this;
+        }
+        
         if (attributes == null) {
             attributes = new LinkedHashMap<>();
         }

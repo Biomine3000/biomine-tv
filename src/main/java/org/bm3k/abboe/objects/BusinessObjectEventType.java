@@ -4,13 +4,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 public enum BusinessObjectEventType {
-    ERROR("error"),
-    
+    ERROR("error"), 
     /** Sent to clients when ABBOE is about to shut down connection to client */
     ABBOE_CLOSE_NOTIFY("abboe/close/notify"),
     /** Sent to clients when ABBOE is about to shut down */
-    ABBOE_SHUTDOWN_NOTIFY("abboe/shutdown/notify"),
-    
+    ABBOE_SHUTDOWN_NOTIFY("abboe/shutdown/notify"),    
     SERVICES_REQUEST("services/request"),
     SERVICES_REPLY("services/reply"),
     SERVICES_REGISTER("services/register"),

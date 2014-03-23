@@ -7,3 +7,15 @@
 
 # Project-specific
 ant-build/
+.classpath
+.gradle
+.project
+build
+classes
+.settings/
+config/10_leronen-abboes.servers.json
+config/2_leronen-abboes.servers.json
+config/2_qua_pyabboes.servers.json
+config/kapsi_java-abboe.servers.json
+config/local-java-abboe+qua-pyabboe.servers.json
+config/qua-pyabboe.servers.json

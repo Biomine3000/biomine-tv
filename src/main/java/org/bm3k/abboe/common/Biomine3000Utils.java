@@ -33,7 +33,13 @@ import util.RandUtils;
 
 public class Biomine3000Utils {
     private static final Logger log = LoggerFactory.getLogger(Biomine3000Utils.class);
-    private static final Random random = new Random();
+    private static final Random random = new Random("Hoff".hashCode()+System.nanoTime());
+    public static final byte[] NULL_BYTE_ARRAY;
+    
+    static {
+        NULL_BYTE_ARRAY = new byte[1];
+        NULL_BYTE_ARRAY[0] = '\0';
+    }
     
     /** Return null if host name for some reason could not be resolved */
     public static String getHostName()  {
