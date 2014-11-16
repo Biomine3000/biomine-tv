@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 public class ContentVaultSender implements IBusinessObjectHandler {
     private final Logger log = LoggerFactory.getLogger(ContentVaultSender.class);
 
-    private static final ClientParameters CLIENT_PARAMS = new ClientParameters("ContentVaultSender", Subscriptions.NONE, false);
+    private static final ClientParameters CLIENT_PARAMS = new ClientParameters("ContentVaultSender", Subscriptions.NONE);
     
     private boolean stopped;
     private ContentVaultAdapter vaultAdapter;

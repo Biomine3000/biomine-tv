@@ -3,21 +3,26 @@ package org.bm3k.abboe.server;
 import static org.bm3k.abboe.objects.BusinessObjectEventType.*;
 
 import java.io.*;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.bm3k.abboe.common.*;
 import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
 import org.bm3k.abboe.objects.BusinessObjectEventType;
 import org.bm3k.abboe.objects.BusinessObjectMetadata;
+import org.bm3k.abboe.objects.BusinessObjectUtils;
 import org.bm3k.abboe.senders.ContentVaultProxy;
 import org.bm3k.abboe.senders.ContentVaultProxy.InvalidStateException;
 import org.json.JSONArray;
@@ -27,7 +32,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import util.CmdLineArgs2;
+import util.CollectionUtils;
 import util.StringUtils;
+import util.collections.Pair;
 import util.net.NonBlockingSender;
 
 /**
@@ -47,42 +54,50 @@ public class ABBOEServer {
     private final Logger log = LoggerFactory.getLogger(ABBOEServer.class);
 
     private static final String NODE_NAME = "java-A.B.B.O.E";
-
+    private static final int PEER_CONNECT_TIMEOUT_MILLIS = 3000;
     
     public static final DateFormat DEFAULT_DATE_FORMAT = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM);
 
-    private ServerSocket serverSocket;
-    private int serverPort;
+    private ServerSocket serverSocket; 
     private String serverRoutingId;
+    private ServerAddress serverAddress;    
 
+    private PeerInfo peerInfo;
+    
     /** For sending welcome images */
     private ContentVaultProxy contentVaultProxy;
 
     /** all access to this neighbor list should be synchronized on the ABBOEServer instance */
-    private List<Neighbor> neighbors;
+    private List<NeighborConnection> neighbors;
 
     /** Shortcuts for neighbors, to be used for interactive server management only */
-    private Map<Integer, Neighbor> neighborShortcuts;
+    private Map<Integer, NeighborConnection> neighborShortcuts;
     
     private State state;    
 
     /** Generates a map (small int) => (neighbor) for later reference. */
-    private synchronized Map<Integer, Neighbor> neighborShortcuts() {
-        Map<Integer, Neighbor> map = new HashMap<Integer, Neighbor>();
+    private synchronized Map<Integer, NeighborConnection> neighborShortcuts() {
+        Map<Integer, NeighborConnection> map = new HashMap<Integer, NeighborConnection>();
         int i=0;
-        for (Neighbor neighbor: neighbors) {
+        for (NeighborConnection neighbor: neighbors) {
             map.put(++i, neighbor);
         }
         return map;
     }    
 
-    /** Create server data structures and start listening */
-    public ABBOEServer(int port) throws IOException {
+    /**
+     * Create server data structures and start listening. 
+     * 
+     * @param serverAddress we want to have the complete server address.
+     * 
+     */
+    public ABBOEServer(ServerAddress address, Collection<ServerAddress> peerAddresses) throws IOException {
         state = State.NOT_RUNNING;
-        this.serverPort = port;
-        this.serverRoutingId = Biomine3000Utils.generateId();
-        serverSocket = new ServerSocket(serverPort);
-        neighbors = new ArrayList<Neighbor>();
+        this.serverAddress = address;
+        this.serverRoutingId = Biomine3000Utils.generateUID();
+        this.peerInfo = new PeerInfo(peerAddresses);
+        serverSocket = new ServerSocket(serverAddress.getPort());
+        neighbors = new ArrayList<NeighborConnection>();
         log.info("Listening.");
         contentVaultProxy = new ContentVaultProxy();
         contentVaultProxy.addListener(new ContentVaultListener());
@@ -95,7 +110,7 @@ public class ABBOEServer {
             BusinessObject image;
             try {
                 image = contentVaultProxy.sampleImage();
-                for (Neighbor neighbor: neighbors) {
+                for (NeighborConnection neighbor: neighbors) {
                     neighbor.send(image);
                 }
             }
@@ -126,9 +141,9 @@ public class ABBOEServer {
     }          
     
     /** return empty set if no clients */
-    private List<Neighbor> listNeighborsWithRoutingId(String routingId) {
-        List<Neighbor> result = Collections.emptyList();
-        for (Neighbor neighbor: neighbors) {
+    private List<NeighborConnection> listNeighborsWithRoutingId(String routingId) {
+        List<NeighborConnection> result = Collections.emptyList();
+        for (NeighborConnection neighbor: neighbors) {
             if (neighbor.routingId.equals(routingId)) {
                 if (result.size() == 0) {
                     result = Collections.singletonList(neighbor);               
@@ -146,9 +161,9 @@ public class ABBOEServer {
     }
     
     /** return empty set if no connected servers */
-    private List<Neighbor> listNeighboringServers() {
-        List<Neighbor> result = Collections.emptyList();
-        for (Neighbor neighbor: neighbors) {
+    private List<NeighborConnection> listNeighboringServers() {
+        List<NeighborConnection> result = Collections.emptyList();
+        for (NeighborConnection neighbor: neighbors) {
             if (neighbor.role == Role.SERVER) {
                 if (result.size() == 0) {
                     result = Collections.singletonList(neighbor);               
@@ -183,13 +198,13 @@ public class ABBOEServer {
      * 
      * @param src neighbor from where this object originated from. Null, if this message originates from this very ABBOE.
      */
-    private synchronized void forward(BusinessObject bo, Neighbor src) {        
+    private synchronized void forward(BusinessObject bo, NeighborConnection src) {        
         
         String to = bo.getMetadata().getString("to");
-        List<Neighbor> potentialDestinations = new ArrayList<>(); 
+        List<NeighborConnection> potentialDestinations = new ArrayList<>(); 
         if (to == null) {
             // if these is no "to" attribute, the object is forwarded to all servers and clients as per their subscriptions.
-            for (Neighbor neighbor: neighbors) {
+            for (NeighborConnection neighbor: neighbors) {
                 if (neighbor.subscriptions.pass(bo)) {
                     potentialDestinations.add(neighbor);
                 }
@@ -198,7 +213,7 @@ public class ABBOEServer {
         else {
             // If there is a "to" attribute, the object is forwarded only directly connected clients whose routing ids match 
             // the ones in "to". In case no clients with routing ids in "to" are directly connected, the object is forwarded to all servers.
-            List<Neighbor> clientsWithMatchingRoutingId = listNeighborsWithRoutingId(to);
+            List<NeighborConnection> clientsWithMatchingRoutingId = listNeighborsWithRoutingId(to);
             if (clientsWithMatchingRoutingId.size() > 0) {
                 potentialDestinations = clientsWithMatchingRoutingId;
             }
@@ -237,8 +252,8 @@ public class ABBOEServer {
         log.info("Route of object to be sent: "+route);
         
         // Objects must not be forwarded to any destination whose routing-id is in route.
-        ArrayList<Neighbor> destinations = new ArrayList<>(potentialDestinations.size());
-        for (Neighbor destination: potentialDestinations) {
+        ArrayList<NeighborConnection> destinations = new ArrayList<>(potentialDestinations.size());
+        for (NeighborConnection destination: potentialDestinations) {
             log.info("Checking potential destination: "+destination);
             if (!route.contains(destination.routingId)) {
                 log.info("Route does not contain destination: "+destination);
@@ -259,13 +274,13 @@ public class ABBOEServer {
         // This prevents other servers from forwarding the same object to each other via a different route (e.g., A→B-C, A→C→B).
         
         // note: it is not strictly necessary to add route to packets going to clients, but let's do that anyway for now
-        for (Neighbor destination: destinations) {
+        for (NeighborConnection destination: destinations) {
             route.add(destination.routingId);
         }
         
         bo.getMetadata().putStringArray("route",  route);
         
-        for (Neighbor neighbor: destinations) { 
+        for (NeighborConnection neighbor: destinations) { 
             // legacy support: modify metadata for each neighbor to exclude the neighbor itself from the route
             neighbor.send(makeCopyWithOneIdRemovedFromRoute(bo, neighbor.routingId));
             
@@ -276,10 +291,11 @@ public class ABBOEServer {
     /**
      * Should never return. Only way to exit is through neighbor request "stop",
      * {@link org.bm3k.abboe.common.UnrecoverableServerException}, or stop signal.
+     * 
+     * Invariants: 
+     *   - caller should ensure that state is ACCEPTING_CLIENTS when calling this.
      */
-    private void mainLoop() {
-
-        state = State.ACCEPTING_CLIENTS;
+    private void acceptNeighborsLoop() {       
 
         while (state == State.ACCEPTING_CLIENTS) {
             log.info("Waiting for neighbor...");
@@ -307,9 +323,8 @@ public class ABBOEServer {
 
         log.info("Finished ABBOE main loop");
     }
-
-    /** Actually, a connection to a neighbor */
-    private class Neighbor implements NonBlockingSender.Listener {                       
+    
+    class NeighborConnection implements NonBlockingSender.Listener {                       
         Socket socket;
         BufferedInputStream is;
         OutputStream os;
@@ -336,7 +351,7 @@ public class ABBOEServer {
         LinkedHashSet<String> services = new LinkedHashSet<String>();
         Role role;
 
-        Neighbor(Socket socket) throws IOException {
+        NeighborConnection(Socket socket) throws IOException {
             senderFinished = false;
             receiverFinished = false;
             this.socket = socket;
@@ -374,59 +389,7 @@ public class ABBOEServer {
             sender.setName("sender-"+this.name);
             reader.setName("reader-"+this.name);
         }
-                       
-        
-        /**
-         * Forward a business object to a neighbor. It must already be verified that the object
-         * indeed is to be routed to said node, according to possible to-attribute and node role.
-         * The forwarding might still be cancelled, e.g. to avoid cyclic routing. This method
-         * also modifies or sets the route attribute.
-         * 
-         * Specs:
-         *  The route array in an object must always be checked against forwarding destinations. 
-         *  Objects must not be forwarded to nodes whose routing-id appears in the route array.
-         *  If the route array does not exist, the forwarding server must create it as containing 
-         *  the originating node’s routing-id (if any), and the forwarding server’s own routing-id (
-         *  in that order).'
-         *
-         * After forwarding destinations have been determined as described above, but before the object
-         *  is forwarded, the forwarding server must add to route the routing-id of each other 
-         *  server the object is being forwarded to. This prevents other servers from forwarding 
-         *  the same object to each other via a different route (e.g., A→B-C, A→C→B).
-         * 
-         * Note that route is only relevant 
-         * to forwarded objects. Note that route is added also to objects being sent to clients, even if only servers are 
-         * expected to use them. That is to avoid the need of duplicating the object to be sent
-         * (it needs to be immutable during the sending, as different clients process
-         * the sending concurrently).
-         * 
-         * Specs: When a server forwards an object it appends its own routing id to the route list. 
-         * If the list does not exist, it is first created with the routing-id of the originating 
-         * client before the server’s own id. Objects originating from a server only have the server’s 
-         * own id in route.
-         * 
-         * Invariant: it has been verified beforehand that if the object originates from a server, 
-         * it has the route attribute.
-         * */
-        /*
-        public void forward(BusinessObject bo) {
-            List<String> 
-            if (role == NeighborRole.SERVER) {                     
-                route = bo.getMetadata().asJSON().optJSONArray("route");
-            }
-            else if (role == CLIENT) {                        
-                if (bo.getMetadata().hasKey("route")) {
-                    client.sendError("A client should not specify a route", bo.getMetadata().getString("id"));
-                    return;
-                }
-                route = new JSONArray();
-                bo.getMetadata().put("route", route);
-                break;
-            }
-            // otherwise not consider subscribed
-        }
-                        
-*/
+                               
         
         private synchronized void setUser(String user) {
             this.user = user;
@@ -747,10 +710,10 @@ public class ABBOEServer {
     }
     
     private void acceptSingleNeighbor(Socket neighborSocket) {
-        Neighbor neighbor;
+        NeighborConnection neighbor;
 
         try {
-            neighbor = new Neighbor(neighborSocket);
+            neighbor = new NeighborConnection(neighborSocket);
 
             // suggest registration, if neighbor has not done so within a second of its registration...
             new SubscriptionCheckerThread(neighbor).start();
@@ -789,6 +752,7 @@ public class ABBOEServer {
      * it seems that it is not possible to terminate completely cleanly, then.
      */
     private void stdInReadLoop() throws IOException {
+        log.info("Starting stdInReadLoop");
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         String line = br.readLine();
         boolean gotStopRequest = false;
@@ -810,7 +774,7 @@ public class ABBOEServer {
             else if (line.equals("clients") || line.equals("c")) {
                 neighborShortcuts = neighborShortcuts();
                 for (Integer key: neighborShortcuts.keySet()) {
-                    Neighbor n = neighborShortcuts.get(key);
+                    NeighborConnection n = neighborShortcuts.get(key);
                     if (n.role == Role.CLIENT) {
                         System.out.println(key+": "+n.name);
                     }
@@ -840,7 +804,7 @@ public class ABBOEServer {
                 }
                 int shortcut = Integer.parseInt(shortcutStr);
 
-                Neighbor client = neighborShortcuts.get(shortcut);
+                NeighborConnection client = neighborShortcuts.get(shortcut);
                 if (client == null) {
                     log.error("No such client shortcut: {}", shortcut);
                 }
@@ -882,7 +846,7 @@ public class ABBOEServer {
         log.info("Initiating shutdown sequence");
 
         if (neighbors.size() > 0) {
-            for (Neighbor client: neighbors) {
+            for (NeighborConnection client: neighbors) {
                 BusinessObject shutdownNotification = BOB.newBuilder()
                         .payload("ABBOE IS GOING TO SHUTDOWN in 5 seconds")
                         .event(ABBOE_SHUTDOWN_NOTIFY).build();
@@ -925,7 +889,7 @@ public class ABBOEServer {
         public void run() {
             try {
                 Thread.sleep(5000);
-                log.error("Following clients have failed to close their connection properly: " +
+                log.error("Following neighbors have failed to close their connection properly: " +
                            StringUtils.collectionToString(neighbors,", ")+
                 		  "; forcing shutdown...");
                 finalizeShutdownSequence();
@@ -937,27 +901,27 @@ public class ABBOEServer {
     }
 
     private class NeighborShutdownThread extends Thread {
-        Neighbor client;
-        NeighborShutdownThread(Neighbor client) {
-            this.client = client;
+        NeighborConnection neighbor;
+        NeighborShutdownThread(NeighborConnection client) {
+            this.neighbor = client;
         }
         public void run() {
             try {
                 Thread.sleep(3000);
-                if (!client.closed) {
-                    log.error("Neighbor "+client.name+" has failed to shut down properly, forcing shutdown...");
-                    client.forceClose();
+                if (!neighbor.closed) {
+                    log.error(""+neighbor.role + " " + neighbor.name + " has failed to shut down properly, forcing shutdown...");
+                    neighbor.forceClose();
                 }
             }
             catch (InterruptedException e) {
-                log.error("Shutdownthread for client: "+client.name+" interrupted, connection to client has not been shutdown");
+                log.error("Shutdownthread for client: "+neighbor.name+" interrupted, connection to client has not been shutdown");
             }
         }
     }
 
     private class SubscriptionCheckerThread extends Thread {
-        Neighbor client;
-        SubscriptionCheckerThread(Neighbor client) {
+        NeighborConnection client;
+        SubscriptionCheckerThread(NeighborConnection client) {
             this.client = client;
         }
 
@@ -1009,7 +973,7 @@ public class ABBOEServer {
      *   TODO: to implement this service sensibly, we indeed would have to implement a complete client registry,
      *   which has to be distinct from the neighbor registry currently implemented...
      */
-    private void handleServicesRegisterEvent(Neighbor client, BusinessObject bo) {
+    private void handleServicesRegisterEvent(NeighborConnection client, BusinessObject bo) {
         if (client.role == Role.SERVER) {
             client.sendErrorReply("services/register events currently supported only for neighboring clients", bo);
             return;
@@ -1063,13 +1027,13 @@ public class ABBOEServer {
      * Todo: should the implemented client registry service also include servers? What prevents servers from registering as clients,
      * so probably this should not matter.     
      */
-    private void handleClientsListEvent(Neighbor requestingNeighbor, BusinessObject bo ) {
+    private void handleClientsListEvent(NeighborConnection requestingNeighbor, BusinessObject bo ) {
         
         BusinessObject reply;
         
         synchronized(ABBOEServer.this) {                        
             JSONArray neighborsJSON = new JSONArray();
-            for (Neighbor neighbor: neighbors) {
+            for (NeighborConnection neighbor: neighbors) {
                 JSONObject neighborJSON = new JSONObject();
                 if (neighbor.neighborName != null) {
                     neighborJSON.put("client", neighbor.neighborName);
@@ -1096,7 +1060,7 @@ public class ABBOEServer {
     }
     
     /** handle a routing/subscribe event */
-    private void handleRoutingSubscribeEvent(Neighbor neighbor, BusinessObject subscribeEvent) throws InvalidBusinessObjectMetadataException {
+    private void handleRoutingSubscribeEvent(NeighborConnection neighbor, BusinessObject subscribeEvent) throws InvalidBusinessObjectMetadataException {
         BusinessObjectMetadata subscribeMeta = subscribeEvent.getMetadata();                
         ArrayList<String> warnings = new ArrayList<>();
                 
@@ -1117,7 +1081,7 @@ public class ABBOEServer {
             if (routingIdFromNeighbor !=  null) {
                 warnings.add("A client should not specify a routing id; overridden by one generated by server");
             }
-            neighbor.routingId = Biomine3000Utils.generateId(neighbor.addr);
+            neighbor.routingId = Biomine3000Utils.generateUID(neighbor.addr);
         }
         else if (neighbor.role == Role.SERVER) {
             if (routingIdFromNeighbor !=  null) {
@@ -1172,7 +1136,7 @@ public class ABBOEServer {
         if (neighbor.role == Role.SERVER  && !subscribeEvent.getMetadata().hasKey("in-reply-to")) {            
             BusinessObject returnSubscribeEvent = BOB.newBuilder()
                     .event(BusinessObjectEventType.ROUTING_SUBSCRIPTION)
-                    .attribute("id", Biomine3000Utils.generateId())
+                    .attribute("id", Biomine3000Utils.generateUID())
                     .attribute("in-reply-to", subscriptionId)
                     .attribute("routing-id", serverRoutingId)
                     .build();
@@ -1221,7 +1185,7 @@ public class ABBOEServer {
                 
     }
     
-    private void handleClientJoinRequest(Neighbor neighbor, BusinessObject bo) throws InvalidBusinessObjectMetadataException {
+    private void handleClientJoinRequest(NeighborConnection neighbor, BusinessObject bo) throws InvalidBusinessObjectMetadataException {
         BusinessObjectMetadata meta = bo.getMetadata();
         String clientName = meta.getString("client");
         String user = meta.getString("user");
@@ -1269,9 +1233,9 @@ public class ABBOEServer {
     
     /** Listens to a single dedicated reader thread reading objects from the input stream of a single neighbor */
     private class ReaderListener implements BusinessObjectReader.Listener {
-        Neighbor source;
+        NeighborConnection source;
 
-        ReaderListener(Neighbor neighbor) {
+        ReaderListener(NeighborConnection neighbor) {
             this.source = neighbor;
         }
 
@@ -1397,10 +1361,7 @@ public class ABBOEServer {
         }
     }   
 
-    private void startSystemInReadLoop() {
-        SystemInReader systemInReader = new SystemInReader();
-        systemInReader.start();
-    }
+    
 
     public static void main(String[] pArgs) throws Exception {
     	    	
@@ -1410,30 +1371,214 @@ public class ABBOEServer {
         CmdLineArgs2 args = new CmdLineArgs2(pArgs);
 
         Integer port = args.getInt("port");
-
-        if (port == null) {
-            port = Biomine3000Utils.conjurePortByHostName();            
-        }
         
-        log.info("Using port: "+port);
-
-        if (port == null) {
-            log.error("No -port");
-            System.exit(1);
-        }
-
-        log.info("Starting ABBOE at port "+port);
+        ServerAddress serverAddress = Biomine3000Utils.conjureJavaABBOEAddress(port);            
+        
+        if (serverAddress == null) {
+            log.info("Could not find server address in the list of official servers");
+            if (port == null) {
+                log.error("No -port");
+                System.exit(1);
+            }
+            serverAddress = new ServerAddress("localhost", port, "java-ABBOE","java"); 
+        }                
+        
+        log.info("Using server address: "+serverAddress);
+        
+        log.info("Starting ABBOE at port "+serverAddress.getPort());
 
         try {
-            ABBOEServer server = new ABBOEServer(port);
-            // start separate thread for reading system.in
-            server.startSystemInReadLoop();
-            // the current thread will start executing the main loop
-            server.mainLoop();
+            Set<ServerAddress> knownServers = new LinkedHashSet<>(Biomine3000Utils.readServersFromConfigFile());
+            Set<ServerAddress> peers =  CollectionUtils.minus(knownServers, Collections.singleton(serverAddress));
+            ABBOEServer server = new ABBOEServer(serverAddress, peers);
+                        
+            // connect to other servers; note that we have to do the handshake before starting to listen anything, 
+            // to make sure that 2 different server handshakes do not occur simultaneously: one originating from 
+            // the peer server, one originating from this java-abboe            
+            server.startConnectingToPeers();                       
         }
         catch (IOException e) {
             log.error("Failed initializing ABBOE", e);
         }
+    }       
+
+    /**
+     * Start two threads: konsole reader and the main loop for accepting connections.
+     * 
+     * Performs a state transition CONNECTING_TO_SERVERS => ACCEPTING_CLIENTS
+     * 
+     * This should (only) be called from the last thread that completes its first attempt 
+     * to initiate communications with a known server. 
+     * */ 
+    @SuppressWarnings("unused")
+    private synchronized void startBusiness() {            
+        log.info("startBusiness");
+        
+        if (state == State.CONNECTING_TO_SERVERS) {
+            throw new RuntimeException("Invalid state at startBusiness: "+state);
+        }
+       
+        state = State.ACCEPTING_CLIENTS;
+        
+        // start separate thread for reading system.in
+        SystemInReader systemInReader = new SystemInReader();
+        systemInReader.start();        
+
+        Runnable neighborAccepterRunnable = new Runnable() {
+            @Override
+            public void run() {
+                acceptNeighborsLoop();
+            }                       
+        };
+        
+        new Thread(neighborAccepterRunnable).start();
+        
+    }
+    
+    /**
+     * Connect to a peer server in a dedicated thread. 
+     * 
+     * Actions: send routing/subscription with following attributes (from specs):
+     *   routing-id – the server’s own routing id (unlike clients, it should preferably pick its own)
+     *   role = server – differentiate from clients (affects routing)
+     *   subscriptions – the array of subscriptions (practically always [ * ] between servers, otherwise routes through such server may silently discard Objects even if clients subscribe to them)
+     *   id – the unique, generated id of the subscription object
+     * 
+     * Connect to another server. TODO: how to manage such connections, and does it make any difference that the connection is initiated by
+     * us, instead of the other end? TODO: when to start handling the server connection as a "ordinary" ABBOE connection (class NeighborConnection)
+     * Initial proposal: once we have sent the routing/subscribe and received an expected reply, we then make the connection an normal NeighborConnection.
+     * (initialized with the proper routing info).
+     * 
+     * Connecting to each server is to be done in separate worker thread.
+     * 
+     * Invariants: while this is running, no client connections are yet being accepted.     
+     * 
+     */
+    private class PeerConnectionThread extends Thread {
+        
+        ServerAddress peerAddress;
+        Socket socket = new Socket();
+        
+        PeerConnectionThread(ServerAddress peerAddress) {
+            this.peerAddress = peerAddress;
+        }
+        
+        private void connect() throws SocketTimeoutException, IOException {
+            socket = new Socket();
+            InetSocketAddress inetAddress = new InetSocketAddress(peerAddress.getHost(), peerAddress.getPort());
+            log.info("Trying to connect to peer at addr " + peerAddress + " (timeout in "+PEER_CONNECT_TIMEOUT_MILLIS/1000 + " seconds)");
+            try {                
+                socket.connect(inetAddress, PEER_CONNECT_TIMEOUT_MILLIS);
+            }
+            catch (SocketTimeoutException e) {
+                log.info("Connecting to server at "+peerAddress+ "timed out");
+                throw e;
+            }        
+            catch (IOException e) {
+                log.info("Connecting to server at "+peerAddress+ "threw IOException: "+e);
+                throw e;
+            }
+            
+        }
+      
+        private void subscribe() throws IOException, InvalidBusinessObjectException {
+            // write outgoing subscription
+            log.info("writing outgoing subscription");
+            BusinessObject subscriptionObject = BOB.newBuilder()
+                    .event(BusinessObjectEventType.ROUTING_SUBSCRIPTION)
+                    .attribute("routing-id", serverRoutingId)
+                    .attribute("role", "server")
+                    .attribute("subscriptions", new Subscriptions("*").toJSON())
+                    .attribute("id", Biomine3000Utils.generateUID())
+                    .build();
+            socket.getOutputStream().write(subscriptionObject.toBytes());
+            socket.getOutputStream().flush();
+            
+           // expect a return subscription
+            log.info("reading return subscription");
+            try {
+                // TODO: method for directly reading a complete object
+            	@SuppressWarnings("unused")
+                Pair<BusinessObjectMetadata, byte[]> packet = BusinessObjectUtils.readPacket(socket.getInputStream());
+                // TODO: packet read, what then?
+            }
+            catch (IOException | InvalidBusinessObjectException e) {
+                // TODO: handle errors                
+            }            
+            
+            // TODO: Need to add a new NeighborConnection in a synchronized way
+            // could this be done by synchronized access to the peerinfo objec;
+            // whoever first registers the routing id to peerinfo
+            // (peerinfo needs to be indexed by routing id also)
+            
+        }        
+        
+        @Override
+        public void run() {
+            log.info("Running PeerConnectionThread for address: "+peerAddress);
+            
+            peerInfo.setState(peerAddress, PeerState.CONTACTING_AT_STARTUP);
+            
+            try {
+                connect();                
+            }
+            catch (IOException e) {
+                // TODO: retry soon (expecting SocketTimeOutException?)
+            }
+                       
+            try {
+                subscribe();
+            }
+            catch (IOException e) {
+            	// TODO: retry soon (expecting SocketTimeOutException?)
+            }
+            
+        }
+    }      
+    
+    
+    
+       
+    
+    /**
+     * Start a dedicated thread for each known server to connect to. Only after all known servers have been connected to
+     * (or connections refused / failed etc. ), shall we start accepting clients. This is for two reasons:
+     *  - to avoid receiving connections from same servers that we are initiating connections with ourselves
+     *  - to avoid client messages being lost due to clients connecting to our still isolated ABBOE component
+     *  
+     * Note: we shall have a peer connection thread running always; when a known peer is not currently being
+     * connected to, connections with it are periodically retried; when it is within our neighbors,
+     * thread just lier dormant (or: possibly the thread should be terminated, and new one started
+     * in its place when the connection has been closed, to avoid a stupid cycle of sleeps)
+     * 
+     * Potential problem: while a connection does not exist, it might occur that both servers simultaneously 
+     * initiate a connection with the other one, potentially resulting in two redundant connections being 
+     * created. To avoid this, accepting new clients and starting and attempt to connect to a server
+     * could be trivially mutually exclusive, but that would create a delay in accepting new clients.
+     * One would think that efficiency could be gained by only restricting the mutual exclusiveness
+     * to connections from one specific server; when starting an connection initiation attempt, it could be recorded that 
+     * such an attempt is taking place for a specific server, and no connections from said server should be 
+     * accepted meanwhile. BUT: this attempts fails, as there is no common way of identifying the
+     * peer; a network address will not suffice, as incoming and outgoing ports are trivially different.
+     * So, the check has to be based on the routing id: when a peer connects, it sends it's routing id,
+     * and when we connect, we get the peer's routing-id back in reply; not until that can the 
+     * sameness of the peer be known, so it appears that
+     * we will exactly at the point when we receive info of the other ends identity have 
+     * to somehow reserve it for the incoming or outgoing connection attempt; when the other 
+     * attempt reaches the same point, it will then notice the fact and terminate. Note that this termination
+     * is nicer if we can do it for an incoming connection, as then the other end won't ever thing that a 
+     * connection was successfully established (as we can right away 
+     * 
+     * Note that these ramblings may not be purely theoretical.
+     */
+    private void startConnectingToPeers() throws IOException {        
+        
+        log.info("Trying to connect to following servers: " + peerInfo.knownPeers());
+        
+        for (ServerAddress address: peerInfo.knownPeers()) {
+            PeerConnectionThread connectionThread = new PeerConnectionThread(address);
+            connectionThread.start();
+        }                
     }
 
     private enum Role {        
@@ -1454,6 +1599,7 @@ public class ABBOEServer {
     
     private enum State {
         NOT_RUNNING,
+        CONNECTING_TO_SERVERS,
         ACCEPTING_CLIENTS,
         SHUTTING_DOWN;
     }

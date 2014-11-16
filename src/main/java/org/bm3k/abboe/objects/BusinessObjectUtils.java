@@ -48,7 +48,7 @@ public class BusinessObjectUtils {
         return new Pair<BusinessObjectMetadata, byte[]>(metadata, payload);
     }
 
-    /** Parse BusinessObjectImpl represented as raw toBytes into medatata and payload */
+    /** Parse BusinessObjectImpl represented as raw toBytes into medatata and payload. TODO: remove this unused method? */
     static Pair<BusinessObjectMetadata, byte[]> parseBytes(byte[] data) throws InvalidBusinessObjectException {
         int i = 0;
         while (data[i] != '\0' && i < data.length) {

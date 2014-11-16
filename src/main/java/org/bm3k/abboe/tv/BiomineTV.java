@@ -41,7 +41,7 @@ public class BiomineTV extends JFrame {
     // CONSTANTS
     private static final double RETRY_INTERVAL_SEC = 1.0;
     private static final ClientParameters CLIENT_PARAMS = 
-            new ClientParameters("BiomineTV", Subscriptions.EVERYTHING, true);        
+            new ClientParameters("BiomineTV", Subscriptions.EVERYTHING);        
     
     ////////////////////////////////
     // GUI
@@ -263,6 +263,7 @@ public class BiomineTV extends JFrame {
             this.addresses = addresses;
         }
         
+        @Override
         public void run() {
             int i = 0;
             // cyclicly loop through addresses until requested to stop 
@@ -366,7 +367,7 @@ public class BiomineTV extends JFrame {
                 BusinessObjectEventType et = bo.getMetadata().getKnownEvent();
                                
                 if (et == BusinessObjectEventType.ROUTING_SUBSCRIPTION) {
-                    message("ROUTING_SUBSCRIPTION (our own one echoed back?):  "+bo);
+                    message("ROUTING_SUBSCRIPTION: "+bo);
                 }
                 else if (et == BusinessObjectEventType.ROUTING_SUBSCRIBE_REPLY) {
                     String routingId = bo.getMetadata().getString("routing-id");

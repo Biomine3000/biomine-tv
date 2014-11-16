@@ -32,7 +32,7 @@ public class Subscriptions {
             SubscriptionRule rule = new SubscriptionRule(r);            
             this.rules.add(rule);
         }
-    }        
+    }              
     
     public Subscriptions(String... rules) {
         this(Arrays.asList(rules));
@@ -43,6 +43,14 @@ public class Subscriptions {
         List<String> result = new ArrayList<String>();
         for (SubscriptionRule rule: rules) {
             result.add(rule.format());
+        }
+        return result;
+    }
+    
+    public JSONArray toJSON() {
+        JSONArray result = new JSONArray();
+        for (SubscriptionRule rule: rules) {
+            result.put(rule.format());
         }
         return result;
     }

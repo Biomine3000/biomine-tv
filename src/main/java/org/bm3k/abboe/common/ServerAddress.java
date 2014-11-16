@@ -1,5 +1,8 @@
 package org.bm3k.abboe.common;
 
+
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.json.JSONObject;
 
 public class ServerAddress implements IServerAddress {
@@ -56,6 +59,16 @@ public class ServerAddress implements IServerAddress {
     		json.put("impl", impl);
     	}
     	return json;
+    }
+    
+    @Override
+    public int hashCode() {        
+        return HashCodeBuilder.reflectionHashCode(this);
+    }        
+    
+    @Override
+    public boolean equals(Object o) {
+        return EqualsBuilder.reflectionEquals(this, o);
     }
         
     

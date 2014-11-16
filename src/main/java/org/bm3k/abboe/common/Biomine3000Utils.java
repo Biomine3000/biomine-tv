@@ -220,32 +220,36 @@ public class Biomine3000Utils {
     }
         
     /**
-     * Read host info from $ABBOE_SERVERS_FILE and use that to tell what port is used on which host.
-     * If no such file, or server on no such host, return null.
-     * For multiple matches, return the first one.
+     * Read host info from $ABBOE_SERVERS_FILE and use that to tell what server info to use on this host (host name defined by getHostName()).
+     * If no such file, or server on no such host, return null. For multiple matches, return the first one.
+     * 
+     * @param port optional; if null, any localhost server info will do.
      */
-    public static Integer conjurePortByHostName() throws IOException {
+    public static ServerAddress conjureJavaABBOEAddress(Integer port) throws IOException {
     	String host = getHostName();
     	if (host == null) {
     		return null;
     	}
-    	log.info("Conjuring port by host name @"+host);    	
+    	
+    	log.info("Conjuring localhost server address");     	
     	List<ServerAddress> servers =  Biomine3000Utils.readServersFromConfigFile();
     	for (ServerAddress server: servers) {
-    		if  (server.getHost().startsWith(host)) {
-    			return server.getPort();
+    		if  (server.getHost().startsWith(host) && server.getImpl().equals("java")) {
+    		    if (port == null || port.equals(server.getPort())) {
+    		        return server;
+    		    }
     		}
     	}
     	
     	return null;
     }
     
-    public static String generateId() {
-        return generateId(getHostName());
+    public static String generateUID() {
+        return generateUID(getHostName());
     }
     
     /*
-     * JWZ Algorithm:
+     * JWZ Algorithm (from http://www.jwz.org/doc/mid.html)
      * - Append "<".     
      * - Get the current (wall-clock) time in the highest resolution to which you have access (most systems can give it to you in milliseconds, but seconds will do);
      * - Generate 64 bits of randomness from a good, well-seeded random number generator;
@@ -253,7 +257,7 @@ public class Biomine3000Utils {
      * - Append the FQDN of the local host, or the host name in the user's return address.
      * - Append ">".
      */
-    public static String generateId(String hostname) {
+    public static String generateUID(String hostname) {
                       
         long millis = System.currentTimeMillis();
         long rand = random.nextLong();
@@ -409,13 +413,7 @@ public class Biomine3000Utils {
             throw new RuntimeException("Impossible.");
         }
                 
-    }
-    
-    /** TODO! */
-    public static String generateMessageId() {
-        // http://www.jwz.org/doc/mid.html
-        return null;
-    }
+    }    
     
     public static void main(String[] args) {
         System.out.println("at host: "+getHostName());

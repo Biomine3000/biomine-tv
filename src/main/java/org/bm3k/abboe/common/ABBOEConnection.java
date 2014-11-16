@@ -96,7 +96,7 @@ public class ABBOEConnection {
 
         // Subscribe and register
         BusinessObject subscription = ClientUtils.makeSubscriptionEvent(clientParameters);
-        log.info("Sending subscription object: {}", new String(subscription.toBytes()));
+        log.info("Sending subscription object: {}", subscription.toString());
         sender.send(subscription.toBytes());
 
         BusinessObject registerObj = ClientUtils.makeClientsJoinRequest(clientParameters);
@@ -134,7 +134,7 @@ public class ABBOEConnection {
     }       
         
     public void sendClientListRequest() throws IOException {
-        String reqId = Biomine3000Utils.generateId();
+        String reqId = Biomine3000Utils.generateUID();
         BusinessObjectMetadata meta = new BusinessObjectMetadata();
         meta.put("id", reqId);
         meta.put("name", "clients");

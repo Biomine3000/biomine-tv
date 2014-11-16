@@ -38,7 +38,7 @@ public class MP3Sender {
         
         try (OutputStream os = socket.getOutputStream()) {
             // Subscribe & register
-            BusinessObject subscription = ClientUtils.makeSubscriptionObject(Subscriptions.NONE);
+            BusinessObject subscription = ClientUtils.makeSubscriptionEvent(Subscriptions.NONE);
             log.info("Writing subscription object: {} ", subscription);
             IOUtils.write(subscription.toBytes(), os);
 

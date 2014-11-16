@@ -10,60 +10,36 @@ import org.slf4j.LoggerFactory;
 public class ClientUtils {
     private static Logger log = LoggerFactory.getLogger(ABBOEConnection.class);
     
-    private ClientUtils () {
+    private ClientUtils() {
+        // utils must not come into existence
     }
 
-    /*
-    def registration_object(client_name, user_name):
-        metadata = {
-            'event': 'services/request',
-            'name': 'clients',
-            'request': 'join',
-            'client': client_name,
-            'user': user_name
-            }
-        return BusinessObject(metadata, None)
-
-    def subscription_object(natures=[]):
-        metadata = {
-            'event': 'routing/subscribe',
-            'receive-mode': 'all',
-            'types': 'all',
-            'natures': natures
-            }
-        return BusinessObject(metadata, None)
-     */
-
     /** Make object for join request to clients service */ 
-    public static BusinessObject makeClientsJoinRequest(ClientParameters params) {        
-        BusinessObjectMetadata metadata = new BusinessObjectMetadata();
-        metadata.put("name", "clients"); // name of registration service
-        metadata.put("request", "join"); // name of service request
-        metadata.put("user", Biomine3000Utils.getUser());
-        metadata.put("client", params.getClient());
-
+    public static BusinessObject makeClientsJoinRequest(ClientParameters params) {                       
         return BOB.newBuilder()
                 .event(BusinessObjectEventType.SERVICES_REQUEST)
-                .metadata(metadata)
+                .attribute("name", "clients") // name of registration service
+                .attribute("request", "join") // name of service request
+                .attribute("user", Biomine3000Utils.getUser())
+                .attribute("client", params.getClient())
                 .build();
     }
 
     public static BusinessObject makeSubscriptionEvent(ClientParameters params) {
         BusinessObjectMetadata metadata = new BusinessObjectMetadata();        
         metadata.setSubscriptions(params.getySubscriptions());
-        metadata.put("echo", params.getEcho());
-        String requestId = Biomine3000Utils.generateId(Biomine3000Utils.getHostName());
-        metadata.put("id", requestId);
+        metadata.put("id", Biomine3000Utils.generateUID());
 
         return BOB.newBuilder()
                 .event(BusinessObjectEventType.ROUTING_SUBSCRIPTION)
-                .metadata(metadata)
+                .metadata(metadata)                
                 .build();
     }
 
-    public static BusinessObject makeSubscriptionObject(Subscriptions subscriptions) {
+    public static BusinessObject makeSubscriptionEvent(Subscriptions subscriptions) {
         BusinessObjectMetadata metadata = new BusinessObjectMetadata();
         metadata.setSubscriptions(subscriptions);
+        metadata.put("id", Biomine3000Utils.generateUID());
 
         return BOB.newBuilder()
                 .event(BusinessObjectEventType.ROUTING_SUBSCRIPTION)

@@ -20,7 +20,7 @@ public class TrivialClient {
     private final Logger log = LoggerFactory.getLogger(TrivialClient.class);
               
     private static final ClientParameters CLIENT_PARAMS =
-            new ClientParameters("TrivialClient", new Subscriptions("text/plain*"), false);
+            new ClientParameters("TrivialClient", new Subscriptions("text/plain*"));
     
     private ABBOEConnection connection;
     private boolean stopYourStdinReading = false;    

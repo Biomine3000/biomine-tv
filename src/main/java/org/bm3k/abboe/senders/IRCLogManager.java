@@ -32,7 +32,7 @@ public class IRCLogManager  {
         
     static {
         SUBSCRIPTIONS = new Subscriptions("irc");    
-        CLIENT_PARAMS = new ClientParameters("IRCLogManager", SUBSCRIPTIONS, false);
+        CLIENT_PARAMS = new ClientParameters("IRCLogManager", SUBSCRIPTIONS);
         CLIENT_PARAMS.addServices(IRCLOGMANAGER_LIST_LOGS, IRCLOGMANAGER_TAIL);
     }
     
@@ -48,6 +48,7 @@ public class IRCLogManager  {
         this.args = args;       
     }
      
+    @SuppressWarnings("deprecation")
     private void readLogs() throws IOException, IllegalArgumentsException {
         logFileByName = new LinkedHashMap<String, LogFile>();
         String basedir = args.get("basedir");
@@ -74,7 +75,7 @@ public class IRCLogManager  {
         
         for (File f: logFiles) {
             log.info("Reading log file: "+f);
-            List<String> lines = IOUtils.readLines(f);
+            List<String> lines = IOUtils.readLines(f);            
             String relativePath = FileUtils.getPathRelativeTo(f, new File(basedir));
             LogFile logFile = new LogFile(relativePath, lines);
             logFileByName.put(relativePath, logFile);
