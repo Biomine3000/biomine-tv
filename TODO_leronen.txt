@@ -1,13 +1,147 @@
-MISC
--------------
-Add configuration file for specifying ABBOE servers
+serveriin konnektointi
+ - uusi tila connecting_to_servers
+  • kaikkialla missä käsitellään tilaa täytyy mahdollisesti varautua uuteen tilaan
+  • miten tiedetään että konnektointi on tehty?
+  
 
+forward pings!
+
+- implement generation of and handling of routing announcements
+   • need to propagate these around!
+
+
+testaa serveriverkkoa!
+
+- error replies
+  • set "to" field to first id in route, or neighbor id, if no route.
+  • should error replies follow subscriptions? Basically yes, if consistency is required
+  • for events that have /reply, use that (automagically?)
+  • for service requests (is this completely similar, or is different processing
+   needed; at least, service name needs to be identified in reply!
+
+- should "route" be different from "sent-to"?
+
+
+DISKUTOITAVAA:
+ - miten lähettää tieto eventin virheellisestä käsittelystä
+  • pitääkö joka hiton eventille olla oma reply tyyppi; jollei kaikille,
+    mille pitää? Pitäisikö paluutyypin olla tietty event vaan silloin
+    jos operaatio on onnistunut; muutoin geneerinen error event?
+  • pitäisikö olla myös geneerinen SUCCESS event?
+  • jos on spesifinen replytyyppi, miten tällöin tiedetään että homma on onnistunut?
+
+  
+  • simppeli ehdotus: jos tapahtuu virhe, ei lähetetä normaalia vastausta lainkaan,
+    vaan error-event (natures: message, error, attributes: in-reply-to, in-reply-to-event (?)
+
+warninkit:
+  • ei voida laittaa warninkitekstiä payloadiin...
+     ° eli naturen "warning" implikoitava vaan kentän "warnings" olemassaolo.
+       Siinä voisi olla mielivaltainen määrä warninkeja taulukossa.
+  • näyttää yhä enemmän siltä että plain text päyload messageille on kehnohko ratkaisu.
+
+
+TO BE ELABORATED IN SPECS:
+ - how to route replies...
+
+ SERVIISIT SERVERILLÄ!
+  
+    
+- refaktoroi serveri!
+
+- serverin hylättävä kaikki viestit alustamattomilta clienteiltä PAITSI
+   subscriptiot.
+
+ - serverin oltava lähettämättä mitään SUBSCRIBOIMATTOMILLE clienteille
+
+• speksit: mitä kenttiä pitäisi olla services/replyssä?
+  ° speksi sanoo: name, to, in-reply-to
+    * tuosta tuntuu puuttuvan request (name on vissiin serviisin nimi (~luokka),
+       request taas spesifin pyynnön tunnus (~metodi))
+  ° clients joiniin lisättävä kenttä client-name, jos client haluaa spesifimmän
+     näytettävän identifikaatiotiedon kuin client-user (esim. useita
+      samantyyppisiä clienttejä samalla käyttäjällä samaan aikaan...)
+
+ * tv must remember requests and handle responses accordingly
+
+* handle service registrations
+ * note: for now, routing id:s are specific to each connection in biomine-tv!
+ • quan clients- 
+
+ABBOE: do all client operations in a separate thread
+ !!! eventqueue on jotenkin AWT-spesifinen...
+ ehkä: http://www.vogella.com/tutorials/JavaConcurrency/article.html#threadpools
+ "Threads pools with the Executor Framework"
+  • joka neighborin jauhettava omassa 1 threadin poolissaan
+    ° eriytä vihdoin luokka!
+
+ • echo only for clients!
+ 
+ • tv must 
+  
+  • client libraan selvästi tarvitaan laajennos; nyt kaikissa message-orientoituneissa clienteissä
+    (tv, trivialclient, irclogmanager) tehdään melkein samanlaista viestien ihmettelyä...
+
+  • handle routing related events in abboeconnection (now done by clients...)
+
+   • TV: irc-mainen erillistekstikenttä viestien kirjoittamiseen
+      * huom: omia viestejä voisi editoida ruudulla, ja lähettää niihin muutokset muidenkin
+        tv:ssä näytettäväksi...!
+	  • ehkä kuitenkin tyylikkäämpää olisi tukea irkin foo->bar-notaatiota postuumisti!
+--------------------------------------------
+LERONEN RAMBLINGS 2014-03-16
+17:18 < leronen> guaqua: mitenkä toi services-reply clients/list-palveluun (ja muihinkin); mun
+                 mielestä siinä olisi hyvä olla request mukana (kun kerran palvelun identifioimiseen
+	                  tarvitaan name ja request, mutta siellä services/replyssä on speksattu pelkkä name?
+ 17:19 < leronen> jorisin eilen aiheesta, mutta jengi oli kapakassa tms.
+ 17:21 < leronen> tai näemmä sieltä clients-serviisiltä ei tuu edes sitä namea
+ 17:21 < leronen> name on kuitenkin speksattu protokollaspeksissä
+ 17:22 < leronen> ääh, toi mihin viittasin on ilmeisesti clients/register:n reply (messagesta päätellen)
+ 17:22 < leronen> mutta sama prinsiippi
+ 17:23 < leronen> jos name ja request ei tuu replyssä, ei tiedetä mihin pyyntöön vastaus liittyy  pitämättä kirjaa kaikista lähetetyistä pyynnöistä
+ 17:32 < leronen> tuli muuten mieleen että rinnakkaiset yhteydet serveriltä clienttiin voisi ehkä toteuttaa suht triviaalisti seuraavasti:
+ 17:35 < leronen> - 2 erillistä routing id:tä (serveri siis ei edes tiedä että on sama clientti, vaan clientti pitää yllä kahta riippumatonta yhteyttä
+ 17:35 < leronen> )
+ 17:36 < leronen> - subscriboidaan toiseen yhteyteen vaikka > 1M kontentti, toiseen <= 1M kontentt
+
+------------------------------------------------------------------
+VERKON RAKENNE-SERVIISI
+ • bmgraph? tokihan tv:n on osattava näyttää bmgrapheja?
+
+ -------------------------
+ 
+ABBOE:
+ - entiteettien järjellinen nimentä (kuten oli ennenkin; homma kiistanalainen)
+   • atte sanoo että ei kuulu serverin tehtäviin
+   • itse sanon että kuuluu
+     ° esim. on voitava rekisteröidä senderin tiedot ja  toimittaa ne clienteille,
+        vaikka itse sender on verkossa vain minimaalisen ajan
+     ° näin ollen niitä ei voi järkevästi kysellä jostain registrystä
+     ° leaven lähettämistä ei voine vaatia clientiltä; serveri on ainoa joka senkin
+       voi tehdä luotettavasti
+- client registry erilliseksi serviceksi (vaikkakin abboen sisällä...)
+ • miten käsitellä clients/part notifikaatiot?
+   ° atte poisti protokollasta ja siirsi serviceiksi
+   ° kuitenkaan servicet eivät voi lähettää noin vaan notifikaatioita kun ei ole mitään
+     servicepyyntöä; siksikin hyvä olla eventti...
+
+   - should route service requests
+     • use client registry (presently maintained by the abboe itself)
+       to keep track of services?
+--
+- support error and warning natures (need to use JEditorPane or JTextPane?)
+- TV: make irc messages and other stuff at qua server be displayed nicely
+- TV: show content from different channels in separate rectangles
+- TV: make it possible to sent jars.
+
+------------------------------
 Add some manager for performing test runs (it could e.g. run all abboe components
 within a single virtual machine! ; no static stuff allowed then!
 
 
 OBJECT SYSTEM
 -------------
+ - MAX_PAYLOAD_BYTES
 - introduce class BusinessObjectPacket to represent packets read from a stream
   • actually, such a class would already be very similar to the ones built by BOB
 - generic abstract Client class to minimize nuisance of implementing new clients
