@@ -29,7 +29,7 @@ import util.StringUtils;
 public class ContentVaultProxy {
     private static final Logger logger = LoggerFactory.getLogger(ContentVaultProxy.class);
 
-    public static String LERONEN_IMAGE_VAULT_URL = "http://www.cs.helsinki.fi/u/leronen/biomine3000/biomine_tv_image_vault";
+    public static String LERONEN_IMAGE_VAULT_URL = "http://koti.kapsi.fi/~leronen/biomine3000/biomine_tv_image_vault";
     public static String LERONEN_IMAGE_VAULT_FILELIST_URL = LERONEN_IMAGE_VAULT_URL+"/filelist.txt";
     
     /** only contains successfully loaded images */
@@ -68,6 +68,7 @@ public class ContentVaultProxy {
      * of each image. Returns immediately. Remember to add listeners before calling this (?)
      */
     public void startLoading() {
+    	logger.info("startloading");
         new Thread(new Loader()).start();        
     }
     
@@ -114,9 +115,16 @@ public class ContentVaultProxy {
             
     }
        
+    private static int loaderCount = 0;
                
     private class Loader implements Runnable {
+    	
+    	
         public void run() {
+        	
+        	Thread.currentThread().setName("loader-" + (++loaderCount));
+        	logger.info("running");
+        	
             if (state != State.UNINITIALIZED) {
                 throw new RuntimeException("Should only be called when state is "+State.UNINITIALIZED);
             }

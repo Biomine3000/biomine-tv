@@ -3,6 +3,7 @@ package org.bm3k.abboe.server;
 import static org.bm3k.abboe.objects.BusinessObjectEventType.*;
 
 import java.io.*;
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -27,14 +28,12 @@ import org.bm3k.abboe.senders.ContentVaultProxy;
 import org.bm3k.abboe.senders.ContentVaultProxy.InvalidStateException;
 import org.json.JSONArray;
 import org.json.JSONObject;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import util.CmdLineArgs2;
 import util.CollectionUtils;
 import util.StringUtils;
-import util.collections.Pair;
 import util.net.NonBlockingSender;
 
 /**
@@ -55,6 +54,7 @@ public class ABBOEServer {
 
     private static final String NODE_NAME = "java-A.B.B.O.E";
     private static final int PEER_CONNECT_TIMEOUT_MILLIS = 3000;
+    private static final int PEER_CONNECT_RETRY_INTERVAL_SECONDS = 60;
     
     public static final DateFormat DEFAULT_DATE_FORMAT = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM);
 
@@ -62,7 +62,7 @@ public class ABBOEServer {
     private String serverRoutingId;
     private ServerAddress serverAddress;    
 
-    private PeerInfo peerInfo;
+    private PeerManager peerInfo;
     
     /** For sending welcome images */
     private ContentVaultProxy contentVaultProxy;
@@ -92,18 +92,29 @@ public class ABBOEServer {
      * 
      */
     public ABBOEServer(ServerAddress address, Collection<ServerAddress> peerAddresses) throws IOException {
+    	log.debug("ABBOEServer constructor");
         state = State.NOT_RUNNING;
         this.serverAddress = address;
         this.serverRoutingId = Biomine3000Utils.generateUID();
-        this.peerInfo = new PeerInfo(peerAddresses);
+        this.peerInfo = new PeerManager(peerAddresses);
+        this.peerInfo.addStateListener(() -> startBusinessIfNeeded());
         serverSocket = new ServerSocket(serverAddress.getPort());
         neighbors = new ArrayList<NeighborConnection>();
         log.info("Listening.");
         contentVaultProxy = new ContentVaultProxy();
-        contentVaultProxy.addListener(new ContentVaultListener());
+        contentVaultProxy.addListener(new ContentVaultListener());        
         contentVaultProxy.startLoading();
     }
 
+    /** Start normal business if all peers contacted (or at least tried) and operations not yet started */   
+    private void startBusinessIfNeeded() {
+    	log.info("startBusinessIfNeeded");
+    	if (state == State.CONNECTING_TO_PEERS && peerInfo.connectionAttemptedForAllPeers()) { 
+    		log.info("Connection attempted for all peers");
+    		startBusiness();
+    	}
+    }
+    
     /** Send some random image from the content vault to all neighbors */
     private void sendImageToAllNeighbors() {
         synchronized(neighbors) {
@@ -123,6 +134,8 @@ public class ABBOEServer {
 
     private class ContentVaultListener implements ContentVaultProxy.ContentVaultListener {
 
+    	private final Logger log = LoggerFactory.getLogger(ContentVaultListener.class);
+    	
         @Override
         public void loadedImageList() {
             // no action            
@@ -136,6 +149,7 @@ public class ABBOEServer {
 
         @Override
         public void loadedAllImages() {
+        	log.debug("loadedAllImages");
             sendImageToAllNeighbors();
         }
     }          
@@ -297,6 +311,10 @@ public class ABBOEServer {
      */
     private void acceptNeighborsLoop() {       
 
+    	Thread.currentThread().setName("neighborAccepter");
+    	
+    	log.info("acceptNeighborsLoop");
+    	
         while (state == State.ACCEPTING_CLIENTS) {
             log.info("Waiting for neighbor...");
 
@@ -735,6 +753,7 @@ public class ABBOEServer {
 
     private class SystemInReader extends Thread {
         public void run() {
+        	Thread.currentThread().setName("stdinreader");
             try {
                 stdInReadLoop();
             }
@@ -755,6 +774,7 @@ public class ABBOEServer {
         log.info("Starting stdInReadLoop");
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         String line = br.readLine();
+        log.debug("read line: " + line);
         boolean gotStopRequest = false;
         while (line != null && !gotStopRequest) {
             if (line.equals("stop") || line.equals("s")) {
@@ -822,9 +842,11 @@ public class ABBOEServer {
             }
             else {
                 // just a message to be broadcast
+            	log.info("Broadcasting message: " + line);
                 sendServerGeneratedObject(BOB.newBuilder().natures("message").payload(line).build());
             }
             line = br.readLine();
+            log.debug("read line: " + line);
         }
 
         if (gotStopRequest) {
@@ -1385,8 +1407,8 @@ public class ABBOEServer {
         
         log.info("Using server address: "+serverAddress);
         
-        log.info("Starting ABBOE at port "+serverAddress.getPort());
-
+        log.info("Starting ABBOE at port "+serverAddress.getPort());       
+        
         try {
             Set<ServerAddress> knownServers = new LinkedHashSet<>(Biomine3000Utils.readServersFromConfigFile());
             Set<ServerAddress> peers =  CollectionUtils.minus(knownServers, Collections.singleton(serverAddress));
@@ -1409,12 +1431,11 @@ public class ABBOEServer {
      * 
      * This should (only) be called from the last thread that completes its first attempt 
      * to initiate communications with a known server. 
-     * */ 
-    @SuppressWarnings("unused")
+     * */     
     private synchronized void startBusiness() {            
         log.info("startBusiness");
         
-        if (state == State.CONNECTING_TO_SERVERS) {
+        if (state != State.CONNECTING_TO_PEERS) {
             throw new RuntimeException("Invalid state at startBusiness: "+state);
         }
        
@@ -1430,40 +1451,46 @@ public class ABBOEServer {
                 acceptNeighborsLoop();
             }                       
         };
-        
+                
         new Thread(neighborAccepterRunnable).start();
         
     }
     
     /**
-     * Connect to a peer server in a dedicated thread. 
+     * <b>Connect to a single peer server in a dedicated thread</b>
+     * <p> 
+     *  Send routing/subscription with following attributes (from specs):
+     *  <ul>
+     *    <li> routing-id – the server’s own routing id (unlike clients, it should preferably pick its own) </li>
+     *    <li> role = server – differentiate from clients (affects routing)</li>
+     *    <li> subscriptions – the array of subscriptions (practically always [ * ] between servers, otherwise routes through such server may silently discard Objects even if clients subscribe to them)</li>
+     *   <li> id – the unique, generated id of the subscription object</li>
+     *  </ul>
+     *  <p>
+     *  Expect a subsciption reply in return with following attributes:</li><
+     *  <ul>  
+     *    <li> role = server
+     *    <li> routing-id – the replying server’s routing id
+     *    <li> subscriptions – the array of subscriptions (i.e., [ * ])
+     * </ol>
      * 
-     * Actions: send routing/subscription with following attributes (from specs):
-     *   routing-id – the server’s own routing id (unlike clients, it should preferably pick its own)
-     *   role = server – differentiate from clients (affects routing)
-     *   subscriptions – the array of subscriptions (practically always [ * ] between servers, otherwise routes through such server may silently discard Objects even if clients subscribe to them)
-     *   id – the unique, generated id of the subscription object
-     * 
-     * Connect to another server. TODO: how to manage such connections, and does it make any difference that the connection is initiated by
-     * us, instead of the other end? TODO: when to start handling the server connection as a "ordinary" ABBOE connection (class NeighborConnection)
-     * Initial proposal: once we have sent the routing/subscribe and received an expected reply, we then make the connection an normal NeighborConnection.
-     * (initialized with the proper routing info).
-     * 
-     * Connecting to each server is to be done in separate worker thread.
-     * 
-     * Invariants: while this is running, no client connections are yet being accepted.     
-     * 
+     * Apparently, at least for the sake of the actual business of delivering objects, it makes no
+     * difference which end initiated the connection.
+     *  
+     * Once we have sent the routing/subscribe and received an expected reply, the connection 
+     * is made into a normal NeighborConnection.     
      */
-    private class PeerConnectionThread extends Thread {
+    public class PeerConnectionThread extends Thread {
         
         ServerAddress peerAddress;
         Socket socket = new Socket();
         
-        PeerConnectionThread(ServerAddress peerAddress) {
+        private PeerConnectionThread(ServerAddress peerAddress) {
             this.peerAddress = peerAddress;
+            this.setName("peerconnector-" + peerAddress.getName());
         }
         
-        private void connect() throws SocketTimeoutException, IOException {
+        private void connect() throws PeerConnectException {
             socket = new Socket();
             InetSocketAddress inetAddress = new InetSocketAddress(peerAddress.getHost(), peerAddress.getPort());
             log.info("Trying to connect to peer at addr " + peerAddress + " (timeout in "+PEER_CONNECT_TIMEOUT_MILLIS/1000 + " seconds)");
@@ -1472,44 +1499,87 @@ public class ABBOEServer {
             }
             catch (SocketTimeoutException e) {
                 log.info("Connecting to server at "+peerAddress+ "timed out");
-                throw e;
-            }        
-            catch (IOException e) {
-                log.info("Connecting to server at "+peerAddress+ "threw IOException: "+e);
-                throw e;
+                throw new PeerConnectException("Connection to peer " + peerAddress + " timed out", e, true);
             }
-            
+            catch (ConnectException e) {
+                log.info("Connecting to server at "+peerAddress+ " threw ConnectException: " + e);
+                throw new PeerConnectException("Connection to peer " + peerAddress + " failed with connect exception", e, true);
+            }
+            catch (IOException e) {
+            	throw new PeerConnectException("Connection to peer " + peerAddress + " failed with connect exception", e, true);                
+            }           
         }
       
-        private void subscribe() throws IOException, InvalidBusinessObjectException {
+        /** Subscribe to the other server */
+        private void subscribe() throws SubscribeException {
             // write outgoing subscription
-            log.info("writing outgoing subscription");
-            BusinessObject subscriptionObject = BOB.newBuilder()
-                    .event(BusinessObjectEventType.ROUTING_SUBSCRIPTION)
-                    .attribute("routing-id", serverRoutingId)
-                    .attribute("role", "server")
-                    .attribute("subscriptions", new Subscriptions("*").toJSON())
-                    .attribute("id", Biomine3000Utils.generateUID())
-                    .build();
-            socket.getOutputStream().write(subscriptionObject.toBytes());
-            socket.getOutputStream().flush();
+        	try {
+	            log.info("writing outgoing subscription");
+	            BusinessObject subscriptionObject = BOB.newBuilder()
+	                    .event(BusinessObjectEventType.ROUTING_SUBSCRIPTION)
+	                    .attribute("routing-id", serverRoutingId)
+	                    .attribute("role", "server")
+	                    .attribute("subscriptions", new Subscriptions("*").toJSON())
+	                    .attribute("id", Biomine3000Utils.generateUID())
+	                    .build();
+	            socket.getOutputStream().write(subscriptionObject.toBytes());
+	            socket.getOutputStream().flush();
+        	}
+        	catch (IOException e) {
+        		throw new SubscribeException("Failed writing subscription object", e, false);
+        	}
             
            // expect a return subscription
             log.info("reading return subscription");
-            try {
-                // TODO: method for directly reading a complete object
-            	@SuppressWarnings("unused")
-                Pair<BusinessObjectMetadata, byte[]> packet = BusinessObjectUtils.readPacket(socket.getInputStream());
-                // TODO: packet read, what then?
+            BusinessObject bo = null;
+            try {            
+            	bo = BusinessObjectUtils.readObject(socket.getInputStream());
             }
-            catch (IOException | InvalidBusinessObjectException e) {
-                // TODO: handle errors                
-            }            
+            catch (IOException e) {
+            	// IOException while connecting, assume that we might still be able to retry
+            	// TODO: elaborate cause of IOException to decide whether retrying makes sense
+                throw new SubscribeException("Failed connecting to server " + peerAddress + 
+                		                     e, true);
+            }
+            catch (InvalidBusinessObjectException e) {
+            	// other server responded with an invalid business object, do not retry
+            	// TODO: more elaborate logic to decide if and when to retry
+            	throw new SubscribeException("Failed connecting to server " + peerAddress + 
+	                     					e, false);
+            }
+            	            	
+        	if (bo == null) {
+        		throw new SubscribeException("Other server terminated connection without sending a reply", false); 
+        	}
+            	
+        	BusinessObjectMetadata meta = bo.getMetadata();
+            String role = meta.getString("server");
+            if (role == null || !role.equals("server")) {
+            	throw new SubscribeException("Other server has illegal role in return subscription: " + role, false);
+            	// TODO: send error about utter folly
+            }
+            
+            String routingId = meta.getString("routing-id");
+            if (routingId == null) { 
+            	throw new SubscribeException("Other server has no routing-id return subscription", false);
+            	// TODO: send error about utter folly
+            }
+            
+            // TODO: handle subscriptions of other server                
+            List<String> subscriptionsList = meta.getList("subscriptions");
+            if (subscriptionsList == null) {
+            	throw new SubscribeException("Other server did not specify field subscriptions in subscribe reply", false);	
+            }
+            
+            Subscriptions subscriptions = new Subscriptions(subscriptionsList);
+                
+            // TODO: register to peer manager            
             
             // TODO: Need to add a new NeighborConnection in a synchronized way
-            // could this be done by synchronized access to the peerinfo objec;
-            // whoever first registers the routing id to peerinfo
-            // (peerinfo needs to be indexed by routing id also)
+            // to be done by synchronized access to the peerinfo object;
+            // whoever first registers the routing id to peerinfo keeps the connection
+            // (incoming or outgoing), and the other connection is terminated
+
             
         }        
         
@@ -1519,24 +1589,146 @@ public class ABBOEServer {
             
             peerInfo.setState(peerAddress, PeerState.CONTACTING_AT_STARTUP);
             
-            try {
-                connect();                
+            boolean retry = true;
+                        
+            while (retry) {
+            
+	            try {
+	                connect();                
+	            }
+	            catch (PeerConnectException e) {
+	            	if (!e.retryable) {
+	            		log.info("Failed connecting to server " + peerAddress + ": " + e + ". Not retrying");
+	            		retry = false;
+	            		peerInfo.setState(peerAddress, PeerState.FAILED_FOR_GOOD);
+	            	}
+	            	else {
+		            	log.info("Failed connecting to server " + peerAddress + ", retrying in " + PEER_CONNECT_RETRY_INTERVAL_SECONDS + " seconds");
+		            	peerInfo.setState(peerAddress, PeerState.WAITING_FOR_RETRY);
+		            	try {
+		            		Thread.sleep(PEER_CONNECT_RETRY_INTERVAL_SECONDS * 1000);
+		            	}
+		            	catch (InterruptedException ie) {
+		            		log.warn("interrupted while waiting for connection retry");
+		            	}
+		            	
+		            	peerInfo.setState(peerAddress, PeerState.RETRYING_CONTACT);
+	            	}
+	            	continue;
+	            }
+	            	     
+	            // connected successfully !
+	            	                      
+	            try {
+	                subscribe();
+	            }
+	            catch (SubscribeException e) {
+	            	// first, clean up the connection
+	            	try {
+	            		socket.close();
+	            	}
+	            	catch (IOException closeEx) {
+	            		// no action possible
+	            	}
+	            	socket = null;
+	            		            		            	
+	            	if (!e.retryable) {
+	            		log.info("Failed subscribing to server " + peerAddress + ": " + e + ". Not retrying");
+	            		retry = false;
+	            		peerInfo.setState(peerAddress, PeerState.FAILED_FOR_GOOD);
+	            	}
+	            	else {
+		            	log.info("Failed subscribing to server " + peerAddress + ", retrying in " + PEER_CONNECT_RETRY_INTERVAL_SECONDS + " seconds");
+		            	peerInfo.setState(peerAddress, PeerState.WAITING_FOR_RETRY);
+		            	try {
+		            		Thread.sleep(PEER_CONNECT_RETRY_INTERVAL_SECONDS * 1000);
+		            	}
+		            	catch (InterruptedException ie) {
+		            		log.warn("interrupted while waiting for subscribe retry");
+		            	}
+		            	
+		            	peerInfo.setState(peerAddress, PeerState.RETRYING_CONTACT);
+	            	}
+	            	continue;	            	
+	            }
+	            
+	            // subscribed successfully !
+	            peerInfo.setState(peerAddress, PeerState.CONNECTED);
+
             }
-            catch (IOException e) {
-                // TODO: retry soon (expecting SocketTimeOutException?)
-            }
-                       
-            try {
-                subscribe();
-            }
-            catch (IOException e) {
-            	// TODO: retry soon (expecting SocketTimeOutException?)
-            }
+            
+            log.info("Giving up on connecting to peer: " + peerAddress);
             
         }
     }      
+        
     
+    /** Exception while connecting to a peer server */
+    @SuppressWarnings("serial")
+    private static class PeerConnectException extends Exception {    
+                                  
+    	private boolean retryable;
+        private Throwable cause;
+            
+        public PeerConnectException(String message, boolean retryable) {
+            super(message);
+            this.retryable = retryable;
+        }
+
+        public PeerConnectException(Throwable cause, boolean retryable) {
+            super(cause.getMessage());
+            this.cause = cause;
+            this.retryable = retryable;
+        }
+        
+        public PeerConnectException(String message, Throwable cause, boolean retryable) {
+            super(cause.getMessage());
+            this.cause = cause;
+            this.retryable = retryable;
+        }
+
+        public Throwable getCause() {
+            return this.cause;
+        }
+        
+        public boolean isRetryable() {
+            return this.retryable;
+        }
+    }
     
+    /** Exception while subscribing to a peer server */
+    @SuppressWarnings("serial")
+    private static class SubscribeException extends Exception {    
+                                  
+    	private boolean retryable;
+        private Throwable cause;
+            
+        public SubscribeException(String message, boolean retryable) {
+            super(message);
+            this.retryable = retryable;
+        }
+
+        public SubscribeException(Throwable cause, boolean retryable) {
+            super(cause.getMessage());
+            this.cause = cause;
+            this.retryable = retryable;
+        }
+        
+        public SubscribeException(String message, Throwable cause, boolean retryable) {
+            super(cause.getMessage());
+            this.cause = cause;
+            this.retryable = retryable;
+        }
+
+        public Throwable getCause() {
+            return this.cause;
+        }
+        
+        public boolean isRetryable() {
+            return this.retryable;
+        }
+    }
+ 
     
        
     
@@ -1553,7 +1745,7 @@ public class ABBOEServer {
      * 
      * Potential problem: while a connection does not exist, it might occur that both servers simultaneously 
      * initiate a connection with the other one, potentially resulting in two redundant connections being 
-     * created. To avoid this, accepting new clients and starting and attempt to connect to a server
+     * created. To avoid this, accepting new clients and starting an attempt to connect to a server
      * could be trivially mutually exclusive, but that would create a delay in accepting new clients.
      * One would think that efficiency could be gained by only restricting the mutual exclusiveness
      * to connections from one specific server; when starting an connection initiation attempt, it could be recorded that 
@@ -1562,23 +1754,26 @@ public class ABBOEServer {
      * peer; a network address will not suffice, as incoming and outgoing ports are trivially different.
      * So, the check has to be based on the routing id: when a peer connects, it sends it's routing id,
      * and when we connect, we get the peer's routing-id back in reply; not until that can the 
-     * sameness of the peer be known, so it appears that
-     * we will exactly at the point when we receive info of the other ends identity have 
-     * to somehow reserve it for the incoming or outgoing connection attempt; when the other 
-     * attempt reaches the same point, it will then notice the fact and terminate. Note that this termination
-     * is nicer if we can do it for an incoming connection, as then the other end won't ever thing that a 
-     * connection was successfully established (as we can right away 
+     * sameness of the peer be known, so it appears that we will exactly at the point when we receive info 
+     * of the other ends identity have to somehow reserve it for the incoming or outgoing connection attempt; 
+     * when the other attempt reaches the same point, it will then notice the fact and terminate. Note that 
+     * this termination is nicer if we can do it for an incoming connection, as then the other end won't ever 
+     * think that a connection was successfully established. 
      * 
      * Note that these ramblings may not be purely theoretical.
      */
     private void startConnectingToPeers() throws IOException {        
         
+    	state = State.CONNECTING_TO_PEERS;
+    	
         log.info("Trying to connect to following servers: " + peerInfo.knownPeers());
         
         for (ServerAddress address: peerInfo.knownPeers()) {
             PeerConnectionThread connectionThread = new PeerConnectionThread(address);
             connectionThread.start();
-        }                
+        }
+        
+        startBusinessIfNeeded();
     }
 
     private enum Role {        
@@ -1599,7 +1794,7 @@ public class ABBOEServer {
     
     private enum State {
         NOT_RUNNING,
-        CONNECTING_TO_SERVERS,
+        CONNECTING_TO_PEERS,
         ACCEPTING_CLIENTS,
         SHUTTING_DOWN;
     }

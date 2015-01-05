@@ -1,7 +1,12 @@
-serveriin konnektointi
- - uusi tila connecting_to_servers
-  • kaikkialla missä käsitellään tilaa täytyy mahdollisesti varautua uuteen tilaan
-  • miten tiedetään että konnektointi on tehty?
+- threadeihin nimet
+
+- terminate waiting connection retry threads
+
+- cleanly handle peer servers going offline
+
+- resume retrying connections to servers that have gone offline
+
+
   
 
 forward pings!

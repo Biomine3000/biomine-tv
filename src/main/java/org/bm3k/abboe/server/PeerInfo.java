@@ -1,49 +1,44 @@
 package org.bm3k.abboe.server;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
-
 import org.bm3k.abboe.common.ServerAddress;
+import org.bm3k.abboe.common.Subscriptions;
 
-/**
- * State of an ABBOEServer's communications with it's (pre-known) peers. These are the peers that we try to connect to.
- * As they can also connect us, some measures have to be taken to ensure that only one connection gets finalized.
- */ 
-class PeerInfo {
-                            
-    final Set<ServerAddress> knownPeers;      
-    Map<ServerAddress, PeerState> peerStates;
-    
-    PeerInfo(Collection<ServerAddress> addresses) {
-        this.knownPeers = Collections.unmodifiableSet(new LinkedHashSet<>(addresses));
-        for (ServerAddress address: addresses) {
-            peerStates.put(address, PeerState.NOT_CONTACTED);
-        }
-    }
-    
-    synchronized void setState(ServerAddress peerAddress, PeerState state) {
-        // TODO: check state transition?
-        peerStates.put(peerAddress, state);
-    }
-    
-    /** Check if a connection has been triead at least once for all peers. Only once this is the case, shall the server start accepting clients */ 
-    synchronized boolean connectionAttemptedForAllPeers() {
-        for (ServerAddress peerAddress: knownPeers) {
-            PeerState state = peerStates.get(peerAddress);
-            if (state == PeerState.NOT_CONTACTED || state == PeerState.CONTACTING_AT_STARTUP) {
-                // doing the initial startup
-                return false;
-            }
-        }
-        return true;
-    }
-    
-    public Set<ServerAddress> knownPeers() {
-        return knownPeers;
-    }
-    
+/** 
+ * Info for a peer, be it pre-known or one adhocly connected to us.
+ * Only exists for peers that have subscibed to us / been subscibed to by us.
+ */
+public class PeerInfo {
+	private final ServerAddress address;
+	
+	public PeerInfo(ServerAddress address, String routingId, Subscriptions subscriptions, SubscribeDirection subscribeDirection) {		
+		this.address = address;
+		this.routingId = routingId;
+		this.subscriptions = subscriptions;
+		this.subscribeDirection = subscribeDirection;
+	}
+
+	private final String routingId;
+	private final Subscriptions subscriptions; 
+	private final SubscribeDirection subscribeDirection;
+	
+	/** only available for pre-known peers; null for adhoc peers */
+	public ServerAddress getAddress() {
+		return address;
+	}
+	
+	/** only available for pre-known peers; null for adhoc peers */
+	public String getRoutingId() {
+		return routingId;
+	}
+	
+	/** specifies objects to be sent to the server */
+	public Subscriptions getSubsciptions() {
+		return subscriptions;
+	}
+	
+	/** Might or might not be relevant for some processing. Have this anyway, to facilitate debugging. */ 
+	public SubscribeDirection getSubscribeDirection() {
+		return subscribeDirection;
+	}
+
 }
-

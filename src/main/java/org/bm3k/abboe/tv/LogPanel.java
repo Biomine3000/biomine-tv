@@ -14,8 +14,7 @@ import javax.swing.SwingUtilities;
 
 
 @SuppressWarnings("serial")
-public class LogPanel extends JPanel {
-    @SuppressWarnings("unused")
+public class LogPanel extends JPanel {    
     private final Logger log = LoggerFactory.getLogger(LogPanel.class);
 
     JTextArea textArea;
@@ -32,9 +31,11 @@ public class LogPanel extends JPanel {
             Dimension d = textArea.getSize();
             // log.info("Text area dimensions: "+d);
             Rectangle r = new Rectangle(0, d.height-10, d.width, 10);
-            // log.info("Rectangle to make visible: "+r);
-//            log.info("appended text: "+text);
+            log.info("Rectangle to make visible: "+r);
+            log.info("appended text: "+text);
             textArea.scrollRectToVisible(r);
+            log.info("REPAINTING THIS!!");
+            this.repaint();
         }                              
     }
     

@@ -1,0 +1,5 @@
+assert System.env.LERONEN_JAVA_ROOT != null
+assert new File(System.env.LERONEN_JAVA_ROOT + '/build.gradle').isFile()
+
+include ':leronen-java'
+project(':leronen-java').projectDir = new File(System.env.LERONEN_JAVA_ROOT)

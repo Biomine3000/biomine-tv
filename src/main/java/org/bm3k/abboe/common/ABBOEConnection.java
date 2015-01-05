@@ -145,10 +145,6 @@ public class ABBOEConnection {
                 .build());
     }
 
-//    public synchronized String getName() {
-//        return clientParameters.name;
-//    }
-
     /**
      * Closing of socket is to be done only after both sender and receiver have finished.
      */
