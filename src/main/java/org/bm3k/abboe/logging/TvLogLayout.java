@@ -20,12 +20,19 @@ public class TvLogLayout extends LayoutBase<ILoggingEvent> {
 
         // BMZGenerator produces timestamps of varying length, let's level them to the longest one
         String timestamp = gen.generate();
-        buf.append(timestamp);
-        int length = timestamp.length();
-        while (length > 24) {
-            buf.append(" ");
+        buf.append(timestamp);        
+        while (buf.length() < 24) {
+            buf.append(" ");            
         }
 
+        buf.append(" [");
+        buf.append(Thread.currentThread().getName());
+        buf.append("]");
+        
+        while (buf.length() < 36) {
+            buf.append(" ");            
+        }
+        
         buf.append(" ");
         buf.append(String.format("%-6s", event.getLevel()));
         if((event.getLevel() == Level.ERROR || event.getLevel() == Level.WARN)
@@ -39,7 +46,12 @@ public class TvLogLayout extends LayoutBase<ILoggingEvent> {
         buf.append(" ");
         buf.append(abbr.abbreviate(event.getLoggerName()));
 
-        buf.append(" - ");
+        
+        while (buf.length() < 80) {
+            buf.append(" ");            
+        }
+        
+        buf.append(" ");
         buf.append(event.getFormattedMessage());
         buf.append(CoreConstants.LINE_SEPARATOR);
 

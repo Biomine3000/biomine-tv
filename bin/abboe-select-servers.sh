@@ -71,7 +71,9 @@ function abboe-select-servers() {
 
     local SELIND=$(cat $SELFILE)
     local SERVERFILE=$(abboe-list-server-files | awk -v SELIND=$SELIND '$1 == SELIND {print $2}')
-    echo "Selecting servers file: $BIOMINE_TV_CONFIG/$SERVERFILE"
+    echo "Selected servers file: $BIOMINE_TV_CONFIG/$SERVERFILE"
+    echo
+    cat "$BIOMINE_TV_CONFIG/$SERVERFILE"
 
     if [ -e "$SERVERFILE" ]; then
 	echo "No such file: $SERVERFILE"

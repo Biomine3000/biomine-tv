@@ -19,3 +19,5 @@ config/2_qua_pyabboes.servers.json
 config/kapsi_java-abboe.servers.json
 config/local-java-abboe+qua-pyabboe.servers.json
 config/qua-pyabboe.servers.json
+SETENV
+dependencies

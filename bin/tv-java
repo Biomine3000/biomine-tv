@@ -3,12 +3,16 @@
 export BIOMINE_TV_BIN="$(dirname $0)"
 export BIOMINE_TV_ROOT=$(readlink -f $BIOMINE_TV_BIN/..)
 
+if ! [ -e $BIOMINE_TV_ROOT/dependencies ]; then
+    echo "No such file: $BIOMINE_TV_ROOT/dependencies. Please run command: 'gradle dependencies'"
+    exit 1
+fi
+
 function leronen_classpath() {
     TV_CLASSES_CLASSPATH="$BIOMINE_TV_ROOT/classes"
-    TV_LIBS_CLASSPATH=$(for f in $(ls $BIOMINE_TV_ROOT/lib); do readlink -f $BIOMINE_TV_ROOT/lib/$f; done | sed ':a;N;$!ba;s/\n/:/g')    
     LERONEN_JAVA_CLASSPATH="$LERONEN_JAVA_ROOT/classes"
     GRADLE_JARS_CLASSPATH=$($BIOMINE_TV_BIN/list-gradle-jars | sed ':a;N;$!ba;s/\n/:/g')
-    echo "$TV_CLASSES_CLASSPATH:$TV_LIBS_CLASSPATH:$LERONEN_JAVA_CLASSPATH:$GRADLE_JARS_CLASSPATH"
+    echo "$TV_CLASSES_CLASSPATH:$LERONEN_JAVA_CLASSPATH:$GRADLE_JARS_CLASSPATH"
 }
 
 if [ -e $LERONEN_JAVA_ROOT/classes ] && [ -e $BIOMINE_TV_ROOT/classes ]; then

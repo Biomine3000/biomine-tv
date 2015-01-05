@@ -15,7 +15,7 @@ import util.ExceptionUtils;
  * updates from an content vault.  
  */
 public class ContentVaultAdapter {
-    private static final Logger logger = LoggerFactory.getLogger(ContentVaultAdapter.class);
+    private static final Logger log = LoggerFactory.getLogger(ContentVaultAdapter.class);
 
     private IBusinessObjectHandler handler;
     private boolean firstImageLoaded;
@@ -44,18 +44,19 @@ public class ContentVaultAdapter {
     }
     
     public void startLoading() {
+    	log.info("startLoading");
         contentVaultProxy.startLoading();
     }
     
     /** Stop your business (instruct sender thread to stop sending content). */
     public void stop() {
-       logger.info("stop requested");
+       log.info("stop requested");
        sender.stop(); 
     }
     
     /** Sends event text as a PlainText "service/state-changed" event */
     private void sendEvent(String msg) {
-        logger.info("Sending message: {}", msg);
+        log.info("Sending message: {}", msg);
         BusinessObject obj = BOB.newBuilder()
                 .event(BusinessObjectEventType.SERVICES_STATE_CHANGED)
                 .payload(msg).build();
@@ -75,7 +76,7 @@ public class ContentVaultAdapter {
             String msg = "Loaded "+contentVaultProxy.getNumLoadedObjects()+"/"+contentVaultProxy.getTotalNumObjects()+" business objects";            
             sendEvent(msg);            
             if (firstImageLoaded == false) { 
-                logger.info("First image loaded, starting sender thread to push content to handler");
+                log.info("First image loaded, starting sender thread to push content to handler");
                 firstImageLoaded = true;
                 sender = new Sender();
                 new Thread(sender).start();
@@ -84,7 +85,7 @@ public class ContentVaultAdapter {
 
         @Override
         public void loadedAllImages() {
-            logger.info("All images have been loaded");
+            log.info("All images have been loaded");
         }
     }
     
@@ -93,12 +94,12 @@ public class ContentVaultAdapter {
         private boolean stop = false;
         
         private void stop() {
-            logger.info("stop requested");
+            log.info("stop requested");
             stop = true;
         }
                        
         public void run() {
-            logger.info("Sender running");
+            log.info("Sender running");
             
             while (!stop) {
                 try {                    
@@ -122,7 +123,7 @@ public class ContentVaultAdapter {
                 }
             }                        
             
-            logger.info("stopped");
+            log.info("stopped");
         }
     }
       
@@ -132,7 +133,7 @@ public class ContentVaultAdapter {
                 new IBusinessObjectHandler() {                                        
                     @Override
                     public void handleObject(BusinessObject bo) {
-                        logger.info("DUMMY HANDLER received object: {}", bo);
+                        log.info("DUMMY HANDLER received object: {}", bo);
                     }
                 }, 3000);
         adapter.startLoading();                        
