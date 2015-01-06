@@ -6,9 +6,14 @@ import org.bm3k.abboe.common.Subscriptions;
 /** 
  * Info for a peer, be it pre-known or one adhocly connected to us.
  * Only exists for peers that have subscibed to us / been subscibed to by us.
+ * 
+ * Instances of this class are immutable.
  */
 public class PeerInfo {
 	private final ServerAddress address;
+	private final String routingId;
+	private final Subscriptions subscriptions; 
+	private final SubscribeDirection subscribeDirection;
 	
 	public PeerInfo(ServerAddress address, String routingId, Subscriptions subscriptions, SubscribeDirection subscribeDirection) {		
 		this.address = address;
@@ -16,10 +21,6 @@ public class PeerInfo {
 		this.subscriptions = subscriptions;
 		this.subscribeDirection = subscribeDirection;
 	}
-
-	private final String routingId;
-	private final Subscriptions subscriptions; 
-	private final SubscribeDirection subscribeDirection;
 	
 	/** only available for pre-known peers; null for adhoc peers */
 	public ServerAddress getAddress() {

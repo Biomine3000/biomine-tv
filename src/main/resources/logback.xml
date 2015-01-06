@@ -1,22 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
-        <!--
-        <encoder>
-            <pattern>
-                %d{HH:mm:ss.SSS} [%thread] %-5level %logger{5} - %msg%n
-            </pattern>
-        </encoder>
-        -->
-
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">        
+        <target>System.err</target>        
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="org.bm3k.abboe.logging.TvLogLayout"/>
+        </encoder>                
+    </appender>
+    
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>abboe.log</file>
         <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
             <layout class="org.bm3k.abboe.logging.TvLogLayout"/>
         </encoder>
-        <target>System.err</target>
     </appender>
+    
 
     <logger name="org.bm3k.abboe" level="DEBUG" additivity="true">
         <appender-ref ref="STDERR"/>
+        <appender-ref ref="FILE"/>
     </logger>
 
     <logger name="org.bm3k.abboe.senders.ContentVaultProxy" level="INFO" additivity="false">

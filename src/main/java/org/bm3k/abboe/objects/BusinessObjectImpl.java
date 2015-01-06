@@ -3,6 +3,7 @@ package org.bm3k.abboe.objects;
 import java.io.UnsupportedEncodingException;
 
 import com.google.common.net.MediaType;
+
 import org.bm3k.abboe.common.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,6 +67,11 @@ public class BusinessObjectImpl implements BusinessObject {
     @Override
     public boolean isEvent() {
         return metadata.isEvent();
+    }
+    
+    @Override 
+    public boolean isEvent(BusinessObjectEventType type) {    	
+    	return type == getMetadata().getKnownEvent();
     }
 
     @Override 

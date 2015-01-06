@@ -10,7 +10,7 @@ import org.apache.commons.lang3.StringUtils;
 import util.DateUtils;
 
 public class TvLogLayout extends LayoutBase<ILoggingEvent> {
-    private DateUtils.BMZGenerator gen = new DateUtils.BMZGenerator();
+    // private DateUtils.BMZGenerator gen = new DateUtils.BMZGenerator();
     private TargetLengthBasedClassNameAbbreviator abbr = new TargetLengthBasedClassNameAbbreviator(5);
 
     @Override
@@ -18,12 +18,8 @@ public class TvLogLayout extends LayoutBase<ILoggingEvent> {
         // %d{HH:mm:ss.SSS} [%thread] %-5level %logger{5} - %msg%n
         StringBuilder buf = new StringBuilder(128);
 
-        // BMZGenerator produces timestamps of varying length, let's level them to the longest one
-        String timestamp = gen.generate();
-        buf.append(timestamp);        
-        while (buf.length() < 24) {
-            buf.append(" ");            
-        }
+        String timestamp = DateUtils.formatABDateTime();
+        buf.append(timestamp);
 
         buf.append(" [");
         buf.append(Thread.currentThread().getName());

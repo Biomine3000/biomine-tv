@@ -1,13 +1,16 @@
-- threadeihin nimet
+- fix problem with duplicate connections being tried
 
-- terminate waiting connection retry threads
+- do all reconnect attempts in a dedicated thread using state information from peerinfo data structure
+
+- separate neigbor management to different class
 
 - cleanly handle peer servers going offline
+  • update peerinfo data structures
+  • resume retrying connections to servers that have gone offline
 
-- resume retrying connections to servers that have gone offline
+( - threadeihin nimet ) 
 
-
-  
+- cleanly terminate waiting connection retry threads on close?
 
 forward pings!
 

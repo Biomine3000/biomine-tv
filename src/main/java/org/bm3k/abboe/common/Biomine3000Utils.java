@@ -34,6 +34,7 @@ import util.RandUtils;
 public class Biomine3000Utils {
     private static final Logger log = LoggerFactory.getLogger(Biomine3000Utils.class);
     private static final Random random = new Random("Hoff".hashCode()+System.nanoTime());
+    /** Consists of one null byte */
     public static final byte[] NULL_BYTE_ARRAY;
     
     static {

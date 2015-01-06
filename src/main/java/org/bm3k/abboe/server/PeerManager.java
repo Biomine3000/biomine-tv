@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.bm3k.abboe.common.ServerAddress;
+import org.bm3k.abboe.common.Subscriptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,7 +28,7 @@ class PeerManager {
 	private final Logger log = LoggerFactory.getLogger(PeerManager.class);	
     private final Set<ServerAddress> preKnownPeerAddresses;  // addresses for pre-known peers      
     private Map<ServerAddress, PeerState> peerStates;        // connection states for preknown peers
-    private Map<String, PeerState> peerInfoByRoutingId;      // info for contacted peers
+    private Map<String, PeerInfo> peerInfoByRoutingId;      // info for contacted peers
     private List<PeerStateListener> stateListeners;    
     
     /** Initialize peer info with knowledge of known peers. No connections exist at this stage */
@@ -77,6 +78,30 @@ class PeerManager {
         return true;
     }
     
+    /** 
+     * Try to register a subscribed or subscribed-to peer. Note that caller must not try to check existence of peer beforehand, as checking
+     * for existence and registering must be done as a single atomic operation. Instead, it is a valid situation to call this 
+     * and fail due to a DuplicatePeerException. In this case, client must terminate the connection being registered and perform appropriate cleanup.
+     * 
+     * @throws DuplicatePeerException if peer with same address already exists.
+     * @return info for the newly registered peer.
+     */
+    public synchronized PeerInfo registerPeer(ServerAddress address, String routingId, Subscriptions subscriptions, SubscribeDirection subscribeDirection) 
+    		throws DuplicatePeerException {
+    	
+    	if (peerInfoByRoutingId.containsKey(routingId)) {
+    		throw new DuplicatePeerException(routingId);
+    	}
+    	
+    	PeerInfo peerInfo = new PeerInfo(address, routingId, subscriptions, subscribeDirection);
+    	peerInfoByRoutingId.put(routingId,  peerInfo);
+    	return peerInfo;
+    }
+    
+    public synchronized void removePeer(String routingId) {     		    	    	
+    	peerInfoByRoutingId.remove(routingId);
+    }
+    
     public Set<ServerAddress> knownPeers() {
         return preKnownPeerAddresses;
     }
@@ -87,6 +112,15 @@ class PeerManager {
     
     public void addStateListener(PeerStateListener listener) {
     	stateListeners.add(listener);
+    }
+    
+    
+    @SuppressWarnings("serial")
+	public static class DuplicatePeerException extends Exception {    		
+
+		DuplicatePeerException(String routingId) {
+    		super("There already exists a peer with routing id " + routingId);
+    	}
     }
 }
 

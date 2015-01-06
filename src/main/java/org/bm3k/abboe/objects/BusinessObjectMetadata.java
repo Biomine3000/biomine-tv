@@ -291,7 +291,12 @@ public class BusinessObjectMetadata {
         
     }
     
-    /** Return single strings as a singleton list. Return null, is no such key. */ 
+    /**
+     * 
+     * Return a JSON array variable or single string variable as a list. 
+     * Return single strings as a singleton list. Return null, is no such key.
+     * The returned list is unmodifiable.  
+     * */ 
     public List<String> getList(String key) {
         Object o = json.opt(key);
         if (o == null) {

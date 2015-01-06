@@ -47,8 +47,8 @@ public class BusinessObjectReader implements Runnable {
         this.name = name;
     }
     
-    public void run() {
-        
+    public void run() {            
+    	
         dbg("Starting run()");        
         
         try {
