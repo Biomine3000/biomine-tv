@@ -1,0 +1,4 @@
+Some rudimentary possible server network configurations be here.
+
+NOTICE
+ When adding configs here, recall not to disclose any information about public IP addresses / ports intended for private use - in practice by adding such stuff to .gitignore.

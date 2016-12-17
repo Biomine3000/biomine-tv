@@ -22,6 +22,7 @@
 
     <logger name="org.bm3k.abboe.senders.ContentVaultProxy" level="INFO" additivity="false">
         <appender-ref ref="STDERR"/>
+        <appender-ref ref="FILE"/>
     </logger>
 
     <root level="OFF">

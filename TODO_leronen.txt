@@ -1,8 +1,37 @@
+
+- use routing id as name of servers instead of the address when logging?
+- use routing id of the server for "sender" attribute?
+
 - fix problem with duplicate connections being tried
+ • reveiced peer connections must also be registered to peer manager!
+
+- unify subscription implementation of
+  • ideally, each one-directional subscription should be done using the same code!
 
 - do all reconnect attempts in a dedicated thread using state information from peerinfo data structure
 
-- separate neigbor management to different class
+- protocol: need some specification on handling errors
+ • 1) add error nature to reply; then the usual assumptions about fields in the reply object 
+   would not be correct
+ • 2) add new event types for all possible exceptions when handling a certain type of event
+   ° very difficult to implement in a consistent manner
+ • 3) just send generic error message, with reply-to identifying the original request
+   ° probably by far easiest to implement; downside is that receiver must keep track 
+     of sent request to know what went wrong
+   ° could also add some other info, at least event type from original request (field 
+     request-event-type... but then the type would no longer be a generic error, but 
+     instead one that is being sent as a reply to a request........)
+
+- more sophisticated management of node identities
+ • servers should use their name from the routing table as the routing id
+ • or: routing id could (optionally?) be given in the routing table (~ server list file)
+  => now it becomes plain to see that each server needs two addresses; IP address and
+     the ABBOE routing-id... initially, the server list file just specified the IP, while
+     the routing id was generated; actually, it makes no sense for the clients
+     to make any assumptions about the ABBOE routing-id, as protocol states routing-ids
+     are managed by the server; but for the server, it may be convenient to fix the routing-id
+     to be e.g. same as the server name. Let's initially do just that.
+ 
 
 - cleanly handle peer servers going offline
   • update peerinfo data structures
@@ -178,3 +207,25 @@ TV
 - receive from multiple servers
 - some GUI controls
 - better management of mp3 playing  
+  ° save received MP3s, give option of selecting them
+
+
+MP3 SENDER
+----------
+
+ • make this into a proper service
+ • create database of found mp3 files
+   ° how / when to refresh?
+ • send random songs timed according to duration
+ • log and enable querying recently played songs
+ • maybe even get songs to be played next
+ • receive MP3:s sent by other services and archive them
+ • send arbitrary MP3s requested by clients
+ • provide search service
+ • make it possible for clients to request new songs (only if no other clients listening, as that would disrupt smooth listening experience) 
+
+LOGGING
+ • need to configure logging properly, it is quite unacceptable to log to STDERR from arbitrary ABBOE programæ by default
+
+ARB
+ • rotate melancholic phintsan 90 degrees counterclockwise

@@ -27,11 +27,11 @@ class PeerManager {
                             
 	private final Logger log = LoggerFactory.getLogger(PeerManager.class);	
     private final Set<ServerAddress> preKnownPeerAddresses;  // addresses for pre-known peers      
-    private Map<ServerAddress, PeerState> peerStates;        // connection states for preknown peers
-    private Map<String, PeerInfo> peerInfoByRoutingId;      // info for contacted peers
-    private List<PeerStateListener> stateListeners;    
+    private final Map<ServerAddress, PeerState> peerStates;        // connection states for preknown peers
+    private final Map<String, PeerInfo> peerInfoByRoutingId;      // info for contacted peers
+    private final List<PeerStateListener> stateListeners;    
     
-    /** Initialize peer info with knowledge of known peers. No connections exist at this stage */
+    /** Initialize peer info with knowledge of known peers. No connections existh at this stage */
     PeerManager(Collection<ServerAddress> addresses) {    	
         this.preKnownPeerAddresses = Collections.unmodifiableSet(new LinkedHashSet<>(addresses));
         peerStates = new LinkedHashMap<>();
@@ -93,6 +93,7 @@ class PeerManager {
     		throw new DuplicatePeerException(routingId);
     	}
     	
+    	
     	PeerInfo peerInfo = new PeerInfo(address, routingId, subscriptions, subscribeDirection);
     	peerInfoByRoutingId.put(routingId,  peerInfo);
     	return peerInfo;
@@ -104,7 +105,7 @@ class PeerManager {
     
     public Set<ServerAddress> knownPeers() {
         return preKnownPeerAddresses;
-    }
+    }    
     
     interface PeerStateListener {
     	public void statesChanged();
@@ -112,8 +113,7 @@ class PeerManager {
     
     public void addStateListener(PeerStateListener listener) {
     	stateListeners.add(listener);
-    }
-    
+    }    
     
     @SuppressWarnings("serial")
 	public static class DuplicatePeerException extends Exception {    		

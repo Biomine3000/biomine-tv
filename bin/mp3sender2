@@ -1,0 +1,22 @@
+#!/bin/bash
+#
+# A bit, just a bit, more advanced mp3 sender
+
+FILE=$1
+
+PLAYLOG=mp3sender2.playlog
+
+if [ "$FILE" != "" ]; then
+    # trad behaviour: just one this one file
+    mp3sender "$FILE"    
+else
+    # keep looping random files
+    while true; do
+        FILE=$(find -name *.mp3 | sample 1)
+        DURATION_SEC=$(mp3info -p "%S" "$FILE")
+        echo "Playing: $FILE ($DURATION_SEC sec)" | tee -a $PLAYLOG
+        mp3sender "$FILE"
+        sleep $DURATION_SEC
+        sleep 2 # 2 more seconds before next song, to allow for arbitrary fluctuations in time-space and simulate silent moments of CD-playing devices
+    done
+fi

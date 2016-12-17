@@ -25,7 +25,7 @@ public class TvLogLayout extends LayoutBase<ILoggingEvent> {
         buf.append(Thread.currentThread().getName());
         buf.append("]");
         
-        while (buf.length() < 36) {
+        while (buf.length() < 40) {
             buf.append(" ");            
         }
         

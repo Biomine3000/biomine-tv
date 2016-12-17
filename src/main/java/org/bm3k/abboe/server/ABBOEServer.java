@@ -3,11 +3,8 @@ package org.bm3k.abboe.server;
 import static org.bm3k.abboe.objects.BusinessObjectEventType.*;
 
 import java.io.*;
-import java.net.ConnectException;
-import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketTimeoutException;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -23,9 +20,9 @@ import org.bm3k.abboe.objects.BOB;
 import org.bm3k.abboe.objects.BusinessObject;
 import org.bm3k.abboe.objects.BusinessObjectEventType;
 import org.bm3k.abboe.objects.BusinessObjectMetadata;
-import org.bm3k.abboe.objects.BusinessObjectUtils;
 import org.bm3k.abboe.senders.ContentVaultProxy;
 import org.bm3k.abboe.senders.ContentVaultProxy.InvalidStateException;
+import org.bm3k.abboe.server.PeerManager.DuplicatePeerException;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -33,7 +30,6 @@ import org.slf4j.LoggerFactory;
 
 import util.CollectionUtils;
 import util.StringUtils;
-import util.net.NonBlockingSender;
 
 /**
  * Advanced Business Objects Exchange Server.
@@ -49,25 +45,25 @@ import util.net.NonBlockingSender;
  *
  */
 public class ABBOEServer {
-    private final Logger log = LoggerFactory.getLogger(ABBOEServer.class);
+    final Logger log = LoggerFactory.getLogger(ABBOEServer.class);
 
-    private static final String NODE_NAME = "java-A.B.B.O.E";
-    private static final int PEER_CONNECT_TIMEOUT_MILLIS = 3000;
-    private static final int PEER_CONNECT_RETRY_INTERVAL_SECONDS = 60;
+    // static final String NODE_NAME = "java-A.B.B.O.E";    
     
     public static final DateFormat DEFAULT_DATE_FORMAT = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM);
 
     private ServerSocket serverSocket; 
-    private String serverRoutingId;
+    String serverRoutingId;
     private ServerAddress serverAddress;    
 
-    private PeerManager peerManager;
+    PeerManager peerManager;
+    
+    Biomine3000Args args;
     
     /** For sending welcome images */
     private ContentVaultProxy contentVaultProxy;
 
     /** all access to this neighbor list should be synchronized on the ABBOEServer instance */
-    private List<NeighborConnection> neighbors;
+    List<NeighborConnection> neighbors;
 
     /** Shortcuts for neighbors, to be used for interactive server management only */
     private Map<Integer, NeighborConnection> neighborShortcuts;
@@ -84,18 +80,26 @@ public class ABBOEServer {
         return map;
     }    
 
+    State getState() {
+    	return state;
+    }
+    
     /**
      * Create server data structures and start listening. 
      * 
      * @param serverAddress we want to have the complete server address.
      * 
      */
-    public ABBOEServer(ServerAddress address, Collection<ServerAddress> peerAddresses) throws IOException {
+    public ABBOEServer(Biomine3000Args args, ServerAddress address, Collection<ServerAddress> peerAddresses) throws IOException {
     	log.debug("ABBOEServer constructor");
         state = State.NOT_RUNNING;
+        this.args = args;
         this.serverAddress = address;
-        this.serverRoutingId = Biomine3000Utils.generateUID();
+        this.serverRoutingId = serverAddress.getName();
+        log.info("Server routing id: " + serverRoutingId);
+        // this.serverRoutingId = Biomine3000Utils.generateUID();
         this.peerManager = new PeerManager(peerAddresses);
+        log.info("Peers: " + StringUtils.collectionToString(peerAddresses, ", "));
         this.peerManager.addStateListener(() -> startBusinessIfNeeded());
         serverSocket = new ServerSocket(serverAddress.getPort());
         neighbors = new ArrayList<NeighborConnection>();
@@ -104,10 +108,14 @@ public class ABBOEServer {
         contentVaultProxy.addListener(new ContentVaultListener());        
         contentVaultProxy.startLoading();
     }
+    
+    ServerAddress getServerAddress() {
+    	return serverAddress;
+    }
 
     /** Start normal business if all peers contacted (or at least tried) and operations not yet started */   
     private synchronized void startBusinessIfNeeded() {
-    	log.info("startBusinessIfNeeded");
+    	// log.info("startBusinessIfNeeded");
     	if (state == State.CONNECTING_TO_PEERS && peerManager.connectionAttemptedForAllPeers()) { 
     		log.info("Connection attempted for all peers");
     		startBusiness();
@@ -194,7 +202,7 @@ public class ABBOEServer {
     }
     
     /** Implemented by just calling {@link #forward()} with null src */
-    private void sendServerGeneratedObject(BusinessObject bo) {
+    void sendServerGeneratedObject(BusinessObject bo) {
         forward(bo, null);
     }
     
@@ -211,7 +219,7 @@ public class ABBOEServer {
      * 
      * @param src neighbor from where this object originated from. Null, if this message originates from this very ABBOE.
      */
-    private synchronized void forward(BusinessObject bo, NeighborConnection src) {        
+    synchronized void forward(BusinessObject bo, NeighborConnection src) {        
         
         String to = bo.getMetadata().getString("to");
         List<NeighborConnection> potentialDestinations = new ArrayList<>(); 
@@ -240,7 +248,7 @@ public class ABBOEServer {
             return; // no action needed ( a trivial routing dead end, supposedly )
         }
         
-        // UPDATED VERSION OF TEXT IN SPECS (should copy there...):
+        // UPDATED VERSION OF TEXT IN SPECS (TODO: copy there...):
         // handle route attribute (creating / updating route), eliminate destinations already on route)
         // The route array in an object must always be checked against forwarding destinations. Objects must not 
         // be forwarded to nodes whose routing-id appears in the route array. If the route array does not exist, 
@@ -343,390 +351,6 @@ public class ABBOEServer {
     }
     
     /**
-     * Connection to a neighboring node. Each connection has a dedicated thread for reading and sending objects.
-     */
-    class NeighborConnection implements NonBlockingSender.Listener {                       
-        Socket socket;
-        BufferedInputStream is;
-        OutputStream os;
-        boolean subscribed = false;
-        boolean senderFinished;
-        boolean receiverFinished;
-        /** Please do not call send of this neighbor directly, even within this class, except in the one dedicated place */
-        NonBlockingSender sender;
-        BusinessObjectReader reader;
-        ReaderListener readerListener;        
-        Subscriptions subscriptions = new Subscriptions();        
-        boolean closed;
-        String routingId;     // primary routing id of the neighbor
- 
-        /** actual name of neighbor program, not including user or addr */
-        String neighborName;
-        String user;
-        /* Obtained by getRemoteSocketAddress() */
-        String addr;
-        /** Derived from neighborName, user and addr */
-        String name;                
-        
-        /** services implemented by neighbor */
-        LinkedHashSet<String> services = new LinkedHashSet<String>();
-        Role role;
-
-        /** Creates sender, but not yet reader. Reader must be created later by calling {@link #startReaderThread()} */
-        NeighborConnection(Socket socket) throws IOException {
-            senderFinished = false;
-            receiverFinished = false;
-            this.socket = socket;
-            addr = socket.getRemoteSocketAddress().toString();
-            initName();
-            is = new BufferedInputStream(socket.getInputStream());
-            os = socket.getOutputStream();
-            sender = new NonBlockingSender(socket, this);
-            sender.setName(name);
-            readerListener = new ReaderListener(this);
-            closed = false;
-            
-            synchronized(ABBOEServer.this) {
-                neighbors.add(this);
-            }
-        }
-
-        private void initName() {
-            StringBuffer buf = new StringBuffer();
-            if (neighborName != null) {
-                buf.append(neighborName+"-");
-            }
-            if (user != null) {
-                buf.append(user+"-");
-            }
-            buf.append(addr);
-            name = buf.toString();
-        }
-        
-        
-        public synchronized void setNeighborName(String neighborName) {
-            this.neighborName = neighborName;
-            initName();
-            sender.setName("sender-"+this.name);
-            reader.setName("reader-"+this.name);
-        }
-                               
-        
-        private synchronized void setUser(String user) {
-            this.user = user;
-            initName();
-            sender.setName("sender-"+name);
-            reader.setName("reader-"+name);
-        }
-
-
-        /**
-         * Send a warning message to a neighbor (natures=[warning,message], contenttype=plaintext, sender=java-A.B.B.O.E.) 
-         * Sending is not conditional on subscriptions (they should be checked by this point if needed).
-         **/
-        private void sendWarning(String text) {
-            BusinessObject reply = BOB.newBuilder()
-                    .natures("message", "warning")
-                    .attribute("to", this.routingId)
-                    .attribute("sender", NODE_NAME)
-                    .payload(text).build();
-            send(reply);
-        }
-        
-                
-        /**
-         * Send an error reply to processing of an event RECEIVED FROM THIS NEIGHBOR.
-         * 
-         * See leronen-tv-todo for specs!
-         * 
-         * Reply will always be an event=error. It will also have natures "message", "error".
-         * 
-         * Send a error message to neighbor (natures=[error,message], contenttype=plaintext, sender=java-A.B.B.O.E.) 
-         * Sending is not conditional on subscriptions (they should be checked by this point if needed).
-         **/
-        private void sendErrorReply(String errorMessage, BusinessObject receivedObject) {                       
-            String inReplyTo = receivedObject.getMetadata().getString("id");
-                        
-            if (inReplyTo == null) {
-                log.warn("Sending an error reply to an object with unknown id: "+receivedObject);
-            }
-            
-            BusinessObject reply = BOB.newBuilder()
-                    .event(BusinessObjectEventType.ERROR)
-                    .natures("message", "error")                    
-                    .attribute("in-reply-to", inReplyTo)
-                    .attribute("sender", NODE_NAME)
-                    .payload(errorMessage).build();
-            
-            String to;
-            
-            if (this.role == Role.CLIENT) {
-                to = this.routingId;                                            
-            }
-            else {
-                JSONArray route = receivedObject.getMetadata().asJSON().optJSONArray("route");                
-                if (route == null) {
-                    // no route in object from server; actually this should mean that we are sending error reply namely to said server
-                    // (a horrendous implicit assumption)), and thus we can just use that very server as "to"
-                    to = this.routingId;
-                }
-                else {
-                    to = route.getString(0);
-                }                
-            }
-            
-            reply.getMetadata().put("to", to);
-             
-            sendServerGeneratedObject(reply);
-        }
-        
-        /**
-         * Send a message to client (nature=message, contenttype=plaintext, sender=java-A.B.B.O.E.) 
-         * Sending is not conditional on subscriptions or routing (they should be checked by this point if needed).
-         **/
-        private void sendMessage(String text) {                                                           
-            // log("Sending message to client " + this + ": " + text);
-            BusinessObject reply = BOB.newBuilder()
-                    .natures("message")
-                    .attribute("sender", NODE_NAME)
-                    .payload(text).build();
-            send(reply);
-        }                                      
-        
-        /**
-         * Put object to queue of messages to be sent (to this one client) and return immediately.
-         * Sending is not conditional on subscriptions or routing (they should be checked by this point if needed).
-         * Assume send queue has unlimited capacity.
-         */
-        private void send(BusinessObject bo) {
-          if (senderFinished) {
-              log.warn("No more sending business for client "+this);
-              return;
-          }
-
-          if (bo.hasNature("error")) {
-              log.error("Sending to "+this+" : "+bo);
-          }
-          else if (bo.hasNature("warning")) {
-              log.warn("Sending to: "+this+" : "+bo);
-          }
-          else {
-              log.info("Sending to: "+this+" : "+bo);
-          }
-          
-          try {
-              sender.send(bo.getMetadata().toString().getBytes("UTF-8"), false);
-              byte[] payload = bo.getPayload();
-              if (payload != null) {              
-                  sender.send(Biomine3000Utils.NULL_BYTE_ARRAY, false);                 
-                  sender.send(bo.getPayload(), true);
-              }
-              else {
-                  sender.send(Biomine3000Utils.NULL_BYTE_ARRAY, true);
-              }
-          }
-          catch (IOException e) {
-              log.error("Failed sending to client "+this, e);
-              doSenderFinished();
-          }
-      }
-
-        
-        private synchronized void registerServices(List<String> names) {
-            services.addAll(names);
-        }
-
-        private void startReaderThread() {
-            reader = new BusinessObjectReader(is, readerListener, name);
-            Thread readerThread = new Thread(reader);
-            readerThread.setName("reader-" + name);
-            readerThread.start();
-        }
-
-        /**
-         * Forcibly terminate a connection with a neighbor (supposedly called when
-         * neighbor steadfastly refuses to close the connection when requested)
-         */
-        private void forceClose() {
-            if (closed) {
-                error("Attempting to close a client multiple times", null);
-            }
-            log("Forcing closing of connection with client: "+this);
-
-            try {
-                // closing socket also closes streams if needed
-                socket.close();
-            }
-            catch (IOException e) {
-                error("Failed closing socket", e);
-            }
-
-            synchronized(ABBOEServer.this) {
-                neighbors.remove(this);
-                closed = true;
-                if (state == State.SHUTTING_DOWN && neighbors.size() == 0) {
-                    // last neighbor closed and we are shutting down, finalize shutdown sequence...
-                    log.info("No more neighbors, finalizing shutdown sequence...");
-                    finalizeShutdownSequence();
-                }
-            }
-                                           
-            sendServerGeneratedObject(makeRoutingDisconnectEvent());                                                                                      
-        }
-
-        /** Make event signaling the departure of this neighbor */
-        private BusinessObject makeRoutingDisconnectEvent() {
-            return BOB.newBuilder()
-                    .event(ROUTING_DISCONNECT)
-                    .attribute("routing-id", routingId)                            
-                    .payload(""+this.role + " " + this + " disconnected").build();
-        }
-        
-        /**
-         * Gracefully dispose of a single neighbor after ensuring both receiver and neighbor
-         * have finished
-         */
-        private void doClose() {
-            if (closed) {
-                error("Attempting to close a connection with neighbor " + this + " multiple times", null);
-            }
-
-            log("Closing connection with "+this.role+": "+this);
-
-            try {
-                os.flush();
-            }
-            catch (IOException e) {
-                // let's not bother to even log the exception at this stage
-            }
-
-            try {
-                // closing socket also closes streams if needed
-                socket.close();
-            }
-            catch (IOException e) {
-                // let's not bother to even log the exception at this stage
-            }
-
-            synchronized(ABBOEServer.this) {
-                neighbors.remove(this);
-                closed = true;
-                if (state == State.SHUTTING_DOWN && neighbors.size() == 0) {
-                    // last neighbor closed, no more neighbors, finalize shutdown sequence...
-                    log.info("No more neighbors, finalizing shutdown sequence...");
-                    finalizeShutdownSequence();
-                }
-            }
-            
-            sendServerGeneratedObject(makeRoutingDisconnectEvent());
-        }
-        
-        
-        @Override
-        public void senderFinished() {
-            doSenderFinished();
-        }
-
-        /**
-         * Initiate shutting down of proceedings with this neighbor.
-         *
-         * Actually, just initiate closing of output channel. On noticing this,
-         * neighbor should close its socket, which will then be noticed on this server
-         * as a {@link BusinessObjectReader.Listener#noMoreObjects()} notification from the {@link #reader}.
-         */
-        public void initiateClosingSequence(BusinessObject notification) {
-            log.info("Initiating closing sequence for neighbor: "+this);
-            
-            log.info("Sending shutdown event to neighbor: "+this);
-            if (subscriptions.pass(notification)) {
-                send(notification);
-            }
-
-            sender.requestStop();
-        }
-
-        private synchronized void doSenderFinished() {
-            log("doSenderFinished");
-            if (senderFinished) {
-                log("Already done");
-                return;
-            }
-
-            senderFinished = true;
-
-            try {
-                socket.shutdownOutput();
-            }
-            catch (IOException e) {
-                log.error("Failed closing socket output after finishing neighbor", e);
-            }
-
-
-            if (receiverFinished) {
-                doClose();
-            }
-        }
-
-        private synchronized void doReceiverFinished() {
-            log("doReceiverFinished");
-            if (receiverFinished) {
-                log("Already done");
-                return;
-            }
-
-            // request stop of neighbor
-            sender.requestStop();
-
-            receiverFinished = true;
-
-            if (senderFinished) {
-                doClose();
-            }
-        }
-
-        /** 
-         * Store info for a peer to which a connection was initiated by us ("outgoing" peer connection). 
-         * 
-         * Serves approximately similar purpose as {@link #handleRoutingSubscribeEvent(NeighborConnection, BusinessObject)};
-         * in this case, we have already read the peer info while connecting to the peer, and will not receive the info 
-         * through a subscribe event. 
-         */
-        private void setPeerInfo(PeerInfo peerInfo) {
-        	if (peerInfo.getSubscribeDirection() != SubscribeDirection.OUTGOING) {
-        		throw new RuntimeException("Cannot set peer info for an incoming peer connection");
-        	}
-        	
-        	// peerInfo.getAddress();
-        	this.routingId = peerInfo.getRoutingId();
-        	this.subscriptions =  peerInfo.getSubsciptions();
-        	
-        }
-        
-        private void error(String msg, Exception e) {
-            log.error(name+": "+msg, e);
-        }
-
-        private void log(String msg) {
-            log.info(name+": "+msg);
-        }
-
-        public String toString() {
-            return name;
-        }
-       
-        public void sendPong(BusinessObject bo) {
-            BusinessObjectMetadata metadata = new BusinessObjectMetadata();
-        
-            if (bo.getMetadata().hasKey("id")) {
-                metadata.put("in-reply-to", bo.getMetadata().getString("id"));
-            }
-        
-            send(BOB.newBuilder().event(PONG).metadata(metadata).build());
-        }
-
-    }
-
-    /**
      * "clone" a business object, with the only difference being in the route attribute. In practice,
      * only metadata is cloned, the payload (if any) can be recycled as is.
      * 
@@ -755,7 +379,7 @@ public class ABBOEServer {
         log.info("Accepting neighbor from "+neighborSocket.getInetAddress());
 
         try {
-            neighbor = new NeighborConnection(neighborSocket);
+            neighbor = new NeighborConnection(this, neighborSocket);
 
             // suggest registration, if neighbor has not done so within a second of its registration...
             new SubscriptionCheckerThread(neighbor).start();
@@ -912,7 +536,7 @@ public class ABBOEServer {
     }
 
     /** Finalize shutdown sequence after closing all clients (if any) */
-    private void finalizeShutdownSequence() {
+    void finalizeShutdownSequence() {
         try {
             log.info("Finalizing shutdown sequence by closing server socket");
             serverSocket.close();
@@ -1019,7 +643,7 @@ public class ABBOEServer {
      *   TODO: to implement this service sensibly, we indeed would have to implement a complete client registry,
      *   which has to be distinct from the neighbor registry currently implemented...
      */
-    private void handleServicesRegisterEvent(NeighborConnection client, BusinessObject bo) {
+    void handleServicesRegisterEvent(NeighborConnection client, BusinessObject bo) {
         if (client.role == Role.SERVER) {
             client.sendErrorReply("services/register events currently supported only for neighboring clients", bo);
             return;
@@ -1073,7 +697,7 @@ public class ABBOEServer {
      * Todo: should the implemented client registry service also include servers? What prevents servers from registering as clients,
      * so probably this should not matter.     
      */
-    private void handleClientsListEvent(NeighborConnection requestingNeighbor, BusinessObject bo ) {
+    void handleClientsListEvent(NeighborConnection requestingNeighbor, BusinessObject bo ) {
         
         BusinessObject reply;
         
@@ -1108,7 +732,7 @@ public class ABBOEServer {
     
     
     /** handle a routing/subscribe event */
-    private void handleRoutingSubscribeEvent(NeighborConnection neighbor, BusinessObject subscribeEvent) throws InvalidBusinessObjectMetadataException {
+    void handleRoutingSubscribeEvent(NeighborConnection neighbor, BusinessObject subscribeEvent) throws InvalidBusinessObjectMetadataException {
         BusinessObjectMetadata subscribeMeta = subscribeEvent.getMetadata();                
         ArrayList<String> warnings = new ArrayList<>();
                 
@@ -1129,7 +753,7 @@ public class ABBOEServer {
             if (routingIdFromNeighbor !=  null) {
                 warnings.add("A client should not specify a routing id; overridden by one generated by server");
             }
-            neighbor.routingId = Biomine3000Utils.generateUID(neighbor.addr);
+            neighbor.routingId = Biomine3000Utils.generateUID(neighbor.getAddress());
         }
         else if (neighbor.role == Role.SERVER) {
             if (routingIdFromNeighbor !=  null) {
@@ -1168,7 +792,27 @@ public class ABBOEServer {
             // no subscriptions (perhaps, just perhaps this is valid)
             warnings.add("No subscriptions specified, nothing shall be sent");
         }               
-                               
+                                  
+        // TODO: verify that not already connected to said ABBŒ before sending reply;
+        // if already connected,  send error as reply; remember to put in-reply-to to error object!
+        // täällä
+        ServerAddress peerAddress = new ServerAddress(neighbor.getSocket().getInetAddress().toString(), neighbor.getSocket().getPort(), "subscribed server XYZ", null);
+        try {      
+        	@SuppressWarnings("unused")
+        	PeerInfo peerInfo = peerManager.registerPeer(peerAddress, neighbor.routingId, neighbor.subscriptions, SubscribeDirection.INCOMING);
+        }
+        catch (DuplicatePeerException e) {
+        	// we already have a connection with said peer, need to terminate this connection...
+        	BusinessObject reply = BOB.newBuilder()
+                    .natures("message")
+                    .natures("warning")
+                    .attribute("sender", getServerAddress().getName())
+                    .payload("Cannot subscribe to this peer: already subscribed").build();
+        	log.info("Already connected to peer " + peerAddress + " using routing-id: " + neighbor.routingId + " => initiating closing sequence");
+        	neighbor.initiateClosingSequence(reply);
+        	return;
+        }
+        
         BusinessObject response = BOB.newBuilder()
                 .event(ROUTING_SUBSCRIBE_REPLY)
                 .attribute("in-reply-to", subscribeMeta.getString("id"))
@@ -1234,7 +878,7 @@ public class ABBOEServer {
                 
     }
     
-    private void handleClientJoinRequest(NeighborConnection neighbor, BusinessObject bo) throws InvalidBusinessObjectMetadataException {
+    void handleClientJoinRequest(NeighborConnection neighbor, BusinessObject bo) throws InvalidBusinessObjectMetadataException {
         BusinessObjectMetadata meta = bo.getMetadata();
         String clientName = meta.getString("client");
         String user = meta.getString("user");
@@ -1273,149 +917,16 @@ public class ABBOEServer {
         // human-readable identification info for the neighbor, which warrants that a broadcast take place
         BusinessObject notification = BOB.newBuilder()
                 .nature("message")
-                .attribute("sender", NODE_NAME)                        
+                .attribute("sender", getServerAddress().getName())                        
                 .payload(""+neighbor.role + " " + neighbor + " registered using clients/join service provided by java-ABBOE (no event nor nature has been specified for such an occurence)")                        
                 .build();
         sendServerGeneratedObject(notification);
     }
     
     
-    /** Listens to a single dedicated reader thread reading objects from the input stream of a single neighbor */
-    private class ReaderListener implements BusinessObjectReader.Listener {
-        NeighborConnection source;
-
-        ReaderListener(NeighborConnection neighbor) {
-            this.source = neighbor;
-        }
-
-        @Override
-        public void objectReceived(BusinessObject bo) {
-            if (bo.isEvent()) {
-                BusinessObjectEventType et = bo.getMetadata().getKnownEvent();                                                                                                                                                                       
-                                                
-                // assert that route is set for server-originating object, and not set for client-originating ones.
-                if (source.role != null) {   
-                    switch (source.role) {
-                    case SERVER:
-                        if (!bo.getMetadata().hasKey("route")) {
-                            source.sendErrorReply("No route in object from server", bo);
-                            return;
-                        }
-                        break;
-                    case CLIENT:                        
-                        if (bo.getMetadata().hasKey("route")) {
-                            source.sendErrorReply("A client should not specify a route", bo);
-                            return;
-                        }
-                        break;
-                    }
-                }
-                
-                boolean forwardEvent = true;  // does this event need to be sent to other neighbors?
-                if (et != null) {
-                    log.info("Received event from {} : {} ", source, bo);                    
-                    if (et == SERVICES_REQUEST) {                                            
-                        String serviceName = bo.getMetadata().getString("name");
-                        
-                        if (serviceName.equals("clients")) {
-                            String request = bo.getMetadata().getString("request");
-                            
-                            if (request.equals("join")) {
-                                handleClientJoinRequest(source, bo);
-                            }
-                            else if (request.equals("leave")) {
-                                source.sendWarning("Unhandled request: clients/leave (request id: "+bo.getMetadata().get("id"));         
-                            }
-                            else if (request.equals("list")) {
-                                handleClientsListEvent(source, bo);
-                            }
-                            else {
-                                source.sendWarning("Unknown request to clients service: " + request + " (request id: "+bo.getMetadata().get("id"));
-                            }
-                        }
-                        else {
-                            source.sendWarning("Forwarding service requests not implemented. (service=" + serviceName+ " ;request id: "+bo.getMetadata().get("id"));        
-                        }
-                        
-                        forwardEvent = false;
-                    }
-                    else if (et == SERVICES_REGISTER) {
-                        handleServicesRegisterEvent(source, bo);
-                        forwardEvent = false;
-                    }
-                    else if (et == ROUTING_SUBSCRIPTION) {
-                        handleRoutingSubscribeEvent(source, bo);
-                        forwardEvent = false;
-                    }
-                    else if (et == PING) {
-                        source.sendPong(bo);
-                        forwardEvent = false;
-                    }
-                    else {
-                        log.info("Received known event which this ABBOE implementation does not handle: {}", bo);
-                    }
-                }
-                else {
-                    log.info("Received unknown event: {}", bo.getMetadata().getEvent());
-                }
-
-                // forward the event if needed 
-                if (forwardEvent) {
-                    log.info("Forwarding event to all clients...");
-                    ABBOEServer.this.forward(bo, source);
-                }
-            }
-            else {
-                // not an event, assume mythical "content"
-                log.info("Received content: {}", Biomine3000Utils.formatBusinessObject(bo));
-                                
-                ABBOEServer.this.forward(bo, source);
-            }
-        }
-
-        @Override
-        public void noMoreObjects() {
-            log.info("connectionClosed (neighbor closed connection).");
-            source.doReceiverFinished();
-        }
-
-        private void handleException(Exception e) {
-            if (e.getMessage() != null && e.getMessage().equals("Connection reset")) {
-                log.info("Connection reset by neighbor: "+this.source);
-            }
-            else {
-                log.error("Exception while reading objects from neighbor " + source, e);
-            }
-            source.doReceiverFinished();
-        }
-
-        @Override
-        public void handle(IOException e) {
-            handleException(e);
-        }
-
-        @Override
-        public void handle(InvalidBusinessObjectException e) {
-            handleException(e);
-        }
-
-        @Override
-        public void handle(RuntimeException e) {
-            handleException(e);
-        }
-
-        public void connectionReset() {
-            log.error("Connection reset by neighbor: {}", this.source);
-            source.doReceiverFinished();
-        }
-    }   
-
-    
-
     public static void main(String[] pArgs) throws Exception {
     	    	
-        Logger log = LoggerFactory.getLogger(ABBOEServer.class);
-        log.debug("ABBOE!");
+        Logger log = LoggerFactory.getLogger(ABBOEServer.class);        
                
         Biomine3000Args args = new Biomine3000Args(pArgs, false);
 
@@ -1424,7 +935,7 @@ public class ABBOEServer {
         ServerAddress serverAddress = Biomine3000Utils.conjureJavaABBOEAddress(port);            
         
         if (serverAddress == null) {
-            log.info("Could not find server address in the list of official servers");
+            log.info("Could not find server address in the list of official servers, using default values");
             if (port == null) {
                 log.error("No -port");
                 System.exit(1);
@@ -1432,14 +943,13 @@ public class ABBOEServer {
             serverAddress = new ServerAddress("localhost", port, "java-ABBOE","java"); 
         }                
         
-        log.info("Using server address: "+serverAddress);
-        
-        log.info("Starting ABBOE at port "+serverAddress.getPort());       
+        log.info("Starting ABBOE using server address: "+serverAddress);         
         
         try {
             Set<ServerAddress> knownServers = new LinkedHashSet<>(Biomine3000Utils.readServersFromConfigFile());
-            Set<ServerAddress> peers =  CollectionUtils.minus(knownServers, Collections.singleton(serverAddress));
-            ABBOEServer server = new ABBOEServer(serverAddress, peers);
+            ServerAddress.initShortNames(knownServers);
+            Set<ServerAddress> peers =  CollectionUtils.minus(knownServers, Collections.singleton(serverAddress));            
+            ABBOEServer server = new ABBOEServer(args, serverAddress, peers);
                         
             // connect to other servers; note that we have to do the handshake before starting to listen anything, 
             // to make sure that 2 different server handshakes do not occur simultaneously: one originating from 
@@ -1484,346 +994,6 @@ public class ABBOEServer {
     }
     
     /**
-     * <b>Connect to a single peer server in a dedicated thread</b>
-     * <p> 
-     *  Send routing/subscription with following attributes (from specs):
-     *  <ul>
-     *    <li> routing-id – the server’s own routing id (unlike clients, it should preferably pick its own) </li>
-     *    <li> role = server – differentiate from clients (affects routing)</li>
-     *    <li> subscriptions – the array of subscriptions (practically always [ * ] between servers, otherwise routes through such server may silently discard Objects even if clients subscribe to them)</li>
-     *   <li> id – the unique, generated id of the subscription object</li>
-     *  </ul>
-     *  <p>
-     *  Expect a subsciption reply in return with following attributes:</li><
-     *  <ul>  
-     *    <li> role = server
-     *    <li> routing-id – the replying server’s routing id
-     *    <li> subscriptions – the array of subscriptions (i.e., [ * ])
-     * </ol>
-     * 
-     * Apparently, at least for the sake of the actual business of delivering objects, it makes no
-     * difference which end initiated the connection.
-     *  
-     * Once we have sent the routing/subscribe and received an expected reply, the connection 
-     * is made into a normal NeighborConnection.     
-     */
-    public class PeerConnectionThread extends Thread {
-        
-        ServerAddress peerAddress;
-        Socket socket = new Socket();
-        
-        private PeerConnectionThread(ServerAddress peerAddress) {
-            this.peerAddress = peerAddress;
-            this.setName("peerconnector-" + peerAddress.getName());
-        }
-        
-        private void connect() throws PeerConnectException {
-            socket = new Socket();
-            InetSocketAddress inetAddress = new InetSocketAddress(peerAddress.getHost(), peerAddress.getPort());
-            log.info("Trying to connect to peer at addr " + peerAddress + " (timeout in "+PEER_CONNECT_TIMEOUT_MILLIS/1000 + " seconds)");
-            try {                
-                socket.connect(inetAddress, PEER_CONNECT_TIMEOUT_MILLIS);
-            }
-            catch (SocketTimeoutException e) {
-                log.info("Connecting to server at "+peerAddress+ "timed out");
-                throw new PeerConnectException("Connection to peer " + peerAddress + " timed out", e, true);
-            }
-            catch (ConnectException e) {
-                log.info("Connecting to server at "+peerAddress+ " threw ConnectException: " + e);
-                throw new PeerConnectException("Connection to peer " + peerAddress + " failed with connect exception", e, true);
-            }
-            catch (IOException e) {
-            	throw new PeerConnectException("Connection to peer " + peerAddress + " failed with connect exception", e, true);                
-            }           
-        }
-      
-        /** 
-         * Subscribe to the other server.
-         * 
-         * Performs following actions:
-         * <ul>
-         * <li> write subscription object
-         * <li> read reply
-         * <li> read return subscription
-         * <li> write return subscription reply
-         * <li> register peer to peer manager and sets state to CONNECTED.
-         * </ul>
-         */
-        private void subscribe() throws SubscribeException {
-            // write outgoing subscription
-        	String subscribeEventId = Biomine3000Utils.generateUID();
-        	try {
-	            log.info("writing outgoing subscription");
-	            BusinessObject subscription = BOB.newBuilder()
-	                    .event(BusinessObjectEventType.ROUTING_SUBSCRIPTION)
-	                    .attribute("routing-id", serverRoutingId)
-	                    .attribute("role", "server")
-	                    .attribute("subscriptions", new Subscriptions("*").toJSON())
-	                    .attribute("id", subscribeEventId)
-	                    .build();
-	            socket.getOutputStream().write(subscription.toBytes());
-	            socket.getOutputStream().flush();
-        	}
-        	catch (IOException e) {
-        		throw new SubscribeException("Failed writing subscription object", e, false);
-        	}
-            
-            // expect a routing/subscribe/reply
-        	log.info("reading subscribe reply");
-        	BusinessObject subscribeReply = null;
-            try {            
-            	subscribeReply = BusinessObjectUtils.readObject(socket.getInputStream());
-            }
-            catch (IOException e) {
-                throw new SubscribeException("Failed reading routing/subscribe/reply from server " + peerAddress, e, false); 
-            }
-            catch (InvalidBusinessObjectException e) {
-            	// other server responded with an invalid business object, do not retry
-            	throw new SubscribeException("Failed reading routing/subscribe/reply from server " + peerAddress, e, false);
-            }
-
-            if (subscribeReply == null) {
-            	throw new SubscribeException("Peer closed connection", false);
-            }
-            
-            if (!subscribeReply.isEvent(ROUTING_SUBSCRIBE_REPLY)) {            
-            	throw new SubscribeException("Invalid reply object: not a " + ROUTING_SUBSCRIBE_REPLY.getEventName(), false);
-            }
-            
-            String inReplyTo = subscribeReply.getMetadata().getString("in-reply-to");
-            if (inReplyTo == null || !inReplyTo.equals(subscribeEventId)) {
-            	throw new SubscribeException("Invalid in-reply-to: " + inReplyTo+ "; expecting " + subscribeEventId, false);
-            }
-                    
-            // expect a return subscription
-            log.info("reading return subscription");
-            BusinessObject returnSubscription = null;
-            try {            
-            	returnSubscription = BusinessObjectUtils.readObject(socket.getInputStream());
-            }
-            catch (IOException e) {
-            	// IOException while connecting, assume that we might still be able to retry
-            	// TODO: elaborate cause of IOException to decide whether retrying makes sense
-                throw new SubscribeException("Failed reading return subscription from server " + peerAddress + 
-                		                     e, true);
-            }
-            catch (InvalidBusinessObjectException e) {
-            	// other server responded with an invalid business object, do not retry
-            	// TODO: more elaborate logic to decide if and when to retry
-            	throw new SubscribeException("Failed reading return subscription from server " + peerAddress + 
-	                     					e, false);
-            }
-            	            	
-        	if (returnSubscription == null) {
-        		throw new SubscribeException("Other server terminated connection without sending a reply", false); 
-        	}
-            
-        	if (!returnSubscription.isEvent(ROUTING_SUBSCRIPTION)) {
-        		throw new SubscribeException("Invalid reply event: not a " + ROUTING_SUBSCRIBE_REPLY.getEventName(), false);
-        	}
-        	
-            String peerRole = returnSubscription.getMetadata().getString("role");
-            if (peerRole == null || !peerRole.equals("server")) {
-            	throw new SubscribeException("Other server has illegal role in return subscription: " + peerRole, false);
-            	// TODO: send error about utter folly
-            }
-            
-            String peerRoutingId = returnSubscription.getMetadata().getString("routing-id");
-            if (peerRoutingId == null) { 
-            	throw new SubscribeException("Other server has no routing-id return subscription", false);
-            	// TODO: send error about utter folly
-            }
-            
-            List<String> peerSubscriptionsList = returnSubscription.getMetadata().getList("subscriptions");
-            if (peerSubscriptionsList == null) {
-            	throw new SubscribeException("Other server did not specify field subscriptions in subscribe reply", false);	
-            }
-            Subscriptions peerSubscriptions = new Subscriptions(peerSubscriptionsList);
-                        
-            // send return subscribe reply
-            String returnSubscriptionId = returnSubscription.getMetadata().getString("id");                       
-            
-            BusinessObject returnSubscriptionReply = BOB.newBuilder()
-                    .event(ROUTING_SUBSCRIBE_REPLY)
-                    .attribute("routing-id", peerRoutingId)                
-                    .build();
-            
-            if (returnSubscriptionId != null) {
-            	returnSubscriptionReply.getMetadata().put("in-reply-to", returnSubscriptionId);
-            }
-            
-            try {
-            	socket.getOutputStream().write(returnSubscriptionReply.toBytes());
-            	socket.getOutputStream().flush();
-            }
-            catch (IOException e) {
-            	throw new SubscribeException("Failed sending return subscription reply", e, false);
-            }            
-            
-            // successfully subscribed, received reply, read return subscription and sent return subscription reply
-            // => proceed to register connection
-            try {
-            	PeerInfo peerInfo = peerManager.registerPeer(peerAddress, peerRoutingId, peerSubscriptions, SubscribeDirection.OUTGOING);
-	            
-	            NeighborConnection neighbor;
-
-	            try {
-	                neighbor = new NeighborConnection(socket);
-	                neighbor.setPeerInfo(peerInfo);
-	            }
-	            catch (IOException e) {
-	                log.error("IOException while initializing connection to neighbor " + peerAddress.getName(), e, true);
-	                
-	                peerManager.removePeer(peerRoutingId);
-	                
-	                try {
-	                    socket.close();
-	                }
-	                catch (IOException e2) {
-	                    // failed even this, no further action possible
-	                }
-	                return;
-	            }
-	            
-	            peerManager.setState(peerAddress, PeerState.CONNECTED);
-	            neighbor.startReaderThread();
-            }
-            catch (PeerManager.DuplicatePeerException e) {
-            	throw new SubscribeException("Already connected to peer at address " + peerAddress.getName() + " with routing-id " + peerRoutingId, e, false); 
-            }            
-        }        
-        
-        @Override
-        public void run() {
-            log.info("Running PeerConnectionThread for address: "+peerAddress);
-            
-            peerManager.setState(peerAddress, PeerState.CONTACTING_AT_STARTUP);
-            
-            boolean retry = true;
-                        
-            while (retry) {            
-	            try {
-	            	log.info("Trying to connect to peer: " + peerAddress.getName());
-	                connect();                
-	            }
-	            catch (PeerConnectException e) {
-	            	if (!e.isRetryable()) {
-	            		log.info("Failed connecting to server " + peerAddress + ": " + e + ". Not retrying");
-	            		retry = false;
-	            		peerManager.setState(peerAddress, PeerState.FAILED_FOR_GOOD);
-	            	}
-	            	else {
-		            	log.info("Failed connecting to server " + peerAddress + ", retrying in " + PEER_CONNECT_RETRY_INTERVAL_SECONDS + " seconds");
-		            	peerManager.setState(peerAddress, PeerState.WAITING_FOR_RETRY);
-		            	try {
-		            		Thread.sleep(PEER_CONNECT_RETRY_INTERVAL_SECONDS * 1000);
-		            	}
-		            	catch (InterruptedException ie) {
-		            		log.warn("interrupted while waiting for connection retry");
-		            	}
-		            	
-		            	peerManager.setState(peerAddress, PeerState.RETRYING_CONTACT);
-	            	}
-	            	continue;
-	            }
-	            	     
-	            // connected successfully !
-	            	                      
-	            try {
-	            	log.info("Subscribing to peer: " + peerAddress.getName());
-	                subscribe();
-	            }
-	            catch (SubscribeException e) {
-	            	// first, clean up the connection
-	            	try {
-	            		socket.close();
-	            	}
-	            	catch (IOException closeEx) {
-	            		// no action possible
-	            	}
-	            	socket = null;
-	            		            		            	
-	            	if (!e.isRetryable()) {
-	            		log.info("Failed subscribing to server " + peerAddress + ": " + e + ". Not retrying");
-	            		retry = false;
-	            		peerManager.setState(peerAddress, PeerState.FAILED_FOR_GOOD);
-	            	}
-	            	else {
-		            	log.info("Failed subscribing to server " + peerAddress + ", retrying in " + PEER_CONNECT_RETRY_INTERVAL_SECONDS + " seconds");
-		            	peerManager.setState(peerAddress, PeerState.WAITING_FOR_RETRY);
-		            	try {
-		            		Thread.sleep(PEER_CONNECT_RETRY_INTERVAL_SECONDS * 1000);
-		            	}
-		            	catch (InterruptedException ie) {
-		            		log.warn("interrupted while waiting for subscribe retry");
-		            	}
-		            	
-		            	peerManager.setState(peerAddress, PeerState.RETRYING_CONTACT);
-	            	}
-	            	continue;	            	
-	            }	            	           
-
-            }
-            
-            log.info("Giving up <connecting to peer: " + peerAddress);
-            
-        }
-    }      
-        
-    
-    /** Exception while connecting to a peer server */
-    @SuppressWarnings("serial")
-    private static class PeerConnectException extends Exception {    
-                                  
-    	private boolean retryable;
-        private Throwable cause;
-                               
-        public PeerConnectException(String message, Throwable cause, boolean retryable) {
-            super(cause.getMessage());
-            this.cause = cause;
-            this.retryable = retryable;
-        }
-
-        public Throwable getCause() {
-            return this.cause;
-        }
-        
-        public boolean isRetryable() {
-            return this.retryable;
-        }
-    }
-    
-    /** Exception while subscribing to a peer server */
-    @SuppressWarnings("serial")
-    private static class SubscribeException extends Exception {    
-                                  
-    	private boolean retryable;
-        private Throwable cause;
-            
-        public SubscribeException(String message, boolean retryable) {
-            super(message);
-            this.retryable = retryable;
-        }
-            
-        public SubscribeException(String message, Throwable cause, boolean retryable) {
-            super(cause.getMessage());
-            this.cause = cause;
-            this.retryable = retryable;
-        }
-
-        public Throwable getCause() {
-            return this.cause;
-        }
-        
-        public boolean isRetryable() {
-            return this.retryable;
-        }
-    }
- 
-    
-       
-    
-    /**
      * Start a dedicated thread for each known server to connect to. Only after all known servers have been connected to
      * (or connections refused / failed etc. ), shall we start accepting clients. This is for two reasons:
      *  - to avoid receiving connections from same servers that we are initiating connections with ourselves
@@ -1860,7 +1030,7 @@ public class ABBOEServer {
         log.info("Trying to connect to following servers: " + peerManager.knownPeers());
         
         for (ServerAddress address: peerManager.knownPeers()) {
-            PeerConnectionThread connectionThread = new PeerConnectionThread(address);
+            PeerConnectionThread connectionThread = new PeerConnectionThread(this, address);
             connectionThread.start();
         }
         
@@ -1868,7 +1038,7 @@ public class ABBOEServer {
         startBusinessIfNeeded();
     }
 
-    private enum Role {        
+    enum Role {        
         CLIENT("client"),
         SERVER("server");
         
@@ -1880,11 +1050,10 @@ public class ABBOEServer {
         
         public String toString() {
             return name;
-        }
-        
+        }        
     }
     
-    private enum State {
+    enum State {
         NOT_RUNNING,
         CONNECTING_TO_PEERS,
         ACCEPTING_CLIENTS,

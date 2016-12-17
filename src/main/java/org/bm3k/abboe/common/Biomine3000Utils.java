@@ -232,7 +232,7 @@ public class Biomine3000Utils {
     		return null;
     	}
     	
-    	log.info("Conjuring localhost server address");     	
+    	// log.info("Conjuring localhost server address");     	
     	List<ServerAddress> servers =  Biomine3000Utils.readServersFromConfigFile();
     	for (ServerAddress server: servers) {
     		if  (server.getHost().startsWith(host) && server.getImpl().equals("java")) {

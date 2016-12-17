@@ -21,3 +21,4 @@ config/local-java-abboe+qua-pyabboe.servers.json
 config/qua-pyabboe.servers.json
 SETENV
 dependencies
+abboe.log

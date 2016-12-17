@@ -69,6 +69,50 @@ public class Biomine3000Args extends CmdLineArgs2 {
         return port;
     }
     
+    /** 
+     * opt -peerconnecttimeout, or env var "PEER_CONNECT_TIMEOUT", 
+     * or {@link Biomine3000Constants#DEFAULT_PEER_CONNECT_TIMEOUT}
+     * 
+     * @return timeout in seconds
+     */
+    public Integer getPeerConnectTimeout() {
+        Integer timeout = getInt("peerconnecttimeout");
+        if (timeout == null) {
+        	String timeoutStr = System.getenv(Biomine3000Constants.ENV_VAR_ABBOE_PEER_CONNECT_TIMEOUT);
+        	if (timeoutStr != null) {
+        		timeout = Integer.parseInt(timeoutStr);
+        	}
+        }
+        
+        if (timeout == null) {
+        	timeout = Biomine3000Constants.DEFAULT_PEER_CONNECT_TIMEOUT;
+        }
+
+        return timeout;
+    }
+    
+    /** 
+     * opt -peerconnectretryinterval, or env var "PEER_CONNECT_RETRY_INTERVAL", 
+     * or {@link Biomine3000Constants#DEFAULT_PEER_CONNECT_RETRY_INTERVAL}
+     * 
+     * @return reconnect interval in seconds. Negative value (typically -1) means no retrying.
+     */
+    public Integer getPeerConnectRetryInterval() {
+        Integer interval = getInt("peerconnectretryinterval");
+        if (interval == null) {
+        	String intervalStr = System.getenv(Biomine3000Constants.ENV_VAR_ABBOE_PEER_CONNECT_RETRY_INTERVAL);
+        	if (intervalStr != null) {
+        		interval = Integer.parseInt(intervalStr);
+        	}       
+        }
+        
+        if (interval == null) {
+        	interval = Biomine3000Constants.DEFAULT_PEER_CONNECT_RETRY_INTERVAL;
+        }
+        
+        return interval;
+    }
+    
     /** @return null if host == || port == null */
     public ServerAddress getServerAddress() {
     	String host = getHost();
